@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const asyncHandler_1 = require("../../common/utils/asyncHandler");
+const auth_middleware_1 = require("../../middlewares/auth.middleware");
+const role_middleware_1 = require("../../middlewares/role.middleware");
+const validate_middleware_1 = require("../../middlewares/validate.middleware");
+const gradebook_controller_1 = require("./gradebook.controller");
+const gradebook_schema_1 = require("./gradebook.schema");
+const router = (0, express_1.Router)({ mergeParams: true });
+const controller = new gradebook_controller_1.GradebookController();
+router.use(auth_middleware_1.authMiddleware, (0, role_middleware_1.requireRole)("estudiante"));
+router.get("/my", (0, validate_middleware_1.validate)({ params: gradebook_schema_1.courseIdParamsSchema }), (0, asyncHandler_1.asyncHandler)(controller.myCourse));
+exports.default = router;

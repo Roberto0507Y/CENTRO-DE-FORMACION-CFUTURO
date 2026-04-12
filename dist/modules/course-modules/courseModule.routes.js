@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const asyncHandler_1 = require("../../common/utils/asyncHandler");
+const optionalAuth_middleware_1 = require("../../middlewares/optionalAuth.middleware");
+const validate_middleware_1 = require("../../middlewares/validate.middleware");
+const courseModule_controller_1 = require("./courseModule.controller");
+const courseModule_schema_1 = require("./courseModule.schema");
+const router = (0, express_1.Router)();
+const controller = new courseModule_controller_1.CourseModuleController();
+router.get("/course/:courseId", optionalAuth_middleware_1.optionalAuthMiddleware, (0, validate_middleware_1.validate)({ params: courseModule_schema_1.courseIdParamsSchema }), (0, asyncHandler_1.asyncHandler)(controller.listByCourse));
+exports.default = router;

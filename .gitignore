@@ -2,7 +2,7 @@
 node_modules/
 
 # Build
-dist/
+# Production builds are committed for VPS deploys.
 
 # Env / secrets
 .env

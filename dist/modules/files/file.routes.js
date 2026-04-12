@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const asyncHandler_1 = require("../../common/utils/asyncHandler");
+const auth_middleware_1 = require("../../middlewares/auth.middleware");
+const validate_middleware_1 = require("../../middlewares/validate.middleware");
+const file_controller_1 = require("./file.controller");
+const file_schema_1 = require("./file.schema");
+const router = (0, express_1.Router)();
+const controller = new file_controller_1.FileController();
+router.get("/download/:id", auth_middleware_1.authMiddleware, (0, validate_middleware_1.validate)({ params: file_schema_1.fileIdParamsSchema }), (0, asyncHandler_1.asyncHandler)(controller.download));
+exports.default = router;

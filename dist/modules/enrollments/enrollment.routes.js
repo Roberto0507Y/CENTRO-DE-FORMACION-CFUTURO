@@ -1,0 +1,21 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const asyncHandler_1 = require("../../common/utils/asyncHandler");
+const auth_middleware_1 = require("../../middlewares/auth.middleware");
+const role_middleware_1 = require("../../middlewares/role.middleware");
+const validate_middleware_1 = require("../../middlewares/validate.middleware");
+const enrollment_controller_1 = require("./enrollment.controller");
+const enrollment_schema_1 = require("./enrollment.schema");
+const router = (0, express_1.Router)();
+const controller = new enrollment_controller_1.EnrollmentController();
+router.use(auth_middleware_1.authMiddleware);
+router.post("/free/:courseId", (0, validate_middleware_1.validate)({ params: enrollment_schema_1.courseIdParamsSchema }), (0, asyncHandler_1.asyncHandler)(controller.enrollFree));
+router.post("/paid/:courseId/confirm", (0, validate_middleware_1.validate)({ params: enrollment_schema_1.courseIdParamsSchema }), (0, asyncHandler_1.asyncHandler)(controller.confirmPaid));
+router.get("/my-courses", (0, asyncHandler_1.asyncHandler)(controller.myCourses));
+router.get("/:courseId/check-access", (0, validate_middleware_1.validate)({ params: enrollment_schema_1.courseIdParamsSchema }), (0, asyncHandler_1.asyncHandler)(controller.checkAccess));
+router.get("/course/:courseId/students", (0, role_middleware_1.requireRole)("admin", "docente"), (0, validate_middleware_1.validate)({ params: enrollment_schema_1.courseIdParamsSchema }), (0, asyncHandler_1.asyncHandler)(controller.courseStudents));
+// Temporal: solo admin/docente (en service se valida dueño del curso si es docente)
+router.put("/:id/progress", (0, role_middleware_1.requireRole)("admin", "docente"), (0, validate_middleware_1.validate)({ params: enrollment_schema_1.enrollmentIdParamsSchema, body: enrollment_schema_1.progressBodySchema }), (0, asyncHandler_1.asyncHandler)(controller.updateProgress));
+router.put("/:id/cancel", (0, validate_middleware_1.validate)({ params: enrollment_schema_1.enrollmentIdParamsSchema }), (0, asyncHandler_1.asyncHandler)(controller.cancel));
+exports.default = router;
