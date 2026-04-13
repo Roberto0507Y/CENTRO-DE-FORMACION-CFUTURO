@@ -33,7 +33,7 @@ export function CanvasMobileDrawer({
   }, [brand]);
 
   return (
-    <div className="lg:hidden">
+    <div className="xl:hidden">
       <div
         className={`fixed inset-0 z-40 bg-black/35 transition-opacity ${
           open ? "opacity-100" : "pointer-events-none opacity-0"

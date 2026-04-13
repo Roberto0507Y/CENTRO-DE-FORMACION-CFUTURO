@@ -33,7 +33,7 @@ export function CanvasSidebar({
   }, [brand]);
 
   return (
-    <aside className="hidden w-[17rem] shrink-0 bg-slate-950 text-white lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:h-screen lg:flex-col">
+    <aside className="hidden w-[17rem] shrink-0 bg-slate-950 text-white xl:fixed xl:inset-y-0 xl:left-0 xl:flex xl:h-screen xl:flex-col">
       <div className="px-4 pt-4">
         <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-gradient-to-b from-[#020617] via-[#020617]/85 to-[#0f172a]/75 px-5 py-5 shadow-[0_22px_50px_rgba(2,6,23,0.35)] ring-1 ring-white/5">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(34,211,238,0.18),transparent_34%),radial-gradient(circle_at_82%_92%,rgba(37,99,235,0.18),transparent_36%)]" />

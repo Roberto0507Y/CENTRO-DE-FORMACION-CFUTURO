@@ -80,7 +80,7 @@ function CourseMobileDrawer({
   managementItems: CourseNavItem[];
 }) {
   return (
-    <div className="lg:hidden">
+    <div className="xl:hidden">
       <div
         className={`fixed inset-0 z-40 bg-black/45 backdrop-blur-sm transition-opacity ${
           open ? "opacity-100" : "pointer-events-none opacity-0"
@@ -311,7 +311,7 @@ export function CourseManageLayout({ base }: { base: "admin" | "teacher" | "stud
   );
 
   return (
-    <div className="h-[100dvh] overflow-hidden bg-slate-100 lg:flex dark:bg-slate-950">
+    <div className="min-h-[100dvh] overflow-x-hidden bg-slate-100 xl:flex xl:h-[100dvh] xl:overflow-hidden dark:bg-slate-950">
       <CourseMobileDrawer
         open={mobileMenuOpen}
         onClose={() => setMobileMenuOpen(false)}
@@ -324,7 +324,7 @@ export function CourseManageLayout({ base }: { base: "admin" | "teacher" | "stud
       />
 
       {/* Sidebar propia del curso (reemplaza la antigua) */}
-      <aside className="hidden w-80 shrink-0 bg-slate-950 text-white lg:flex lg:flex-col">
+      <aside className="hidden w-80 shrink-0 bg-slate-950 text-white xl:flex xl:flex-col">
         {/* Header */}
         <div className="px-6 pt-6 pb-4 border-b border-white/10">
           <div className="flex items-center justify-between gap-3">
@@ -421,8 +421,8 @@ export function CourseManageLayout({ base }: { base: "admin" | "teacher" | "stud
       </aside>
 
       {/* Main */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="relative z-20 border-b border-slate-200/70 bg-white/[0.9] px-3 py-3 shadow-[0_18px_50px_-42px_rgba(15,23,42,0.65)] backdrop-blur-xl sm:px-4 lg:hidden dark:border-slate-800/80 dark:bg-slate-950/[0.9]">
+      <div className="flex min-h-[100dvh] min-w-0 flex-1 flex-col xl:min-h-0">
+        <header className="relative z-20 border-b border-slate-200/70 bg-white/[0.9] px-3 py-3 shadow-[0_18px_50px_-42px_rgba(15,23,42,0.65)] backdrop-blur-xl sm:px-4 xl:hidden dark:border-slate-800/80 dark:bg-slate-950/[0.9]">
           <div className="flex items-center justify-between gap-3">
             <button
               type="button"
@@ -452,7 +452,7 @@ export function CourseManageLayout({ base }: { base: "admin" | "teacher" | "stud
             </a>
           </div>
         </header>
-        <main className="cf-admin-dark-scope min-w-0 flex-1 overflow-y-auto bg-[radial-gradient(circle_at_18%_0%,rgba(59,130,246,0.10),transparent_30%),linear-gradient(180deg,rgba(248,250,252,0.96),rgba(241,245,249,1))] dark:bg-[radial-gradient(circle_at_18%_0%,rgba(34,211,238,0.12),transparent_30%),linear-gradient(180deg,rgba(2,6,23,1),rgba(15,23,42,1))]">
+        <main className="cf-admin-dark-scope min-h-0 min-w-0 flex-1 overflow-visible bg-[radial-gradient(circle_at_18%_0%,rgba(59,130,246,0.10),transparent_30%),linear-gradient(180deg,rgba(248,250,252,0.96),rgba(241,245,249,1))] xl:overflow-y-auto dark:bg-[radial-gradient(circle_at_18%_0%,rgba(34,211,238,0.12),transparent_30%),linear-gradient(180deg,rgba(2,6,23,1),rgba(15,23,42,1))]">
           <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6">
             <Outlet context={outletCtx} />
           </div>
