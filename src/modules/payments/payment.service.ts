@@ -91,12 +91,10 @@ export class PaymentService {
     const moneda = "GTQ";
     const metodo = input.metodo_pago ?? "manual";
 
-    const uploaded = await this.storage.uploadBuffer({
+    const uploaded = await this.storage.uploadMulterFile({
       module: "payments",
       keyPrefix: `payments/proofs/user-${requester.userId}/course-${courseId}`,
-      originalName: file.originalname,
-      buffer: file.buffer,
-      mimeType: file.mimetype,
+      file,
       allowed: ALLOWED_PAYMENT_PROOFS,
     });
 

@@ -1,8 +1,15 @@
 import type { PoolConnection, RowDataPacket, ResultSetHeader } from "mysql2/promise";
 import { pool } from "../../config/db";
-import type { AuthUserPublic, AuthUserWithPassword, CreateUserInput, PasswordResetRow } from "./auth.types";
+import type {
+  AuthUserPublic,
+  AuthUserSessionState,
+  AuthUserWithPassword,
+  CreateUserInput,
+  PasswordResetRow,
+} from "./auth.types";
 
 type UserWithPasswordRow = RowDataPacket & AuthUserWithPassword;
+type UserSessionStateRow = RowDataPacket & AuthUserSessionState;
 type UserPublicRow = RowDataPacket & AuthUserPublic;
 type PasswordResetDbRow = RowDataPacket & PasswordResetRow;
 type UserIdLockRow = RowDataPacket & { id: number };
@@ -178,6 +185,46 @@ export class AuthRepository {
       `SELECT
         id, nombres, apellidos, correo, telefono, foto_url, fecha_nacimiento, direccion,
         rol, estado, ultimo_login, created_at, updated_at
+       FROM usuarios
+       WHERE id = ?
+       LIMIT 1`,
+      [id]
+    );
+    return rows[0] ?? null;
+  }
+
+  async findSessionStateById(id: number): Promise<AuthUserSessionState | null> {
+    const schemaMode = await this.resolveSchemaMode();
+    if (schemaMode === "en") {
+      const [rows] = await pool.query<UserSessionStateRow[]>(
+        `SELECT
+          id,
+          password,
+          CASE
+            WHEN role = 'admin' THEN 'admin'
+            WHEN role = 'director' THEN 'admin'
+            WHEN role = 'maestro' THEN 'docente'
+            WHEN role = 'docente' THEN 'docente'
+            WHEN role = 'alumno' THEN 'estudiante'
+            WHEN role = 'estudiante' THEN 'estudiante'
+            ELSE 'estudiante'
+          END AS rol,
+          CASE
+            WHEN status = 'activo' THEN 'activo'
+            WHEN status = 'inactivo' THEN 'inactivo'
+            WHEN status = 'suspendido' THEN 'suspendido'
+            ELSE 'activo'
+          END AS estado
+         FROM users
+         WHERE id = ?
+         LIMIT 1`,
+        [id]
+      );
+      return rows[0] ?? null;
+    }
+
+    const [rows] = await pool.query<UserSessionStateRow[]>(
+      `SELECT id, password, rol, estado
        FROM usuarios
        WHERE id = ?
        LIMIT 1`,

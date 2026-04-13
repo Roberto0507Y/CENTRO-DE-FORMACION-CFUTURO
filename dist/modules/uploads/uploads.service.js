@@ -8,34 +8,28 @@ class UploadsService {
     }
     async uploadCourseImage(requester, file) {
         const keyPrefix = `courses/images/user-${requester.userId}`;
-        return this.storage.uploadBuffer({
+        return this.storage.uploadMulterFile({
             module: "courses",
             keyPrefix,
-            originalName: file.originalname,
-            buffer: file.buffer,
-            mimeType: file.mimetype,
+            file,
             allowed: storage_service_1.ALLOWED_IMAGES,
         });
     }
     async uploadCategoryImage(requester, file) {
         const keyPrefix = `categories/images/user-${requester.userId}`;
-        return this.storage.uploadBuffer({
+        return this.storage.uploadMulterFile({
             module: "categories",
             keyPrefix,
-            originalName: file.originalname,
-            buffer: file.buffer,
-            mimeType: file.mimetype,
+            file,
             allowed: storage_service_1.ALLOWED_IMAGES,
         });
     }
     async uploadAvatar(requester, file) {
         const keyPrefix = `avatars/user-${requester.userId}`;
-        return this.storage.uploadBuffer({
+        return this.storage.uploadMulterFile({
             module: "avatars",
             keyPrefix,
-            originalName: file.originalname,
-            buffer: file.buffer,
-            mimeType: file.mimetype,
+            file,
             allowed: storage_service_1.ALLOWED_IMAGES,
         });
     }

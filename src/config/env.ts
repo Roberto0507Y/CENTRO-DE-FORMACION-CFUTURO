@@ -38,6 +38,11 @@ const envSchema = z.object({
 
   JWT_SECRET: z.string().min(20, "JWT_SECRET debe tener al menos 20 caracteres"),
   JWT_EXPIRES_IN: z.string().min(1, "JWT_EXPIRES_IN es requerido"),
+  CSRF_SECRET: z.preprocess((v) => {
+    if (typeof v !== "string") return v;
+    const trimmed = v.trim();
+    return trimmed.length === 0 ? undefined : trimmed;
+  }, z.string().min(20, "CSRF_SECRET debe tener al menos 20 caracteres").optional()),
 
   // AWS S3 (opcionales: el servidor puede iniciar sin S3, pero los endpoints de upload lo requieren)
   AWS_REGION: optionalStringFromEnv("AWS_REGION"),

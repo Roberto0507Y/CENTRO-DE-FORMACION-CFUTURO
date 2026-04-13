@@ -4,8 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
-const asyncHandler_1 = require("../common/utils/asyncHandler");
-const db_1 = require("../config/db");
+const csrf_middleware_1 = require("../middlewares/csrf.middleware");
 const auth_routes_1 = __importDefault(require("../modules/auth/auth.routes"));
 const admin_routes_1 = __importDefault(require("../modules/admin/admin.routes"));
 const category_routes_1 = __importDefault(require("../modules/categories/category.routes"));
@@ -22,10 +21,7 @@ const task_routes_1 = __importDefault(require("../modules/tasks/task.routes"));
 const uploads_routes_1 = __importDefault(require("../modules/uploads/uploads.routes"));
 const user_routes_1 = __importDefault(require("../modules/users/user.routes"));
 const router = (0, express_1.Router)();
-router.get("/health/db", (0, asyncHandler_1.asyncHandler)(async (_req, res) => {
-    await (0, db_1.pingDb)();
-    res.status(200).json({ ok: true, db: "up" });
-}));
+router.use(csrf_middleware_1.csrfProtection);
 router.use("/auth", auth_routes_1.default);
 router.use("/admin", admin_routes_1.default);
 router.use("/categories", category_routes_1.default);

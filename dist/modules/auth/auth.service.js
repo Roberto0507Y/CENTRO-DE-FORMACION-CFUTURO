@@ -12,6 +12,9 @@ const httpErrors_1 = require("../../common/errors/httpErrors");
 const auth_repository_1 = require("./auth.repository");
 const mailer_service_1 = require("../../common/services/mailer.service");
 const db_1 = require("../../config/db");
+const auth_token_version_1 = require("./auth-token-version");
+const GENERIC_LOGIN_ERROR_MESSAGE = "Credenciales inválidas";
+const DUMMY_PASSWORD_HASH = bcrypt_1.default.hashSync("cfuturo-invalid-login-placeholder", 12);
 class AuthService {
     constructor() {
         this.repo = new auth_repository_1.AuthRepository();
@@ -37,25 +40,28 @@ class AuthService {
         const user = await this.repo.findPublicById(userId);
         if (!user)
             throw new Error("No se pudo crear el usuario");
-        const token = this.signToken(user);
+        const token = this.signToken(user, passwordHash);
         return { token, user };
     }
     async login(input) {
         const correo = input.correo.toLowerCase().trim();
         const user = await this.repo.findByEmail(correo);
-        if (!user)
-            throw (0, httpErrors_1.unauthorized)("Correo o contraseña incorrectos");
-        if (user.estado !== "activo") {
-            throw (0, httpErrors_1.forbidden)("Tu usuario no está activo");
+        const passwordHashToCheck = user?.password ?? DUMMY_PASSWORD_HASH;
+        const valid = await bcrypt_1.default.compare(input.password, passwordHashToCheck);
+        if (!user || !valid || user.estado !== "activo") {
+            this.logLoginFailure(correo, !user ? "user_not_found" : !valid ? "password_mismatch" : "inactive_user", user
+                ? {
+                    userId: user.id,
+                    estado: user.estado,
+                }
+                : undefined);
+            throw (0, httpErrors_1.unauthorized)(GENERIC_LOGIN_ERROR_MESSAGE);
         }
-        const valid = await bcrypt_1.default.compare(input.password, user.password);
-        if (!valid)
-            throw (0, httpErrors_1.unauthorized)("Correo o contraseña incorrectos");
         await this.repo.updateLastLogin(user.id);
         const publicUser = await this.repo.findPublicById(user.id);
         if (!publicUser)
             throw new Error("Usuario no encontrado");
-        const token = this.signToken(publicUser);
+        const token = this.signToken(publicUser, user.password);
         return { token, user: publicUser };
     }
     async me(userId) {
@@ -258,9 +264,14 @@ class AuthService {
         });
         return { ok: true };
     }
-    signToken(user) {
+    signToken(user, passwordHash) {
         const expiresIn = env_1.env.JWT_EXPIRES_IN;
-        return jsonwebtoken_1.default.sign({ sub: String(user.id), role: user.rol }, env_1.env.JWT_SECRET, {
+        const payload = {
+            sub: String(user.id),
+            role: user.rol,
+            pwdv: (0, auth_token_version_1.buildPasswordTokenVersion)(passwordHash),
+        };
+        return jsonwebtoken_1.default.sign(payload, env_1.env.JWT_SECRET, {
             algorithm: "HS256",
             expiresIn,
         });
@@ -272,6 +283,14 @@ class AuthService {
     }
     hashToken(token) {
         return crypto_1.default.createHash("sha256").update(token).digest("hex");
+    }
+    logLoginFailure(correo, reason, extra) {
+        // eslint-disable-next-line no-console
+        console.warn("[auth] Login fallido", {
+            correo,
+            reason,
+            ...extra,
+        });
     }
 }
 exports.AuthService = AuthService;

@@ -157,6 +157,38 @@ class AuthRepository {
        LIMIT 1`, [id]);
         return rows[0] ?? null;
     }
+    async findSessionStateById(id) {
+        const schemaMode = await this.resolveSchemaMode();
+        if (schemaMode === "en") {
+            const [rows] = await db_1.pool.query(`SELECT
+          id,
+          password,
+          CASE
+            WHEN role = 'admin' THEN 'admin'
+            WHEN role = 'director' THEN 'admin'
+            WHEN role = 'maestro' THEN 'docente'
+            WHEN role = 'docente' THEN 'docente'
+            WHEN role = 'alumno' THEN 'estudiante'
+            WHEN role = 'estudiante' THEN 'estudiante'
+            ELSE 'estudiante'
+          END AS rol,
+          CASE
+            WHEN status = 'activo' THEN 'activo'
+            WHEN status = 'inactivo' THEN 'inactivo'
+            WHEN status = 'suspendido' THEN 'suspendido'
+            ELSE 'activo'
+          END AS estado
+         FROM users
+         WHERE id = ?
+         LIMIT 1`, [id]);
+            return rows[0] ?? null;
+        }
+        const [rows] = await db_1.pool.query(`SELECT id, password, rol, estado
+       FROM usuarios
+       WHERE id = ?
+       LIMIT 1`, [id]);
+        return rows[0] ?? null;
+    }
     async createUser(input) {
         const schemaMode = await this.resolveSchemaMode();
         if (schemaMode === "en") {

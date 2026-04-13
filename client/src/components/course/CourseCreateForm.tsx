@@ -49,6 +49,8 @@ type UploadedFileDto = {
   size: number;
 };
 
+const SHORT_DESCRIPTION_MAX = 255;
+
 function toMysqlDatetimeLocal(raw: string): string {
   if (!raw) return raw;
   const v = raw.replace("T", " ");
@@ -318,6 +320,10 @@ export function CourseCreateForm({ api, currentUser, variant, onCreated, hideHea
       if (!ok) errors.slug = "Usa solo minúsculas, números y guiones (ej: programacion-iii).";
     }
 
+    if (form.descripcion_corta.trim().length > SHORT_DESCRIPTION_MAX) {
+      errors.descripcion_corta = `La descripción corta debe tener máximo ${SHORT_DESCRIPTION_MAX} caracteres.`;
+    }
+
     if (form.tipo_acceso === "pago") {
       const precio = Number(form.precio);
       if (!Number.isFinite(precio) || precio <= 0) {
@@ -372,6 +378,7 @@ export function CourseCreateForm({ api, currentUser, variant, onCreated, hideHea
   }, [canPickTeacher, currentUser.id, form, validation.isValid]);
 
   const submitEnabled = payload !== null && !isSubmitting && !isUploadingImage;
+  const shortDescriptionCount = form.descripcion_corta.length;
 
   const uploadImage = async (file: File) => {
     try {
@@ -499,12 +506,17 @@ export function CourseCreateForm({ api, currentUser, variant, onCreated, hideHea
                       />
                     </Field>
 
-                    <Field label="Descripción corta" hint="Opcional">
+                    <Field
+                      label="Descripción corta"
+                      hint={`${shortDescriptionCount}/${SHORT_DESCRIPTION_MAX}`}
+                      error={validation.errors.descripcion_corta ?? null}
+                    >
                       <Input
                         value={form.descripcion_corta}
                         onChange={(e) =>
                           setForm((p) => ({ ...p, descripcion_corta: e.target.value }))
                         }
+                        maxLength={SHORT_DESCRIPTION_MAX}
                         placeholder="Resumen del curso (máx. 255)."
                       />
                     </Field>

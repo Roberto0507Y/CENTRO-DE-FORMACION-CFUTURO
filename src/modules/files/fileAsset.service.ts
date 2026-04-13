@@ -1,14 +1,26 @@
-import { StorageService, type UploadInput } from "../../common/services/storage.service";
+import {
+  StorageService,
+  type UploadInput,
+  type UploadMulterFileInput,
+} from "../../common/services/storage.service";
 import { extractKeyFromPublicUrl } from "../../common/utils/file.util";
 import { getS3Config } from "../../config/s3";
 import { FileRepository } from "./file.repository";
 import type { StoredFileAccessScope } from "./file.types";
 
-export type ManagedUploadInput = UploadInput & {
+type ManagedUploadWithBuffer = UploadInput & {
   ownerUsuarioId?: number | null;
   cursoId?: number | null;
   accessScope: StoredFileAccessScope;
 };
+
+type ManagedUploadWithFile = UploadMulterFileInput & {
+  ownerUsuarioId?: number | null;
+  cursoId?: number | null;
+  accessScope: StoredFileAccessScope;
+};
+
+export type ManagedUploadInput = ManagedUploadWithBuffer | ManagedUploadWithFile;
 
 export type ManagedUploadResult = {
   id: number;
@@ -51,11 +63,15 @@ export class FileAssetService {
   private readonly files = new FileRepository();
 
   async uploadManaged(input: ManagedUploadInput): Promise<ManagedUploadResult> {
-    const uploaded = await this.storage.uploadBuffer(input);
+    const uploaded =
+      "file" in input
+        ? await this.storage.uploadMulterFile(input)
+        : await this.storage.uploadBuffer(input);
+    const originalName = "file" in input ? input.file.originalname : input.originalName;
     try {
       const id = await this.files.create({
         s3_key: uploaded.key,
-        nombre_original: input.originalName,
+        nombre_original: originalName,
         mime_type: uploaded.mimeType,
         size_bytes: uploaded.size,
         owner_usuario_id: input.ownerUsuarioId ?? null,

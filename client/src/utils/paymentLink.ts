@@ -53,6 +53,19 @@ export function normalizePaymentLinkInput(raw: string | null | undefined): strin
   return null;
 }
 
+export function isBiPayCheckoutLink(raw: string | null | undefined): boolean {
+  const normalized = normalizePaymentLinkInput(raw);
+  if (!normalized) return false;
+
+  try {
+    const url = new URL(normalized);
+    const host = url.hostname.toLowerCase();
+    return host === BI_LINK_HOST || host === `www.${BI_LINK_HOST}`;
+  } catch {
+    return false;
+  }
+}
+
 export function getBiPayEmbedUrl(raw: string | null | undefined): string | null {
   const normalized = normalizePaymentLinkInput(raw);
   if (!normalized) return null;
@@ -62,13 +75,6 @@ export function getBiPayEmbedUrl(raw: string | null | undefined): string | null 
     const host = url.hostname.toLowerCase();
     if (host === BI_PAY_HOST && url.pathname.startsWith("/bpayembed/")) {
       return url.toString();
-    }
-    if (host === BI_LINK_HOST || host === `www.${BI_LINK_HOST}`) {
-      const compact = normalized
-        .replace(/^https:\/\//i, "https&")
-        .replace(/^http:\/\//i, "http&")
-        .replace(/\//g, "-");
-      return `https://${BI_PAY_HOST}/bpayembed/${compact}`;
     }
   } catch {
     return null;

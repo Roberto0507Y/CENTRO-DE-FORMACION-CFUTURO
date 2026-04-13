@@ -337,9 +337,7 @@ export class TaskService {
     const uploaded = await this.files.uploadManaged({
       module: "tasks",
       keyPrefix,
-      originalName: file.originalname,
-      buffer: file.buffer,
-      mimeType: file.mimetype,
+      file,
       allowed: ALLOWED_TASK_FILES,
       ownerUsuarioId: requester.userId,
       cursoId: courseId,

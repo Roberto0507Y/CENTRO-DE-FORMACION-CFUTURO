@@ -13,6 +13,8 @@ import { normalizePaymentLinkInput } from "../../utils/paymentLink";
 
 type UploadedFileDto = { url: string; key: string; mimeType: string; size: number };
 
+const SHORT_DESCRIPTION_MAX = 255;
+
 function slugify(input: string): string {
   const normalized = input
     .normalize("NFD")
@@ -109,6 +111,9 @@ export function CourseEditModal({
     const errors: Partial<Record<keyof FormState, string>> = {};
     if (!form.titulo.trim()) errors.titulo = "Título requerido";
     if (!form.slug.trim()) errors.slug = "Slug requerido";
+    if (form.descripcion_corta.trim().length > SHORT_DESCRIPTION_MAX) {
+      errors.descripcion_corta = `La descripción corta debe tener máximo ${SHORT_DESCRIPTION_MAX} caracteres`;
+    }
     if (form.tipo_acceso === "pago") {
       const n = Number(form.precio);
       if (!Number.isFinite(n) || n <= 0) errors.precio = "Precio debe ser mayor a 0";
@@ -116,6 +121,7 @@ export function CourseEditModal({
     }
     return { ok: Object.keys(errors).length === 0, errors };
   }, [form]);
+  const shortDescriptionCount = form.descripcion_corta.length;
 
   useEffect(() => {
     if (!open || !courseId) return;
@@ -273,10 +279,15 @@ export function CourseEditModal({
                       <Input value={form.titulo} onChange={(e) => setForm((p) => ({ ...p, titulo: e.target.value }))} />
                     </Field>
 
-                    <Field label="Descripción corta" hint="Opcional">
+                    <Field
+                      label="Descripción corta"
+                      hint={`${shortDescriptionCount}/${SHORT_DESCRIPTION_MAX}`}
+                      error={validation.errors.descripcion_corta ?? null}
+                    >
                       <Input
                         value={form.descripcion_corta}
                         onChange={(e) => setForm((p) => ({ ...p, descripcion_corta: e.target.value }))}
+                        maxLength={SHORT_DESCRIPTION_MAX}
                         placeholder="Máx. 255"
                       />
                     </Field>

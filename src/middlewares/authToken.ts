@@ -2,25 +2,60 @@ import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { env } from "../config/env";
 import { forbidden, unauthorized } from "../common/errors/httpErrors";
+import type { AuthTokenPayload } from "../common/types/auth";
 import type { AuthContext } from "../common/types/express";
+import { readCookieValue } from "../common/utils/cookies";
 import { AuthRepository } from "../modules/auth/auth.repository";
+import { AUTH_COOKIE_NAME } from "../modules/auth/auth-session";
+import { buildPasswordTokenVersion } from "../modules/auth/auth-token-version";
 
-const payloadSchema = z.object({
+const payloadSchema: z.ZodType<AuthTokenPayload> = z.object({
   sub: z.string().min(1),
+  role: z.enum(["admin", "docente", "estudiante"]),
+  pwdv: z.string().min(1),
 });
 
 const authRepo = new AuthRepository();
 
-export async function resolveAuthContextFromBearer(header?: string): Promise<AuthContext> {
-  if (!header?.startsWith("Bearer ")) {
-    throw unauthorized("Token Bearer requerido");
+function wantsExplicitBearerTransport(authTransport?: string): boolean {
+  const requestedTransport = String(authTransport || "").trim().toLowerCase();
+  return requestedTransport === "bearer" || requestedTransport === "cookie+bearer";
+}
+
+function extractAuthToken(headers: {
+  authorization?: string;
+  cookie?: string;
+  authTransport?: string;
+}): string | null {
+  const cookieToken = readCookieValue(headers.cookie, AUTH_COOKIE_NAME);
+  if (cookieToken) {
+    return cookieToken;
   }
 
-  const token = header.slice("Bearer ".length).trim();
+  if (wantsExplicitBearerTransport(headers.authTransport) && headers.authorization) {
+    if (!headers.authorization.startsWith("Bearer ")) {
+      throw unauthorized("Token Bearer requerido");
+    }
+    return headers.authorization.slice("Bearer ".length).trim() || null;
+  }
+
+  return null;
+}
+
+export async function resolveAuthContext(headers: {
+  authorization?: string;
+  cookie?: string;
+  authTransport?: string;
+}): Promise<AuthContext> {
+  const token = extractAuthToken(headers);
+  if (!token) {
+    throw unauthorized("Token Bearer requerido");
+  }
   let userId: number;
+  let payload: AuthTokenPayload;
   try {
     const decoded = jwt.verify(token, env.JWT_SECRET, { algorithms: ["HS256"] });
-    const payload = payloadSchema.parse(decoded);
+    payload = payloadSchema.parse(decoded);
     userId = Number(payload.sub);
   } catch {
     throw unauthorized("Token inválido o expirado");
@@ -30,13 +65,17 @@ export async function resolveAuthContextFromBearer(header?: string): Promise<Aut
     throw unauthorized("Token inválido");
   }
 
-  const user = await authRepo.findPublicById(userId);
+  const user = await authRepo.findSessionStateById(userId);
   if (!user) {
     throw unauthorized("Usuario no encontrado");
   }
 
   if (user.estado !== "activo") {
     throw forbidden("Tu usuario no está activo");
+  }
+
+  if (buildPasswordTokenVersion(user.password) !== payload.pwdv) {
+    throw unauthorized("Token inválido o expirado");
   }
 
   return { userId: user.id, role: user.rol };

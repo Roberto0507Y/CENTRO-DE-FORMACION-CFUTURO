@@ -76,9 +76,7 @@ class MaterialService {
             const uploaded = await this.files.uploadManaged({
                 module: "materials",
                 keyPrefix: `materials/course-${courseId}${moduloId ? `/module-${moduloId}` : ""}`,
-                originalName: file.originalname,
-                buffer: file.buffer,
-                mimeType: file.mimetype,
+                file,
                 allowed,
                 ownerUsuarioId: requester.userId,
                 cursoId: courseId,
@@ -144,9 +142,7 @@ class MaterialService {
             const uploaded = await this.files.uploadManaged({
                 module: "materials",
                 keyPrefix: `materials/course-${courseId}${moduloId ? `/module-${moduloId}` : ""}`,
-                originalName: file.originalname,
-                buffer: file.buffer,
-                mimeType: file.mimetype,
+                file,
                 allowed,
                 ownerUsuarioId: requester.userId,
                 cursoId: courseId,

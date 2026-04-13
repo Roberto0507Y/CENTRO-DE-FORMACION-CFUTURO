@@ -65,9 +65,7 @@ class AnnouncementService {
             ? (await this.files.uploadManaged({
                 module: "announcements",
                 keyPrefix: `announcements/course-${courseId}/user-${requester.userId}`,
-                originalName: file.originalname,
-                buffer: file.buffer,
-                mimeType: file.mimetype,
+                file,
                 allowed: storage_service_1.ALLOWED_ANNOUNCEMENT_FILES,
                 ownerUsuarioId: requester.userId,
                 cursoId: courseId,
@@ -110,9 +108,7 @@ class AnnouncementService {
             ? (await this.files.uploadManaged({
                 module: "announcements",
                 keyPrefix: `announcements/course-${courseId}/user-${requester.userId}`,
-                originalName: file.originalname,
-                buffer: file.buffer,
-                mimeType: file.mimetype,
+                file,
                 allowed: storage_service_1.ALLOWED_ANNOUNCEMENT_FILES,
                 ownerUsuarioId: requester.userId,
                 cursoId: courseId,

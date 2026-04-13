@@ -9,5 +9,6 @@ const router = (0, express_1.Router)();
 const controller = new admin_controller_1.AdminController();
 router.use(auth_middleware_1.authMiddleware);
 router.use((0, role_middleware_1.requireRole)("admin"));
+router.get("/health/db", (0, asyncHandler_1.asyncHandler)(controller.dbHealth));
 router.get("/metrics", (0, asyncHandler_1.asyncHandler)(controller.metrics));
 exports.default = router;

@@ -14,7 +14,7 @@ import type { PaymentMethod, PaymentStatus } from "../../types/payment";
 import { getApiErrorMessage } from "../../utils/apiError";
 import { downloadPaymentProof } from "../../utils/downloadFile";
 import { formatMoneyGTQ } from "../../utils/format";
-import { getBiPayEmbedUrl, normalizePaymentLinkInput } from "../../utils/paymentLink";
+import { normalizePaymentLinkInput } from "../../utils/paymentLink";
 
 type MyCoursePayment = {
   payment: {
@@ -288,7 +288,6 @@ export function CourseDetailPage() {
   const isPaid = course.tipo_acceso === "pago";
   const priceLabel = course.tipo_acceso === "gratis" ? "Gratis" : formatMoneyGTQ(course.precio);
   const safePaymentLink = normalizePaymentLinkInput(course.payment_link);
-  const biPayEmbedUrl = getBiPayEmbedUrl(course.payment_link);
   const needsPaymentSession = isPaid && !token;
   const authRedirect = encodeURIComponent(`/courses/${course.slug}`);
   const paymentLoginPath = `/auth/login?redirect=${authRedirect}`;
@@ -556,7 +555,7 @@ export function CourseDetailPage() {
                   {isPaid
                     ? needsPaymentSession
                       ? "Inicia sesión o crea una cuenta antes de pagar para asociar la transacción a tu curso."
-                      : biPayEmbedUrl
+                      : safePaymentLink
                         ? "Usa el botón de BI Pay, descarga tu voucher y súbelo abajo como comprobante."
                         : "Paga fuera de la plataforma, guarda tu voucher y súbelo como comprobante."
                     : "Inscripción inmediata."}
@@ -607,7 +606,7 @@ export function CourseDetailPage() {
                     </Link>
                   </div>
                 </div>
-              ) : biPayEmbedUrl ? (
+              ) : safePaymentLink ? (
                 <div className="grid gap-3">
                   <BiPayEmbed paymentLink={course.payment_link} />
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-300">

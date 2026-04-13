@@ -23,7 +23,18 @@ export type UserListResponse = {
   offset: number;
 };
 
-export type LoginResponse = {
-  token: string;
+export type WebAuthSession = {
+  authenticated: true;
+  transport: "cookie";
+  csrfToken: string;
+};
+
+export type WebAuthResponse = {
   user: User;
+  session: WebAuthSession;
+};
+
+export type BearerAuthResponse = {
+  user: User;
+  token: string;
 };

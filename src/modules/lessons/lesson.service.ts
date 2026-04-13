@@ -234,9 +234,7 @@ export class LessonService {
         const uploaded = await this.files.uploadManaged({
           module: "lessons",
           keyPrefix: `lessons/course-${input.cursoId}/module-${input.moduloId}`,
-          originalName: input.file.originalname,
-          buffer: input.file.buffer,
-          mimeType: input.file.mimetype,
+          file: input.file,
           allowed: ALLOWED_VIDEOS,
           ownerUsuarioId: input.ownerUsuarioId,
           cursoId: input.cursoId,
@@ -253,9 +251,7 @@ export class LessonService {
         const uploaded = await this.files.uploadManaged({
           module: "lessons",
           keyPrefix: `lessons/course-${input.cursoId}/module-${input.moduloId}`,
-          originalName: input.file.originalname,
-          buffer: input.file.buffer,
-          mimeType: input.file.mimetype,
+          file: input.file,
           allowed: ALLOWED_PDFS,
           ownerUsuarioId: input.ownerUsuarioId,
           cursoId: input.cursoId,

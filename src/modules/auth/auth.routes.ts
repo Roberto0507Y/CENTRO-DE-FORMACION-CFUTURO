@@ -32,6 +32,7 @@ const authRegisterRateLimit = rateLimit({
   message: "Demasiadas cuentas creadas desde este origen. Intenta nuevamente más tarde.",
 });
 
+router.get("/csrf", asyncHandler(controller.csrf));
 router.post(
   "/register",
   authRegisterRateLimit,
@@ -44,6 +45,7 @@ router.post(
   validate({ body: loginBodySchema }),
   asyncHandler(controller.login)
 );
+router.post("/logout", asyncHandler(controller.logout));
 router.get("/me", authMiddleware, asyncHandler(controller.me));
 
 router.post(

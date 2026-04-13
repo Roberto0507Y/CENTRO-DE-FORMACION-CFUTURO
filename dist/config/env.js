@@ -39,6 +39,12 @@ const envSchema = zod_1.z.object({
     DB_NAME: zod_1.z.string().min(1, "DB_NAME es requerido"),
     JWT_SECRET: zod_1.z.string().min(20, "JWT_SECRET debe tener al menos 20 caracteres"),
     JWT_EXPIRES_IN: zod_1.z.string().min(1, "JWT_EXPIRES_IN es requerido"),
+    CSRF_SECRET: zod_1.z.preprocess((v) => {
+        if (typeof v !== "string")
+            return v;
+        const trimmed = v.trim();
+        return trimmed.length === 0 ? undefined : trimmed;
+    }, zod_1.z.string().min(20, "CSRF_SECRET debe tener al menos 20 caracteres").optional()),
     // AWS S3 (opcionales: el servidor puede iniciar sin S3, pero los endpoints de upload lo requieren)
     AWS_REGION: optionalStringFromEnv("AWS_REGION"),
     AWS_ACCESS_KEY_ID: optionalStringFromEnv("AWS_ACCESS_KEY_ID"),

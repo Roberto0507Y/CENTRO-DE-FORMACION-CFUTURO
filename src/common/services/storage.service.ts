@@ -1,3 +1,4 @@
+import fs from "fs";
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "crypto";
@@ -17,6 +18,10 @@ export type UploadInput = {
   allowed: AllowedFileConfig;
 };
 
+export type UploadMulterFileInput = Omit<UploadInput, "originalName" | "buffer" | "mimeType"> & {
+  file: Express.Multer.File;
+};
+
 export type DownloadSignedUrlInput = {
   key: string;
   originalName: string;
@@ -32,6 +37,20 @@ export type DownloadStreamResult = {
 };
 
 const DEFAULT_DOWNLOAD_EXPIRES_IN_SECONDS = 5 * 60;
+
+type UploadMetadata = {
+  originalName: string;
+  mimeType: string;
+  size: number;
+  allowed: AllowedFileConfig;
+};
+
+type PutObjectInput = {
+  key: string;
+  body: Buffer | Readable;
+  mimeType: string;
+  contentLength: number;
+};
 
 function inferContentTypeFromFilename(filename: string): string {
   const ext = path.extname(filename || "").toLowerCase();
@@ -69,6 +88,31 @@ function buildAttachmentContentDisposition(originalName: string): string {
   return `attachment; filename="${fallbackName}"; filename*=UTF-8''${encodedName}`;
 }
 
+function validateUploadMetadata(input: UploadMetadata): void {
+  if (!Number.isFinite(input.size) || input.size <= 0) {
+    throw badRequest("Archivo inválido o vacío");
+  }
+  if (input.size > input.allowed.maxSizeBytes) {
+    throw badRequest("Archivo demasiado grande");
+  }
+  if (!input.allowed.allowedMimeTypes.includes(input.mimeType)) {
+    throw badRequest("Tipo de archivo no permitido");
+  }
+  if (input.allowed.allowedExtensions?.length) {
+    const ext = path.extname(input.originalName || "").toLowerCase();
+    if (!ext || !input.allowed.allowedExtensions.includes(ext)) {
+      throw badRequest("Extensión de archivo no permitida");
+    }
+  }
+}
+
+function buildObjectKey(keyPrefix: string, originalName: string): string {
+  const safeName = sanitizeFilename(originalName);
+  const ts = Date.now();
+  const rand = crypto.randomUUID();
+  return `${keyPrefix}/${ts}-${rand}-${safeName}`.replace(/\/+/g, "/");
+}
+
 export async function generateS3DownloadSignedUrl(input: DownloadSignedUrlInput): Promise<string> {
   const cfg = getS3Config();
   const s3 = getS3Client();
@@ -92,45 +136,72 @@ export async function generateS3DownloadSignedUrl(input: DownloadSignedUrlInput)
 
 export class StorageService {
   async uploadBuffer(input: UploadInput): Promise<UploadedFile> {
-    if (input.buffer.length > input.allowed.maxSizeBytes) {
-      throw badRequest("Archivo demasiado grande");
-    }
-    if (!input.allowed.allowedMimeTypes.includes(input.mimeType)) {
-      throw badRequest("Tipo de archivo no permitido");
-    }
-    if (input.allowed.allowedExtensions?.length) {
-      const ext = path.extname(input.originalName || "").toLowerCase();
-      if (!ext || !input.allowed.allowedExtensions.includes(ext)) {
-        throw badRequest("Extensión de archivo no permitida");
-      }
-    }
+    validateUploadMetadata({
+      originalName: input.originalName,
+      mimeType: input.mimeType,
+      size: input.buffer.length,
+      allowed: input.allowed,
+    });
 
-    const cfg = getS3Config();
-    const s3 = getS3Client();
-
-    const safeName = sanitizeFilename(input.originalName);
-    const ts = Date.now();
-    const rand = crypto.randomUUID();
-    const key = `${input.keyPrefix}/${ts}-${rand}-${safeName}`.replace(/\/+/g, "/");
+    const key = buildObjectKey(input.keyPrefix, input.originalName);
+    const baseUrl = getS3Config().baseUrl;
 
     try {
-      await s3.send(
-        new PutObjectCommand({
-          Bucket: cfg.bucket,
-          Key: key,
-          Body: input.buffer,
-          ContentType: input.mimeType,
-        })
-      );
+      await this.putObject({
+        key,
+        body: input.buffer,
+        mimeType: input.mimeType,
+        contentLength: input.buffer.length,
+      });
     } catch {
       throw serviceUnavailable("No se pudo subir el archivo. Intenta más tarde.");
     }
 
     return {
       key,
-      url: buildPublicUrl(cfg.baseUrl, key),
+      url: buildPublicUrl(baseUrl, key),
       mimeType: input.mimeType,
       size: input.buffer.length,
+    };
+  }
+
+  async uploadMulterFile(input: UploadMulterFileInput): Promise<UploadedFile> {
+    const { file } = input;
+    const size = Number(file.size ?? file.buffer?.length ?? 0);
+    validateUploadMetadata({
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+      size,
+      allowed: input.allowed,
+    });
+
+    const key = buildObjectKey(input.keyPrefix, file.originalname);
+    const baseUrl = getS3Config().baseUrl;
+    const body =
+      typeof file.path === "string" && file.path.length > 0 ? fs.createReadStream(file.path) : file.buffer;
+
+    if (!body) {
+      throw badRequest("Archivo inválido");
+    }
+
+    try {
+      await this.putObject({
+        key,
+        body,
+        mimeType: file.mimetype,
+        contentLength: size,
+      });
+    } catch {
+      throw serviceUnavailable("No se pudo subir el archivo. Intenta más tarde.");
+    } finally {
+      await this.cleanupTempFile(file.path);
+    }
+
+    return {
+      key,
+      url: buildPublicUrl(baseUrl, key),
+      mimeType: file.mimetype,
+      size,
     };
   }
 
@@ -175,6 +246,33 @@ export class StorageService {
       throw serviceUnavailable("No se pudo descargar el archivo. Intenta más tarde.");
     }
   }
+
+  private async putObject(input: PutObjectInput): Promise<void> {
+    const cfg = getS3Config();
+    const s3 = getS3Client();
+
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: cfg.bucket,
+        Key: input.key,
+        Body: input.body,
+        ContentType: input.mimeType,
+        ContentLength: input.contentLength,
+      })
+    );
+  }
+
+  private async cleanupTempFile(filePath?: string): Promise<void> {
+    if (!filePath) return;
+    try {
+      await fs.promises.unlink(filePath);
+    } catch (err) {
+      const fsErr = err as NodeJS.ErrnoException;
+      if (fsErr.code !== "ENOENT") {
+        console.warn("[storage] No se pudo eliminar archivo temporal", fsErr);
+      }
+    }
+  }
 }
 
 const dedupe = (items: string[]) => Array.from(new Set(items));
@@ -191,7 +289,7 @@ export const ALLOWED_PDFS: AllowedFileConfig = {
 };
 
 export const ALLOWED_VIDEOS: AllowedFileConfig = {
-  maxSizeBytes: 50 * 1024 * 1024,
+  maxSizeBytes: 25 * 1024 * 1024,
   allowedMimeTypes: ["video/mp4", "video/webm", "video/quicktime"],
   allowedExtensions: VIDEO_EXTENSIONS,
 };
@@ -220,7 +318,7 @@ export const ALLOWED_ANNOUNCEMENT_FILES: AllowedFileConfig = {
 };
 
 export const ALLOWED_TASK_FILES: AllowedFileConfig = {
-  maxSizeBytes: 50 * 1024 * 1024,
+  maxSizeBytes: 20 * 1024 * 1024,
   allowedMimeTypes: [
     "application/pdf",
     "image/jpeg",
@@ -241,7 +339,7 @@ export const ALLOWED_TASK_FILES: AllowedFileConfig = {
 
 // Materiales: incluye archivos comunes + PDF + imagen + video (para recursos del curso)
 export const ALLOWED_MATERIAL_FILES: AllowedFileConfig = {
-  maxSizeBytes: 50 * 1024 * 1024,
+  maxSizeBytes: 25 * 1024 * 1024,
   allowedMimeTypes: dedupe([
     ...ALLOWED_TASK_FILES.allowedMimeTypes,
     ...ALLOWED_IMAGES.allowedMimeTypes,

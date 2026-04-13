@@ -27,8 +27,10 @@ const authRegisterRateLimit = (0, rateLimit_middleware_1.rateLimit)({
     keyPrefix: "auth:register",
     message: "Demasiadas cuentas creadas desde este origen. Intenta nuevamente más tarde.",
 });
+router.get("/csrf", (0, asyncHandler_1.asyncHandler)(controller.csrf));
 router.post("/register", authRegisterRateLimit, (0, validate_middleware_1.validate)({ body: auth_schema_1.registerBodySchema }), (0, asyncHandler_1.asyncHandler)(controller.register));
 router.post("/login", authLoginRateLimit, (0, validate_middleware_1.validate)({ body: auth_schema_1.loginBodySchema }), (0, asyncHandler_1.asyncHandler)(controller.login));
+router.post("/logout", (0, asyncHandler_1.asyncHandler)(controller.logout));
 router.get("/me", auth_middleware_1.authMiddleware, (0, asyncHandler_1.asyncHandler)(controller.me));
 router.post("/forgot-password", authRecoveryRateLimit, (0, validate_middleware_1.validate)({ body: auth_schema_1.forgotPasswordBodySchema }), (0, asyncHandler_1.asyncHandler)(controller.forgotPassword));
 router.post("/reset-password", authRecoveryRateLimit, (0, validate_middleware_1.validate)({ body: auth_schema_1.resetPasswordBodySchema }), (0, asyncHandler_1.asyncHandler)(controller.resetPassword));

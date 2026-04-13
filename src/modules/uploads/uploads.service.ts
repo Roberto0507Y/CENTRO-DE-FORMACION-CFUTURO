@@ -7,36 +7,30 @@ export class UploadsService {
 
   async uploadCourseImage(requester: AuthContext, file: Express.Multer.File): Promise<UploadedFile> {
     const keyPrefix = `courses/images/user-${requester.userId}`;
-    return this.storage.uploadBuffer({
+    return this.storage.uploadMulterFile({
       module: "courses",
       keyPrefix,
-      originalName: file.originalname,
-      buffer: file.buffer,
-      mimeType: file.mimetype,
+      file,
       allowed: ALLOWED_IMAGES,
     });
   }
 
   async uploadCategoryImage(requester: AuthContext, file: Express.Multer.File): Promise<UploadedFile> {
     const keyPrefix = `categories/images/user-${requester.userId}`;
-    return this.storage.uploadBuffer({
+    return this.storage.uploadMulterFile({
       module: "categories",
       keyPrefix,
-      originalName: file.originalname,
-      buffer: file.buffer,
-      mimeType: file.mimetype,
+      file,
       allowed: ALLOWED_IMAGES,
     });
   }
 
   async uploadAvatar(requester: AuthContext, file: Express.Multer.File): Promise<UploadedFile> {
     const keyPrefix = `avatars/user-${requester.userId}`;
-    return this.storage.uploadBuffer({
+    return this.storage.uploadMulterFile({
       module: "avatars",
       keyPrefix,
-      originalName: file.originalname,
-      buffer: file.buffer,
-      mimeType: file.mimetype,
+      file,
       allowed: ALLOWED_IMAGES,
     });
   }

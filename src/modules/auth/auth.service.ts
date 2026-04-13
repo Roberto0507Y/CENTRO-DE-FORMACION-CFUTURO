@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import { env } from "../../config/env";
-import { badRequest, conflict, forbidden, unauthorized } from "../../common/errors/httpErrors";
+import { badRequest, conflict, unauthorized } from "../../common/errors/httpErrors";
 import { AuthRepository } from "./auth.repository";
 import type {
   AuthLoginInput,
@@ -14,6 +14,11 @@ import type {
 } from "./auth.types";
 import { sendMail } from "../../common/services/mailer.service";
 import { withTransaction } from "../../config/db";
+import type { AuthTokenPayload } from "../../common/types/auth";
+import { buildPasswordTokenVersion } from "./auth-token-version";
+
+const GENERIC_LOGIN_ERROR_MESSAGE = "Credenciales inválidas";
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync("cfuturo-invalid-login-placeholder", 12);
 
 export class AuthService {
   private readonly repo = new AuthRepository();
@@ -41,27 +46,35 @@ export class AuthService {
     const user = await this.repo.findPublicById(userId);
     if (!user) throw new Error("No se pudo crear el usuario");
 
-    const token = this.signToken(user);
+    const token = this.signToken(user, passwordHash);
     return { token, user };
   }
 
   async login(input: AuthLoginInput): Promise<AuthResult> {
     const correo = input.correo.toLowerCase().trim();
     const user = await this.repo.findByEmail(correo);
-    if (!user) throw unauthorized("Correo o contraseña incorrectos");
+    const passwordHashToCheck = user?.password ?? DUMMY_PASSWORD_HASH;
+    const valid = await bcrypt.compare(input.password, passwordHashToCheck);
 
-    if (user.estado !== "activo") {
-      throw forbidden("Tu usuario no está activo");
+    if (!user || !valid || user.estado !== "activo") {
+      this.logLoginFailure(
+        correo,
+        !user ? "user_not_found" : !valid ? "password_mismatch" : "inactive_user",
+        user
+          ? {
+              userId: user.id,
+              estado: user.estado,
+            }
+          : undefined
+      );
+      throw unauthorized(GENERIC_LOGIN_ERROR_MESSAGE);
     }
-
-    const valid = await bcrypt.compare(input.password, user.password);
-    if (!valid) throw unauthorized("Correo o contraseña incorrectos");
 
     await this.repo.updateLastLogin(user.id);
     const publicUser = await this.repo.findPublicById(user.id);
     if (!publicUser) throw new Error("Usuario no encontrado");
 
-    const token = this.signToken(publicUser);
+    const token = this.signToken(publicUser, user.password);
     return { token, user: publicUser };
   }
 
@@ -277,9 +290,14 @@ export class AuthService {
     return { ok: true };
   }
 
-  private signToken(user: AuthUserPublic): string {
+  private signToken(user: Pick<AuthUserPublic, "id" | "rol">, passwordHash: string): string {
     const expiresIn = env.JWT_EXPIRES_IN as SignOptions["expiresIn"];
-    return jwt.sign({ sub: String(user.id), role: user.rol }, env.JWT_SECRET, {
+    const payload: AuthTokenPayload = {
+      sub: String(user.id),
+      role: user.rol,
+      pwdv: buildPasswordTokenVersion(passwordHash),
+    };
+    return jwt.sign(payload, env.JWT_SECRET, {
       algorithm: "HS256",
       expiresIn,
     });
@@ -293,6 +311,19 @@ export class AuthService {
 
   private hashToken(token: string): string {
     return crypto.createHash("sha256").update(token).digest("hex");
+  }
+
+  private logLoginFailure(
+    correo: string,
+    reason: "user_not_found" | "password_mismatch" | "inactive_user",
+    extra?: Record<string, unknown>
+  ): void {
+    // eslint-disable-next-line no-console
+    console.warn("[auth] Login fallido", {
+      correo,
+      reason,
+      ...extra,
+    });
   }
 }
 

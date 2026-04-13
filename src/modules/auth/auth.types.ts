@@ -33,10 +33,27 @@ export type AuthUserPublic = {
 };
 
 export type AuthUserWithPassword = AuthUserPublic & { password: string };
+export type AuthUserSessionState = Pick<AuthUserWithPassword, "id" | "password" | "rol" | "estado">;
 
 export type AuthResult = {
   token: string;
   user: AuthUserPublic;
+};
+
+export type WebAuthSession = {
+  authenticated: true;
+  transport: "cookie";
+  csrfToken: string;
+};
+
+export type WebAuthResponse = {
+  user: AuthUserPublic;
+  session: WebAuthSession;
+};
+
+export type BearerAuthResponse = {
+  user: AuthUserPublic;
+  token: string;
 };
 
 export type ForgotPasswordInput = {

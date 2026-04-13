@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { normalizePaymentLinkValue } from "../../common/utils/paymentLink";
 
+const SHORT_DESCRIPTION_MAX = 255;
+
 const idFromParam = z.preprocess((v) => Number(v), z.number().int().positive());
 const nullableHttpUrl = (fieldName: string, max: number) =>
   z.preprocess((v) => normalizePaymentLinkValue(v), z.string()
@@ -38,7 +40,11 @@ export const createCourseBodySchema = z
     docente_id: z.number().int().positive().optional(),
     titulo: z.string().min(1).max(150),
     slug: z.string().min(1).max(180).optional(),
-    descripcion_corta: z.string().max(255).nullable().optional(),
+    descripcion_corta: z
+      .string()
+      .max(SHORT_DESCRIPTION_MAX, `Debe tener máximo ${SHORT_DESCRIPTION_MAX} caracteres.`)
+      .nullable()
+      .optional(),
     descripcion: z.string().nullable().optional(),
     imagen_url: z.string().max(255).nullable().optional(),
     video_intro_url: z.string().max(255).nullable().optional(),
@@ -60,7 +66,11 @@ export const updateCourseBodySchema = z
     docente_id: z.number().int().positive().optional(),
     titulo: z.string().min(1).max(150).optional(),
     slug: z.string().min(1).max(180).optional(),
-    descripcion_corta: z.string().max(255).nullable().optional(),
+    descripcion_corta: z
+      .string()
+      .max(SHORT_DESCRIPTION_MAX, `Debe tener máximo ${SHORT_DESCRIPTION_MAX} caracteres.`)
+      .nullable()
+      .optional(),
     descripcion: z.string().nullable().optional(),
     imagen_url: z.string().max(255).nullable().optional(),
     video_intro_url: z.string().max(255).nullable().optional(),

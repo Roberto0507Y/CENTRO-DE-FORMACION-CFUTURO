@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.teachingListQuerySchema = exports.updateCourseBodySchema = exports.createCourseBodySchema = exports.courseListQuerySchema = exports.courseSlugParamsSchema = exports.courseIdParamsSchema = void 0;
 const zod_1 = require("zod");
 const paymentLink_1 = require("../../common/utils/paymentLink");
+const SHORT_DESCRIPTION_MAX = 255;
 const idFromParam = zod_1.z.preprocess((v) => Number(v), zod_1.z.number().int().positive());
 const nullableHttpUrl = (fieldName, max) => zod_1.z.preprocess((v) => (0, paymentLink_1.normalizePaymentLinkValue)(v), zod_1.z.string()
     .url(`${fieldName} inválido`)
@@ -35,7 +36,11 @@ exports.createCourseBodySchema = zod_1.z
     docente_id: zod_1.z.number().int().positive().optional(),
     titulo: zod_1.z.string().min(1).max(150),
     slug: zod_1.z.string().min(1).max(180).optional(),
-    descripcion_corta: zod_1.z.string().max(255).nullable().optional(),
+    descripcion_corta: zod_1.z
+        .string()
+        .max(SHORT_DESCRIPTION_MAX, `Debe tener máximo ${SHORT_DESCRIPTION_MAX} caracteres.`)
+        .nullable()
+        .optional(),
     descripcion: zod_1.z.string().nullable().optional(),
     imagen_url: zod_1.z.string().max(255).nullable().optional(),
     video_intro_url: zod_1.z.string().max(255).nullable().optional(),
@@ -56,7 +61,11 @@ exports.updateCourseBodySchema = zod_1.z
     docente_id: zod_1.z.number().int().positive().optional(),
     titulo: zod_1.z.string().min(1).max(150).optional(),
     slug: zod_1.z.string().min(1).max(180).optional(),
-    descripcion_corta: zod_1.z.string().max(255).nullable().optional(),
+    descripcion_corta: zod_1.z
+        .string()
+        .max(SHORT_DESCRIPTION_MAX, `Debe tener máximo ${SHORT_DESCRIPTION_MAX} caracteres.`)
+        .nullable()
+        .optional(),
     descripcion: zod_1.z.string().nullable().optional(),
     imagen_url: zod_1.z.string().max(255).nullable().optional(),
     video_intro_url: zod_1.z.string().max(255).nullable().optional(),

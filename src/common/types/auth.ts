@@ -4,4 +4,5 @@ export type UserStatus = "activo" | "inactivo" | "suspendido";
 export type AuthTokenPayload = {
   sub: string; // user id
   role: UserRole;
+  pwdv: string;
 };
