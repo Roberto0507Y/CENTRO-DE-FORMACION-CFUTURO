@@ -13,7 +13,7 @@ export function Button({
   size?: Size;
 }) {
   const base =
-    "inline-flex items-center justify-center rounded-2xl font-semibold transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white disabled:cursor-not-allowed disabled:opacity-60 dark:focus:ring-offset-slate-950";
+    "inline-flex max-w-full items-center justify-center rounded-2xl text-center font-semibold leading-tight transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white disabled:cursor-not-allowed disabled:opacity-60 dark:focus:ring-offset-slate-950";
   const sizes = size === "sm" ? "px-3.5 py-2 text-sm" : "px-4.5 py-2.5 text-sm";
   const styles =
     variant === "primary"

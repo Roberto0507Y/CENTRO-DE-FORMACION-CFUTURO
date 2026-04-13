@@ -21,14 +21,14 @@ export function PublicFooter() {
               <img
                 src="/logo-horizontal.png"
                 alt="C.FUTURO"
-                className="h-10 w-auto select-none object-contain transition will-change-transform group-hover:drop-shadow-[0_0_18px_rgba(34,211,238,0.55)] md:h-12"
+                className="h-24 w-auto select-none object-contain transition will-change-transform group-hover:drop-shadow-[0_0_18px_rgba(34,211,238,0.55)] md:h-[4.75rem]"
                 draggable={false}
               />
             </Link>
 
             <p className="mt-6 max-w-md text-lg leading-8 text-slate-300">
-              Plataforma educativa moderna para aprender y enseñar con claridad, estructura y una
-              experiencia fluida.
+              C.FUTURO acompaña tu formación con una experiencia académica clara, cercana y
+              orientada al progreso real en cada etapa del aprendizaje.
             </p>
 
             <div className="mt-8 flex items-center gap-3">
@@ -95,7 +95,7 @@ export function PublicFooter() {
                     href={item.href}
                     target="_blank"
                     rel="noreferrer"
-                    className="group flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-300 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/40 hover:bg-cyan-400/10 hover:text-white"
+                    className="group flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-300 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/40 hover:bg-cyan-400/10 hover:text-white hover:shadow-[0_12px_24px_rgba(34,211,238,0.12)]"
                     aria-label={item.label}
                   >
                     <span className="transition-transform duration-300 group-hover:scale-110">
@@ -109,20 +109,21 @@ export function PublicFooter() {
 
           <div>
             <h3 className="text-sm font-extrabold uppercase tracking-[0.2em] text-slate-400">
-              Enlaces
+              Navegación
             </h3>
 
             <ul className="mt-6 space-y-4">
               {[
                 { label: "Inicio", to: "/" },
-                { label: "Cursos", to: "/courses" },
+                { label: "Explorar cursos", to: "/courses" },
+                { label: "Contacto", to: "/contact" },
                 { label: "Ingresar", to: "/auth/login" },
                 { label: "Crear cuenta", to: "/auth/register" },
               ].map((item) => (
                 <li key={item.to}>
                   <Link
                     to={item.to}
-                    className="inline-flex text-lg text-slate-200 transition-all duration-200 hover:translate-x-1 hover:text-cyan-400"
+                    className="inline-flex text-lg text-slate-200 transition-all duration-200 hover:translate-x-1 hover:text-cyan-300 hover:drop-shadow-[0_0_12px_rgba(34,211,238,0.18)]"
                   >
                     {item.label}
                   </Link>
@@ -133,23 +134,23 @@ export function PublicFooter() {
 
           <div>
             <h3 className="text-sm font-extrabold uppercase tracking-[0.2em] text-slate-400">
-              Plataforma
+              Herramientas
             </h3>
 
             <ul className="mt-6 space-y-5">
               <li className="flex items-start gap-3">
                 <span className="mt-2 h-3 w-3 rounded-full bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.8)]" />
-                <span className="text-lg text-slate-200">Cursos y módulos</span>
+                <span className="text-lg text-slate-200">Rutas de aprendizaje estructuradas</span>
               </li>
 
               <li className="flex items-start gap-3">
                 <span className="mt-2 h-3 w-3 rounded-full bg-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.7)]" />
-                <span className="text-lg text-slate-200">Lecciones y recursos</span>
+                <span className="text-lg text-slate-200">Recursos y contenidos en un solo lugar</span>
               </li>
 
               <li className="flex items-start gap-3">
                 <span className="mt-2 h-3 w-3 rounded-full bg-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.7)]" />
-                <span className="text-lg text-slate-200">Calendario y actividades</span>
+                <span className="text-lg text-slate-200">Seguimiento académico y actividades</span>
               </li>
             </ul>
           </div>
@@ -162,13 +163,13 @@ export function PublicFooter() {
           <p>© 2026 C.FUTURO. Todos los derechos reservados.</p>
 
           <div className="flex flex-wrap items-center gap-6">
-            <a href="#" className="transition hover:text-white">
+            <a href="#" className="transition duration-200 hover:text-cyan-300">
               Privacidad
             </a>
-            <a href="#" className="transition hover:text-white">
+            <a href="#" className="transition duration-200 hover:text-cyan-300">
               Términos
             </a>
-            <Link to="/contact" className="transition hover:text-white">
+            <Link to="/contact" className="transition duration-200 hover:text-cyan-300">
               Contacto
             </Link>
           </div>

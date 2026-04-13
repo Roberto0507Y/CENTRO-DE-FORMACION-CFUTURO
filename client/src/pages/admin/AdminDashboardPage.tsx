@@ -117,9 +117,9 @@ export function AdminDashboardPage() {
         title={greeting}
         subtitle="Gestiona usuarios, cursos y configuraciones del campus."
         right={
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto md:justify-end">
             <Link to="/admin/users">
-              <Button variant="secondary" className="gap-2">
+              <Button variant="secondary" className="w-full gap-2 sm:w-auto">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path
                     d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"
@@ -137,7 +137,7 @@ export function AdminDashboardPage() {
               </Button>
             </Link>
             <Link to="/admin/courses">
-              <Button className="gap-2">
+              <Button className="w-full gap-2 sm:w-auto">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path
                     d="M3 6l9-4 9 4-9 4-9-4Zm0 6l9 4 9-4"
@@ -204,7 +204,7 @@ export function AdminDashboardPage() {
             </svg>
           }
           right={
-            <span className="text-xs font-bold text-slate-500">rev: {checkedLabel}</span>
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">rev: {checkedLabel}</span>
           }
         />
       </div>
@@ -212,11 +212,11 @@ export function AdminDashboardPage() {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <section className="min-w-0 space-y-6">
           <Card className="overflow-hidden">
-            <div className="border-b border-slate-200 bg-white px-6 py-5">
+            <div className="border-b border-slate-200 bg-white px-6 py-5 dark:border-slate-800 dark:bg-slate-900/85">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <div className="text-sm font-black text-slate-900">Sesión</div>
-                  <div className="mt-1 text-sm text-slate-600">
+                  <div className="text-sm font-black text-slate-900 dark:text-white">Sesión</div>
+                  <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                     Información del usuario autenticado.
                   </div>
                 </div>
@@ -243,16 +243,18 @@ export function AdminDashboardPage() {
                   name={`${user?.nombres ?? ""} ${user?.apellidos ?? ""}`.trim() || "Admin"}
                   src={user?.foto_url}
                   size={56}
+                  fit="contain"
+                  className="bg-white dark:bg-slate-950"
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-base font-black text-slate-900">
+                  <div className="truncate text-base font-black text-slate-900 dark:text-white">
                     {user?.nombres} {user?.apellidos}
                   </div>
-                  <div className="mt-1 truncate text-sm text-slate-600">{user?.correo}</div>
+                  <div className="mt-1 truncate text-sm text-slate-600 dark:text-slate-300">{user?.correo}</div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Badge variant={roleVariant}>{role}</Badge>
                     <Badge variant={stateVariant}>{user?.estado ?? "—"}</Badge>
-                    <span className="text-xs font-bold text-slate-500">ID #{user?.id ?? "—"}</span>
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">ID #{user?.id ?? "—"}</span>
                   </div>
                 </div>
               </div>
@@ -260,9 +262,9 @@ export function AdminDashboardPage() {
           </Card>
 
           <Card className="overflow-hidden">
-            <div className="border-b border-slate-200 bg-white px-6 py-5">
-              <div className="text-sm font-black text-slate-900">Estado del sistema</div>
-              <div className="mt-1 text-sm text-slate-600">
+            <div className="border-b border-slate-200 bg-white px-6 py-5 dark:border-slate-800 dark:bg-slate-900/85">
+              <div className="text-sm font-black text-slate-900 dark:text-white">Estado del sistema</div>
+              <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                 Indicadores reales del campus (usuarios, cursos, pagos e inscripciones).
               </div>
             </div>
@@ -282,39 +284,39 @@ export function AdminDashboardPage() {
                 />
               </div>
               <div className="mt-4 grid gap-3 md:grid-cols-3">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                  <div className="text-xs font-extrabold text-slate-500">Pagos pendientes</div>
-                  <div className="mt-1 text-base font-black text-slate-900">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200">
+                  <div className="text-xs font-extrabold text-slate-500 dark:text-slate-400">Pagos pendientes</div>
+                  <div className="mt-1 text-base font-black text-slate-900 dark:text-white">
                     {metrics ? metrics.payments.pending : "—"}
                   </div>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                  <div className="text-xs font-extrabold text-slate-500">Cursos borrador</div>
-                  <div className="mt-1 text-base font-black text-slate-900">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200">
+                  <div className="text-xs font-extrabold text-slate-500 dark:text-slate-400">Cursos borrador</div>
+                  <div className="mt-1 text-base font-black text-slate-900 dark:text-white">
                     {metrics ? metrics.courses.draft : "—"}
                   </div>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                  <div className="text-xs font-extrabold text-slate-500">Usuarios suspendidos</div>
-                  <div className="mt-1 text-base font-black text-slate-900">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200">
+                  <div className="text-xs font-extrabold text-slate-500 dark:text-slate-400">Usuarios suspendidos</div>
+                  <div className="mt-1 text-base font-black text-slate-900 dark:text-white">
                     {metrics ? metrics.users.suspended : "—"}
                   </div>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                  <div className="text-xs font-extrabold text-slate-500">Inscripciones activas</div>
-                  <div className="mt-1 text-base font-black text-slate-900">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200">
+                  <div className="text-xs font-extrabold text-slate-500 dark:text-slate-400">Inscripciones activas</div>
+                  <div className="mt-1 text-base font-black text-slate-900 dark:text-white">
                     {metrics ? metrics.enrollments.active : "—"}
                   </div>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                  <div className="text-xs font-extrabold text-slate-500">Cursos ocultos</div>
-                  <div className="mt-1 text-base font-black text-slate-900">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200">
+                  <div className="text-xs font-extrabold text-slate-500 dark:text-slate-400">Cursos ocultos</div>
+                  <div className="mt-1 text-base font-black text-slate-900 dark:text-white">
                     {metrics ? metrics.courses.hidden : "—"}
                   </div>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                  <div className="text-xs font-extrabold text-slate-500">Reembolsos</div>
-                  <div className="mt-1 text-base font-black text-slate-900">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200">
+                  <div className="text-xs font-extrabold text-slate-500 dark:text-slate-400">Reembolsos</div>
+                  <div className="mt-1 text-base font-black text-slate-900 dark:text-white">
                     {metrics ? metrics.payments.refunded : "—"}
                   </div>
                 </div>
@@ -325,9 +327,9 @@ export function AdminDashboardPage() {
 
         <aside className="min-w-0 space-y-6">
           <Card className="overflow-hidden">
-            <div className="border-b border-slate-200 bg-white px-6 py-5">
-              <div className="text-sm font-black text-slate-900">Acciones rápidas</div>
-              <div className="mt-1 text-sm text-slate-600">Atajos para administración.</div>
+            <div className="border-b border-slate-200 bg-white px-6 py-5 dark:border-slate-800 dark:bg-slate-900/85">
+              <div className="text-sm font-black text-slate-900 dark:text-white">Acciones rápidas</div>
+              <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">Atajos para administración.</div>
             </div>
             <div className="p-6">
               <div className="grid gap-2">
@@ -400,15 +402,15 @@ function MetricCard({
     <Card className="group overflow-hidden">
       <div className={`h-full bg-gradient-to-br ${toneStyles} p-5 transition group-hover:brightness-[0.99]`}>
         <div className="flex items-start justify-between gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-white text-slate-900 shadow-sm ring-1 ring-black/5">
+          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-white text-slate-900 shadow-sm ring-1 ring-black/5 dark:bg-slate-950/90 dark:text-cyan-200 dark:ring-white/10">
             {icon}
           </div>
           {right ? <div className="shrink-0">{right}</div> : null}
         </div>
-        <div className="mt-4 text-xs font-extrabold uppercase tracking-wider text-slate-500">
+        <div className="mt-4 text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
           {label}
         </div>
-        <div className="mt-1 truncate text-base font-black tracking-tight text-slate-900">
+        <div className="mt-1 truncate text-base font-black tracking-tight text-slate-900 dark:text-white">
           {value}
         </div>
       </div>
@@ -431,19 +433,19 @@ function StatusRow({
     tone === "green" ? "bg-emerald-500" : tone === "amber" ? "bg-amber-500" : "bg-slate-400";
   const badge =
     tone === "green"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/35 dark:text-emerald-200"
       : tone === "amber"
-        ? "border-amber-200 bg-amber-50 text-amber-900"
-        : "border-slate-200 bg-slate-50 text-slate-800";
+        ? "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/35 dark:text-amber-200"
+        : "border-slate-200 bg-slate-50 text-slate-800 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-100";
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md hover:shadow-slate-900/5">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md hover:shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/80 dark:hover:shadow-cyan-950/20">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
+          <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             {label}
           </div>
-          <div className="mt-1 text-sm font-black text-slate-900">{detail}</div>
+          <div className="mt-1 text-sm font-black text-slate-900 dark:text-white">{detail}</div>
         </div>
         <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-black ${badge}`}>
           <span className={`h-2 w-2 rounded-full ${toneDot}`} aria-hidden="true" />
@@ -468,18 +470,18 @@ function QuickLink({
   return (
     <Link
       to={to}
-      className="group flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 transition hover:-translate-y-[1px] hover:bg-slate-50 hover:shadow-md hover:shadow-slate-900/5"
+      className="group flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 transition hover:-translate-y-[1px] hover:bg-slate-50 hover:shadow-md hover:shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/75 dark:hover:bg-slate-800/90 dark:hover:shadow-cyan-950/20"
     >
       <div className="flex min-w-0 items-center gap-3">
-        <div className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-900 text-white shadow-sm transition group-hover:opacity-95">
+        <div className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-900 text-white shadow-sm transition group-hover:opacity-95 dark:bg-cyan-500 dark:text-slate-950">
           {icon}
         </div>
         <div className="min-w-0">
-          <div className="truncate text-sm font-black text-slate-900">{title}</div>
-          <div className="truncate text-xs text-slate-600">{subtitle}</div>
+          <div className="truncate text-sm font-black text-slate-900 dark:text-white">{title}</div>
+          <div className="truncate text-xs text-slate-600 dark:text-slate-400">{subtitle}</div>
         </div>
       </div>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="text-slate-400 transition group-hover:text-slate-600">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="text-slate-400 transition group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-cyan-300">
         <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </Link>

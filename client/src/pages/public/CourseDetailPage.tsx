@@ -277,7 +277,7 @@ export function CourseDetailPage() {
       </div>
     );
   }
-  if (error) return <Card className="p-4 text-sm text-rose-600">{error}</Card>;
+  if (error) return <Card className="p-4 text-sm text-rose-600 dark:text-rose-200">{error}</Card>;
   if (!course) return null;
 
   const requisitos = asList(course.requisitos);
@@ -320,34 +320,34 @@ export function CourseDetailPage() {
             </div>
 
             <div className="grid gap-3">
-              <h1 className="text-2xl font-black tracking-tight text-slate-900 md:text-3xl">
+              <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white md:text-3xl">
                 {course.titulo}
               </h1>
-              <div className="flex flex-wrap gap-3 text-sm text-slate-600">
+              <div className="flex flex-wrap gap-3 text-sm text-slate-600 dark:text-slate-300">
                 <div className="inline-flex items-center gap-2">
-                  <span className="grid h-8 w-8 place-items-center rounded-xl bg-slate-100 text-slate-700">
+                  <span className="grid h-8 w-8 place-items-center rounded-xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
                       <path d="M20 21a8 8 0 1 0-16 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                       <path d="M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" stroke="currentColor" strokeWidth="2" />
                     </svg>
                   </span>
-                  <span className="font-semibold text-slate-800">{docenteNombre}</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-100">{docenteNombre}</span>
                 </div>
                 {duracionLabel ? (
                   <div className="inline-flex items-center gap-2">
-                    <span className="grid h-8 w-8 place-items-center rounded-xl bg-slate-100 text-slate-700">
+                    <span className="grid h-8 w-8 place-items-center rounded-xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
                       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
                         <path d="M12 6v6l4 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" stroke="currentColor" strokeWidth="2" />
                       </svg>
                     </span>
-                    <span className="font-semibold text-slate-800">{duracionLabel}</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-100">{duracionLabel}</span>
                   </div>
                 ) : null}
               </div>
 
               {course.descripcion_corta ? (
-                <p className="max-w-3xl text-sm text-slate-700">
+                <p className="max-w-3xl text-sm text-slate-700 dark:text-slate-300">
                   {course.descripcion_corta}
                 </p>
               ) : null}
@@ -360,11 +360,11 @@ export function CourseDetailPage() {
           <div className="border-b border-slate-100 p-4 md:p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-xs font-black uppercase tracking-wider text-slate-500">Instrucciones</div>
-                <div className="mt-1 text-base font-extrabold text-slate-900">
+                <div className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Instrucciones</div>
+                <div className="mt-1 text-base font-extrabold text-slate-900 dark:text-white">
                   {isPaid ? "Completa tu pago sin errores" : "Acceso al curso"}
                 </div>
-                <div className="mt-1 text-sm text-slate-600">
+                <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                   {isPaid
                     ? "Realiza el pago, descarga tu voucher y súbelo como comprobante para validar tu inscripción."
                     : "Este curso no requiere comprobante de pago para iniciar."}
@@ -377,40 +377,40 @@ export function CourseDetailPage() {
           </div>
 
           {isPaid ? (
-            <div className="grid gap-4 bg-gradient-to-br from-slate-50 via-white to-blue-50 p-5 md:grid-cols-3 md:p-6">
-              <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-blue-50 text-blue-700 ring-1 ring-blue-100">
+            <div className="grid gap-4 bg-gradient-to-br from-slate-50 via-white to-blue-50 p-5 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 md:grid-cols-3 md:p-6">
+              <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
+                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-blue-50 text-blue-700 ring-1 ring-blue-100 dark:bg-cyan-400/10 dark:text-cyan-200 dark:ring-cyan-300/20">
                   <span className="text-sm font-black">1</span>
                 </div>
-                <div className="mt-4 text-sm font-black text-slate-900">Realiza el pago</div>
-                <div className="mt-1 text-sm leading-6 text-slate-600">
+                <div className="mt-4 text-sm font-black text-slate-900 dark:text-white">Realiza el pago</div>
+                <div className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
                   Usa el botón de BI Pay del panel derecho para completar el pago del curso.
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-amber-50 text-amber-700 ring-1 ring-amber-100">
+              <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
+                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-amber-50 text-amber-700 ring-1 ring-amber-100 dark:bg-amber-500/15 dark:text-amber-200 dark:ring-amber-400/20">
                   <span className="text-sm font-black">2</span>
                 </div>
-                <div className="mt-4 text-sm font-black text-slate-900">Descarga el voucher</div>
-                <div className="mt-1 text-sm leading-6 text-slate-600">
+                <div className="mt-4 text-sm font-black text-slate-900 dark:text-white">Descarga el voucher</div>
+                <div className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
                   Antes de cerrar la ventana del banco, descarga o guarda el voucher/comprobante.
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
+              <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
+                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/20">
                   <span className="text-sm font-black">3</span>
                 </div>
-                <div className="mt-4 text-sm font-black text-slate-900">Sube el comprobante</div>
-                <div className="mt-1 text-sm leading-6 text-slate-600">
+                <div className="mt-4 text-sm font-black text-slate-900 dark:text-white">Sube el comprobante</div>
+                <div className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
                   Adjunta el voucher en el formulario de abajo para que un admin lo revise y apruebe.
                 </div>
               </div>
             </div>
           ) : (
-            <div className="bg-slate-50 p-5 md:p-6">
-              <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5 text-sm font-semibold leading-6 text-emerald-900">
+            <div className="bg-slate-50 p-5 dark:bg-slate-950/70 md:p-6">
+              <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5 text-sm font-semibold leading-6 text-emerald-900 dark:border-emerald-400/25 dark:bg-emerald-500/10 dark:text-emerald-100">
                 Puedes inscribirte gratis y entrar al curso sin subir comprobante.
               </div>
             </div>
@@ -422,9 +422,9 @@ export function CourseDetailPage() {
           <Card className="p-5 md:p-6">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-xs font-black uppercase tracking-wider text-slate-500">Contenido del curso</div>
-                <div className="mt-1 text-lg font-extrabold text-slate-900">Módulos y lecciones</div>
-                <div className="mt-1 text-sm text-slate-600">
+                <div className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Contenido del curso</div>
+                <div className="mt-1 text-lg font-extrabold text-slate-900 dark:text-white">Módulos y lecciones</div>
+                <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                   {token ? "Las lecciones disponibles dependen de tu acceso." : "Inicia sesión para ver contenido completo si aplica."}
                 </div>
               </div>
@@ -439,46 +439,46 @@ export function CourseDetailPage() {
                 const lessons = lessonsByModuleId[m.id] || null;
                 const lLoading = !!lessonsLoadingIds[m.id];
                 return (
-                  <div key={m.id} className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+                  <div key={m.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/90">
                     <button
                       type="button"
                       onClick={() => setOpenModuleId((prev) => (prev === m.id ? null : m.id))}
                       className={classNames(
                         "w-full flex items-center justify-between gap-3 px-4 py-3 text-left",
-                        "hover:bg-slate-50 transition"
+                        "transition hover:bg-slate-50 dark:hover:bg-slate-800/80"
                       )}
                     >
                       <div className="min-w-0">
-                        <div className="text-sm font-extrabold text-slate-900 truncate">{m.titulo}</div>
-                        {m.descripcion ? <div className="mt-0.5 text-xs text-slate-600 truncate">{m.descripcion}</div> : null}
+                        <div className="truncate text-sm font-extrabold text-slate-900 dark:text-white">{m.titulo}</div>
+                        {m.descripcion ? <div className="mt-0.5 truncate text-xs text-slate-600 dark:text-slate-400">{m.descripcion}</div> : null}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {lLoading ? <Badge variant="slate">…</Badge> : lessons ? <Badge variant="slate">{lessons.length} lecciones</Badge> : <Badge variant="slate">Ver</Badge>}
-                        <svg viewBox="0 0 24 24" className={classNames("h-4 w-4 text-slate-500 transition", open ? "rotate-180" : "")} fill="none" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" className={classNames("h-4 w-4 text-slate-500 transition dark:text-slate-400", open ? "rotate-180" : "")} fill="none" aria-hidden="true">
                           <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </div>
                     </button>
 
                     {open ? (
-                      <div className="border-t border-slate-200 bg-slate-50">
+                      <div className="border-t border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950/70">
                         {lLoading ? (
-                          <div className="px-4 py-4 text-sm text-slate-600">Cargando lecciones…</div>
+                          <div className="px-4 py-4 text-sm text-slate-600 dark:text-slate-300">Cargando lecciones…</div>
                         ) : lessons && lessons.length === 0 ? (
-                          <div className="px-4 py-4 text-sm text-slate-600">Sin lecciones disponibles.</div>
+                          <div className="px-4 py-4 text-sm text-slate-600 dark:text-slate-300">Sin lecciones disponibles.</div>
                         ) : (
-                          <div className="divide-y divide-slate-200">
+                          <div className="divide-y divide-slate-200 dark:divide-slate-800">
                             {(lessons || []).map((l) => (
                               <div key={l.id} className="flex items-center gap-3 px-4 py-3">
-                                <span className="grid h-9 w-9 place-items-center rounded-xl bg-white text-slate-700 ring-1 ring-slate-200">
+                                <span className="grid h-9 w-9 place-items-center rounded-xl bg-white text-slate-700 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700">
                                   <LessonTypeIcon tipo={l.tipo} />
                                 </span>
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center gap-2">
-                                    <div className="text-sm font-bold text-slate-900 truncate">{l.titulo}</div>
+                                    <div className="truncate text-sm font-bold text-slate-900 dark:text-white">{l.titulo}</div>
                                     {l.es_preview ? <Badge variant="amber">Preview</Badge> : null}
                                   </div>
-                                  <div className="mt-0.5 text-xs text-slate-600 truncate">
+                                  <div className="mt-0.5 truncate text-xs text-slate-600 dark:text-slate-400">
                                     {l.tipo.toUpperCase()}
                                     {l.duracion_minutos ? ` · ${l.duracion_minutos} min` : ""}
                                   </div>
@@ -499,19 +499,19 @@ export function CourseDetailPage() {
         {/* Description */}
         <div className="grid gap-6 lg:grid-cols-2">
           <Card className="p-5 md:p-6">
-            <div className="text-xs font-black uppercase tracking-wider text-slate-500">Sobre el curso</div>
-            <div className="mt-1 text-lg font-extrabold text-slate-900">Descripción</div>
-            <div className="mt-3 text-sm text-slate-700 whitespace-pre-wrap">
+            <div className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Sobre el curso</div>
+            <div className="mt-1 text-lg font-extrabold text-slate-900 dark:text-white">Descripción</div>
+            <div className="mt-3 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300">
               {course.descripcion || course.descripcion_corta || "Sin descripción."}
             </div>
           </Card>
 
           <div className="grid gap-6">
             <Card className="p-5 md:p-6">
-              <div className="text-xs font-black uppercase tracking-wider text-slate-500">Lo que aprenderás</div>
-              <div className="mt-1 text-lg font-extrabold text-slate-900">Objetivos</div>
+              <div className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Lo que aprenderás</div>
+              <div className="mt-1 text-lg font-extrabold text-slate-900 dark:text-white">Objetivos</div>
               {objetivos.length ? (
-                <ul className="mt-3 grid gap-2 text-sm text-slate-700">
+                <ul className="mt-3 grid gap-2 text-sm text-slate-700 dark:text-slate-300">
                   {objetivos.slice(0, 8).map((x, idx) => (
                     <li key={idx} className="flex gap-2">
                       <span className="mt-1.5 h-2 w-2 rounded-full bg-blue-600 shrink-0" />
@@ -520,15 +520,15 @@ export function CourseDetailPage() {
                   ))}
                 </ul>
               ) : (
-                <div className="mt-3 text-sm text-slate-600">Objetivos no configurados.</div>
+                <div className="mt-3 text-sm text-slate-600 dark:text-slate-300">Objetivos no configurados.</div>
               )}
             </Card>
 
             <Card className="p-5 md:p-6">
-              <div className="text-xs font-black uppercase tracking-wider text-slate-500">Antes de comenzar</div>
-              <div className="mt-1 text-lg font-extrabold text-slate-900">Requisitos</div>
+              <div className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Antes de comenzar</div>
+              <div className="mt-1 text-lg font-extrabold text-slate-900 dark:text-white">Requisitos</div>
               {requisitos.length ? (
-                <ul className="mt-3 grid gap-2 text-sm text-slate-700">
+                <ul className="mt-3 grid gap-2 text-sm text-slate-700 dark:text-slate-300">
                   {requisitos.slice(0, 8).map((x, idx) => (
                     <li key={idx} className="flex gap-2">
                       <span className="mt-1.5 h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
@@ -537,7 +537,7 @@ export function CourseDetailPage() {
                   ))}
                 </ul>
               ) : (
-                <div className="mt-3 text-sm text-slate-600">Sin requisitos.</div>
+                <div className="mt-3 text-sm text-slate-600 dark:text-slate-300">Sin requisitos.</div>
               )}
             </Card>
           </div>
@@ -550,9 +550,9 @@ export function CourseDetailPage() {
           <Card className="p-5 md:p-6">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-xs font-black uppercase tracking-wider text-slate-500">Acceso</div>
-                <div className="mt-1 text-2xl font-black tracking-tight text-slate-900">{priceLabel}</div>
-                <div className="mt-2 text-sm text-slate-600">
+                <div className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Acceso</div>
+                <div className="mt-1 text-2xl font-black tracking-tight text-slate-900 dark:text-white">{priceLabel}</div>
+                <div className="mt-2 text-sm text-slate-600 dark:text-slate-300">
                   {isPaid
                     ? needsPaymentSession
                       ? "Inicia sesión o crea una cuenta antes de pagar para asociar la transacción a tu curso."
@@ -610,7 +610,7 @@ export function CourseDetailPage() {
               ) : biPayEmbedUrl ? (
                 <div className="grid gap-3">
                   <BiPayEmbed paymentLink={course.payment_link} />
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-300">
                     Completa el pago, descarga el voucher del banco y luego súbelo en el formulario de comprobante.
                   </div>
                 </div>
@@ -634,16 +634,16 @@ export function CourseDetailPage() {
               </Link>
             </div>
 
-            {actionError ? <div className="mt-3 text-xs text-rose-600">{actionError}</div> : null}
+            {actionError ? <div className="mt-3 text-xs text-rose-600 dark:text-rose-200">{actionError}</div> : null}
           </Card>
 
           {isPaid && token ? (
             <Card className="p-5 md:p-6">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-xs font-black uppercase tracking-wider text-slate-500">Comprobante</div>
-                  <div className="mt-1 text-base font-extrabold text-slate-900">Subir comprobante</div>
-                  <div className="mt-1 text-sm text-slate-600">
+                  <div className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Comprobante</div>
+                  <div className="mt-1 text-base font-extrabold text-slate-900 dark:text-white">Subir comprobante</div>
+                  <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                     Envía una imagen o PDF. Un admin lo revisará.
                   </div>
                 </div>
@@ -653,18 +653,18 @@ export function CourseDetailPage() {
               </div>
 
               {payInfo?.payment?.observaciones && payInfo.payment.estado === "rechazado" ? (
-                <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800">
+                <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800 dark:border-rose-400/25 dark:bg-rose-500/10 dark:text-rose-100">
                   {payInfo.payment.observaciones}
                 </div>
               ) : null}
 
               <div className="mt-5 grid gap-3">
                 <div className="grid gap-1.5">
-                  <div className="text-xs font-bold text-slate-600">Método de pago</div>
+                  <div className="text-xs font-bold text-slate-600 dark:text-slate-300">Método de pago</div>
                   <select
                     value={method}
                     onChange={(e) => setMethod(e.target.value as "manual" | "bi_pay")}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none ring-blue-500 focus:ring-2"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none ring-blue-500 focus:ring-2 dark:border-slate-800 dark:bg-slate-950/80 dark:text-slate-100"
                   >
                     <option value="manual">Manual</option>
                     <option value="bi_pay">BiPay</option>
@@ -684,20 +684,20 @@ export function CourseDetailPage() {
                   disabled={uploadingProof}
                 />
 
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/70">
                   <div className="grid gap-3">
-                    <div className="text-xs font-bold text-slate-600">Archivo</div>
+                    <div className="text-xs font-bold text-slate-600 dark:text-slate-300">Archivo</div>
 
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="text-sm font-extrabold text-slate-900 truncate">
+                        <div className="truncate text-sm font-extrabold text-slate-900 dark:text-white">
                           {proofFile ? proofFile.name : "Ningún archivo seleccionado"}
                         </div>
-                        <div className="mt-1 text-xs text-slate-600">Formatos: imagen o PDF</div>
+                        <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">Formatos: imagen o PDF</div>
                       </div>
                       <button
                         type="button"
-                        className="shrink-0 inline-flex items-center justify-center rounded-xl bg-white px-3 py-2 text-sm font-extrabold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50"
+                        className="inline-flex shrink-0 items-center justify-center rounded-xl bg-white px-3 py-2 text-sm font-extrabold text-slate-900 ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-100 dark:ring-slate-700 dark:hover:bg-slate-800"
                         onClick={() => proofInputRef.current?.click()}
                         disabled={uploadingProof}
                       >
@@ -729,7 +729,7 @@ export function CourseDetailPage() {
                   <button
                     type="button"
                     onClick={() => void downloadProof(payInfo.payment!.id)}
-                    className="text-sm font-extrabold text-blue-700 hover:underline"
+                    className="text-sm font-extrabold text-blue-700 hover:underline dark:text-cyan-300"
                   >
                     Ver comprobante enviado
                   </button>

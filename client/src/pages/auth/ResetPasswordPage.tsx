@@ -53,20 +53,20 @@ export function ResetPasswordPage() {
   };
 
   return (
-    <div className="relative flex h-screen w-full items-center justify-center overflow-hidden bg-slate-50 px-4 py-10 cf-animate-fade-in dark:bg-slate-950">
+    <div className="relative flex min-h-screen w-full items-start justify-center overflow-x-hidden overflow-y-auto bg-slate-50 px-4 py-6 cf-animate-fade-in sm:items-center sm:py-10 dark:bg-slate-950">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute inset-0 bg-gradient-to-b from-white via-slate-50 to-white dark:from-slate-950 dark:via-slate-950 dark:to-slate-900" />
         <div className="absolute -top-24 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-blue-600/12 blur-3xl" />
         <div className="absolute -bottom-24 right-[-80px] h-[420px] w-[420px] rounded-full bg-cyan-400/10 blur-3xl" />
       </div>
 
-      <div className="relative w-full max-w-[560px]">
-        <div className="mb-6 text-center">
+      <div className="relative my-auto w-full max-w-[560px]">
+        <div className="mb-5 text-center sm:mb-6">
           <div className="text-base font-black tracking-tight text-slate-900 dark:text-slate-100">C.FUTURO</div>
         </div>
 
         <Card className="overflow-hidden border-slate-200/70 bg-white shadow-lg shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/95 dark:shadow-black/30">
-          <div className="bg-gradient-to-r from-blue-600 to-cyan-500 px-8 py-6 text-white">
+          <div className="bg-gradient-to-r from-blue-600 to-cyan-500 px-5 py-5 text-white sm:px-8 sm:py-6">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Restablecer contraseña</h1>
@@ -93,7 +93,7 @@ export function ResetPasswordPage() {
             </div>
           </div>
 
-          <div className="px-8 py-7 sm:px-10 sm:py-9">
+          <div className="px-5 py-6 sm:px-10 sm:py-9">
             {!token ? (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-100">
                 Token faltante. Abre el enlace desde tu correo.

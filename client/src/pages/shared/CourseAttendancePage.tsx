@@ -193,14 +193,14 @@ export function CourseAttendancePage() {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="cf-course-scope grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
       <section className="min-w-0 space-y-4">
-        <Card className="overflow-hidden">
-          <div className="border-b border-slate-200 bg-white px-6 py-5">
+        <Card className="overflow-hidden border-white/80 bg-white/88 shadow-[0_26px_80px_-56px_rgba(15,23,42,0.7)] dark:border-slate-800/80 dark:bg-slate-900/92">
+          <div className="border-b border-slate-200 bg-white/90 px-6 py-5 dark:border-slate-800 dark:bg-slate-950/90">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="min-w-0">
-                <div className="text-lg font-black tracking-tight text-slate-900">Asistencia</div>
-                <div className="mt-1 text-sm text-slate-600">
+                <div className="text-lg font-black tracking-tight text-slate-900 dark:text-slate-100">Asistencia</div>
+                <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                   Registra la asistencia del curso <span className="font-semibold">“{ctx.courseTitle}”</span>.
                 </div>
               </div>
@@ -217,8 +217,8 @@ export function CourseAttendancePage() {
               <div
                 className={`mt-4 rounded-2xl border px-4 py-3 text-sm font-semibold ${
                   banner.tone === "success"
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                    : "border-rose-200 bg-rose-50 text-rose-800"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/35 dark:text-emerald-200"
+                    : "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/35 dark:text-rose-200"
                 }`}
                 role="status"
               >
@@ -287,7 +287,7 @@ export function CourseAttendancePage() {
                                   value={cur.estado}
                                   disabled={saving}
                                   onChange={(e) => updateStudentStatus(sId, e.target.value as AttendanceStatus)}
-                                  className="w-[190px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none ring-blue-500 focus:ring-2 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                                  className="w-[190px] rounded-xl border border-slate-200 bg-white/92 px-3 py-2 text-sm font-semibold text-slate-900 outline-none ring-blue-500 transition-colors focus:ring-2 dark:border-slate-700 dark:bg-slate-950/85 dark:text-slate-100"
                                 >
                                   <option value="presente">Presente</option>
                                   <option value="ausente">Ausente</option>
@@ -303,7 +303,7 @@ export function CourseAttendancePage() {
                                 onChange={(e) => updateStudentComment(sId, e.target.value)}
                                 onBlur={() => saveStudentComment(sId)}
                                 rows={2}
-                                className="w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none ring-blue-500 focus:ring-2 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                                className="w-full resize-none rounded-2xl border border-slate-200 bg-white/92 px-4 py-3 text-sm text-slate-900 outline-none ring-blue-500 transition-colors focus:ring-2 dark:border-slate-700 dark:bg-slate-950/85 dark:text-slate-100"
                                 placeholder="Opcional…"
                               />
                             </td>
@@ -347,31 +347,31 @@ export function CourseAttendancePage() {
       </section>
 
       <aside className="min-w-0 space-y-4">
-        <Card className="p-5">
-          <div className="text-sm font-black text-slate-900">Resumen</div>
-          <div className="mt-1 text-sm text-slate-600">Para la fecha seleccionada</div>
+        <Card className="border-white/80 bg-white/88 p-5 shadow-[0_24px_72px_-52px_rgba(15,23,42,0.68)] dark:border-slate-800/80 dark:bg-slate-900/92">
+          <div className="text-sm font-black text-slate-900 dark:text-slate-100">Resumen</div>
+          <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">Para la fecha seleccionada</div>
 
           <div className="mt-4 grid gap-2">
-            <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <div className="text-sm font-semibold text-slate-700">Presentes</div>
-              <div className="text-sm font-black text-slate-900">{totals.presente}</div>
+            <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/55">
+              <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">Presentes</div>
+              <div className="text-sm font-black text-slate-900 dark:text-slate-100">{totals.presente}</div>
             </div>
-            <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <div className="text-sm font-semibold text-slate-700">Tarde</div>
-              <div className="text-sm font-black text-slate-900">{totals.tarde}</div>
+            <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/55">
+              <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">Tarde</div>
+              <div className="text-sm font-black text-slate-900 dark:text-slate-100">{totals.tarde}</div>
             </div>
-            <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <div className="text-sm font-semibold text-slate-700">Justificado</div>
-              <div className="text-sm font-black text-slate-900">{totals.justificado}</div>
+            <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/55">
+              <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">Justificado</div>
+              <div className="text-sm font-black text-slate-900 dark:text-slate-100">{totals.justificado}</div>
             </div>
-            <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <div className="text-sm font-semibold text-slate-700">Ausentes</div>
-              <div className="text-sm font-black text-slate-900">{totals.ausente}</div>
+            <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/55">
+              <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">Ausentes</div>
+              <div className="text-sm font-black text-slate-900 dark:text-slate-100">{totals.ausente}</div>
             </div>
           </div>
 
-          <div className="mt-4 text-xs text-slate-500">
-            Total estudiantes: <span className="font-bold text-slate-700">{totals.total}</span>
+          <div className="mt-4 text-xs text-slate-500 dark:text-slate-400">
+            Total estudiantes: <span className="font-bold text-slate-700 dark:text-slate-200">{totals.total}</span>
           </div>
         </Card>
       </aside>

@@ -15,19 +15,23 @@ export function PageHeader({
     <div className="relative overflow-hidden rounded-[1.75rem] border border-white/80 bg-white/80 p-5 shadow-[0_20px_70px_-55px_rgba(15,23,42,0.55)] ring-1 ring-white/70 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80 dark:ring-white/5">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_8%_16%,rgba(14,165,233,0.10),transparent_30%),radial-gradient(circle_at_92%_12%,rgba(37,99,235,0.08),transparent_28%)] dark:bg-[radial-gradient(circle_at_8%_16%,rgba(34,211,238,0.12),transparent_30%),radial-gradient(circle_at_92%_12%,rgba(37,99,235,0.12),transparent_28%)]" />
       <div
-        className={`relative flex flex-col gap-3 ${
+        className={`relative flex min-w-0 flex-col gap-4 ${
           align === "center" && !right
             ? "items-center text-center"
             : "md:flex-row md:items-end md:justify-between"
         }`}
       >
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-950 md:text-3xl dark:text-white">
+        <div className="min-w-0">
+          <h1 className="break-words text-xl font-black tracking-tight text-slate-950 sm:text-2xl md:text-3xl dark:text-white">
             {title}
           </h1>
-          {subtitle ? <p className="mt-2 text-sm font-medium text-slate-600 dark:text-slate-300">{subtitle}</p> : null}
+          {subtitle ? (
+            <p className="mt-2 max-w-3xl text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">
+              {subtitle}
+            </p>
+          ) : null}
         </div>
-        {right ? <div className="md:pb-1">{right}</div> : null}
+        {right ? <div className="min-w-0 w-full md:w-auto md:pb-1">{right}</div> : null}
       </div>
     </div>
   );

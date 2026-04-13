@@ -81,7 +81,7 @@ export function MyPaymentsPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="cf-payments-scope space-y-6">
       <PageHeader
         title="Mis pagos"
         subtitle="Historial de estados de aprobación por curso"
@@ -101,8 +101,8 @@ export function MyPaymentsPage() {
       ) : (
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
           {/* Lista */}
-          <Card className="overflow-hidden">
-            <div className="border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950">
+          <Card className="overflow-hidden border-white/80 bg-white/85 shadow-[0_24px_80px_-52px_rgba(15,23,42,0.48)] dark:border-slate-800 dark:bg-slate-900/90">
+            <div className="border-b border-slate-200 bg-white/90 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/90">
               <div className="text-sm font-extrabold text-slate-900 dark:text-white">Cursos con pago</div>
               <div className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
                 Selecciona un curso para ver el historial de pagos.
@@ -120,8 +120,8 @@ export function MyPaymentsPage() {
                     onClick={() => setSelectedCourseId(it.course.id)}
                     className={`w-full text-left transition ${
                       isActive
-                        ? "bg-blue-50/70 dark:bg-cyan-400/10"
-                        : "bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800"
+                        ? "bg-blue-50/80 shadow-[inset_0_0_0_1px_rgba(191,219,254,0.95)] dark:bg-cyan-400/10 dark:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.18)]"
+                        : "bg-white/90 hover:bg-slate-50 dark:bg-slate-900/80 dark:hover:bg-slate-800/90"
                     }`}
                   >
                     <div className="flex items-center gap-4 px-4 py-4">
@@ -166,7 +166,7 @@ export function MyPaymentsPage() {
 
           {/* Detalle */}
           <div className="space-y-4">
-            <Card className="p-4">
+            <Card className="border-white/80 bg-white/88 p-4 shadow-[0_22px_70px_-50px_rgba(15,23,42,0.42)] dark:border-slate-800 dark:bg-slate-900/90">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -202,8 +202,8 @@ export function MyPaymentsPage() {
               </div>
             </Card>
 
-            <Card className="overflow-hidden">
-              <div className="border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950">
+            <Card className="overflow-hidden border-white/80 bg-white/88 dark:border-slate-800 dark:bg-slate-900/90">
+              <div className="border-b border-slate-200 bg-white/90 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/90">
                 <div className="text-sm font-extrabold text-slate-900 dark:text-white">Historial</div>
                 <div className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
                   Últimos movimientos (máximo 50).
@@ -221,7 +221,7 @@ export function MyPaymentsPage() {
                   {history.map((p) => (
                     <div key={p.id} className="px-4 py-4">
                       <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
+                        <div className="min-w-0 rounded-[1.15rem] border border-slate-200/80 bg-slate-50/70 px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/55">
                           <div className="text-sm font-extrabold text-slate-900 dark:text-white">
                             {formatMoneyGTQ(p.monto_total)}{" "}
                             <span className="text-xs font-bold text-slate-500 dark:text-slate-400">· {p.metodo_pago}</span>

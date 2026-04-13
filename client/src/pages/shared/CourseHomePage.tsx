@@ -71,7 +71,11 @@ export function CourseHomePage() {
   }
 
   if (error) {
-    return <Card className="p-4 text-sm text-rose-700">{error}</Card>;
+    return (
+      <Card className="border-rose-200/80 bg-rose-50/90 p-4 text-sm font-semibold text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200">
+        {error}
+      </Card>
+    );
   }
 
   if (!course) return null;
@@ -80,14 +84,14 @@ export function CourseHomePage() {
   const ytEmbed = videoUrl && isYouTubeUrl(videoUrl) ? youtubeEmbedUrl(videoUrl) : null;
 
   return (
-    <div className="space-y-6">
+    <div className="cf-course-scope space-y-6">
       <div className="grid gap-6 lg:grid-cols-12">
-        <Card className="overflow-hidden lg:col-span-7">
-          <div className="relative aspect-[16/9] bg-slate-200">
+        <Card className="overflow-hidden border-white/80 bg-white/88 shadow-[0_26px_80px_-56px_rgba(15,23,42,0.7)] lg:col-span-7 dark:border-slate-800/80 dark:bg-slate-900/92">
+          <div className="relative aspect-[16/9] bg-slate-200 dark:bg-slate-900">
             {course.imagen_url ? (
               <img src={course.imagen_url} alt={course.titulo} className="h-full w-full object-cover" />
             ) : (
-              <div className="h-full w-full bg-gradient-to-br from-slate-200 to-slate-100" />
+              <div className="h-full w-full bg-gradient-to-br from-slate-200 to-slate-100 dark:from-slate-900 dark:via-slate-950 dark:to-slate-800" />
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-black/0" />
             <div className="absolute left-4 bottom-4">
@@ -111,26 +115,26 @@ export function CourseHomePage() {
         </Card>
 
         <div className="lg:col-span-5 space-y-4">
-          <Card className="p-5">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Docente</div>
+          <Card className="border-white/80 bg-white/88 p-5 shadow-[0_24px_72px_-52px_rgba(15,23,42,0.68)] dark:border-slate-800/80 dark:bg-slate-900/92">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Docente</div>
             <div className="mt-2 flex items-center gap-3">
-              <div className="h-11 w-11 rounded-2xl bg-slate-100 ring-1 ring-slate-200 overflow-hidden shrink-0">
+              <div className="h-11 w-11 overflow-hidden rounded-2xl bg-slate-100 ring-1 ring-slate-200 shrink-0 dark:bg-slate-950 dark:ring-slate-800">
                 {course.docente.foto_url ? (
                   <img src={course.docente.foto_url} alt="Docente" className="h-full w-full object-cover" />
                 ) : null}
               </div>
               <div className="min-w-0">
-                <div className="font-black text-slate-900 truncate">
+                <div className="truncate font-black text-slate-900 dark:text-slate-100">
                   {course.docente.nombres} {course.docente.apellidos}
                 </div>
-                <div className="text-sm text-slate-600 truncate">Nivel: {course.nivel}</div>
+                <div className="truncate text-sm text-slate-600 dark:text-slate-300">Nivel: {course.nivel}</div>
               </div>
             </div>
           </Card>
 
-          <Card className="p-5">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Descripción</div>
-            <div className="mt-2 text-sm text-slate-700 whitespace-pre-wrap">
+          <Card className="border-white/80 bg-white/88 p-5 shadow-[0_24px_72px_-52px_rgba(15,23,42,0.68)] dark:border-slate-800/80 dark:bg-slate-900/92">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Descripción</div>
+            <div className="mt-2 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200">
               {course.descripcion_corta || course.descripcion || "—"}
             </div>
           </Card>
@@ -138,11 +142,11 @@ export function CourseHomePage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-12">
-        <Card className="p-6 lg:col-span-7">
+        <Card className="border-white/80 bg-white/88 p-6 shadow-[0_26px_80px_-56px_rgba(15,23,42,0.7)] lg:col-span-7 dark:border-slate-800/80 dark:bg-slate-900/92">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Video</div>
-              <div className="mt-1 text-lg font-black text-slate-900">Introducción</div>
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Video</div>
+              <div className="mt-1 text-lg font-black text-slate-900 dark:text-slate-100">Introducción</div>
             </div>
             {videoUrl ? (
               <a href={videoUrl} target="_blank" rel="noreferrer">
@@ -153,7 +157,7 @@ export function CourseHomePage() {
 
           <div className="mt-4">
             {ytEmbed ? (
-              <div className="aspect-video overflow-hidden rounded-2xl ring-1 ring-slate-200 bg-black">
+              <div className="aspect-video overflow-hidden rounded-2xl bg-black ring-1 ring-slate-200 dark:ring-slate-800">
                 <iframe
                   title="Video introductorio"
                   src={ytEmbed}
@@ -163,11 +167,11 @@ export function CourseHomePage() {
                 />
               </div>
             ) : videoUrl ? (
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+              <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200">
                 Este curso tiene un video introductorio. Usa “Abrir” para verlo.
               </div>
             ) : (
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+              <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-300">
                 No hay video configurado.
               </div>
             )}
@@ -175,12 +179,12 @@ export function CourseHomePage() {
         </Card>
 
         <div className="lg:col-span-5 space-y-6">
-          <Card className="p-6">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Requisitos</div>
-            <div className="mt-1 text-lg font-black text-slate-900">Lo que necesitas</div>
+          <Card className="border-white/80 bg-white/88 p-6 shadow-[0_26px_80px_-56px_rgba(15,23,42,0.7)] dark:border-slate-800/80 dark:bg-slate-900/92">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Requisitos</div>
+            <div className="mt-1 text-lg font-black text-slate-900 dark:text-slate-100">Lo que necesitas</div>
             <div className="mt-4">
               {requisitos.length > 0 ? (
-                <ul className="space-y-2 text-sm text-slate-700">
+                <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-200">
                   {requisitos.map((r, idx) => (
                     <li key={idx} className="flex gap-2">
                       <span className="mt-1 h-2 w-2 rounded-full bg-blue-600 shrink-0" />
@@ -189,19 +193,19 @@ export function CourseHomePage() {
                   ))}
                 </ul>
               ) : (
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+                <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-300">
                   No hay requisitos configurados.
                 </div>
               )}
             </div>
           </Card>
 
-          <Card className="p-6">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Objetivos</div>
-            <div className="mt-1 text-lg font-black text-slate-900">Qué aprenderás</div>
+          <Card className="border-white/80 bg-white/88 p-6 shadow-[0_26px_80px_-56px_rgba(15,23,42,0.7)] dark:border-slate-800/80 dark:bg-slate-900/92">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Objetivos</div>
+            <div className="mt-1 text-lg font-black text-slate-900 dark:text-slate-100">Qué aprenderás</div>
             <div className="mt-4">
               {objetivos.length > 0 ? (
-                <ul className="space-y-2 text-sm text-slate-700">
+                <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-200">
                   {objetivos.map((o, idx) => (
                     <li key={idx} className="flex gap-2">
                       <span className="mt-1 h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
@@ -210,7 +214,7 @@ export function CourseHomePage() {
                   ))}
                 </ul>
               ) : (
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+                <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-300">
                   No hay objetivos configurados.
                 </div>
               )}

@@ -180,7 +180,7 @@ export function NotificationsBell({ api, role }: { api: AxiosInstance; role: Not
       </button>
 
       {open ? (
-        <div className="absolute right-0 mt-2 w-[360px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-900/10 dark:border-slate-800 dark:bg-slate-900">
+        <div className="absolute right-0 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-900/10 dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/30">
             <div className="text-xs font-black text-slate-900 dark:text-slate-100">{headerText}</div>
             <Button size="sm" variant="ghost" onClick={() => void markAll()}>

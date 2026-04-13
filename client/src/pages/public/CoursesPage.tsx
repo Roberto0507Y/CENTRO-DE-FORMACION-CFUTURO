@@ -88,7 +88,7 @@ export function CoursesPage() {
           <Spinner />
         </div>
       ) : error ? (
-        <Card className="p-4 text-sm text-rose-600">{error}</Card>
+        <Card className="p-4 text-sm text-rose-600 dark:text-rose-200">{error}</Card>
       ) : items.length === 0 ? (
         <Card className="p-4 text-sm text-slate-600 dark:text-slate-300">No hay cursos publicados.</Card>
       ) : (

@@ -5,11 +5,29 @@
 :root {
   color-scheme: only light;
   background: #f8fafc;
+  --cf-field-bg: rgba(255, 255, 255, 0.92);
+  --cf-field-bg-focus: #ffffff;
+  --cf-field-border: rgba(203, 213, 225, 0.94);
+  --cf-field-text: #0f172a;
+  --cf-field-placeholder: #94a3b8;
+  --cf-field-shadow:
+    0 16px 36px -28px rgba(15, 23, 42, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --cf-field-ring: rgba(59, 130, 246, 0.16);
 }
 
 :root.dark {
   color-scheme: dark;
   background: #020617;
+  --cf-field-bg: rgba(15, 23, 42, 0.88);
+  --cf-field-bg-focus: rgba(15, 23, 42, 0.96);
+  --cf-field-border: rgba(51, 65, 85, 0.96);
+  --cf-field-text: #f1f5f9;
+  --cf-field-placeholder: #64748b;
+  --cf-field-shadow:
+    0 20px 44px -30px rgba(2, 6, 23, 0.88),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --cf-field-ring: rgba(34, 211, 238, 0.18);
 }
 
 html,
@@ -50,6 +68,85 @@ textarea {
   font: inherit;
 }
 
+:where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="hidden"]),
+  select,
+  textarea
+) {
+  border: 1px solid var(--cf-field-border);
+  background: var(--cf-field-bg);
+  color: var(--cf-field-text);
+  box-shadow: var(--cf-field-shadow);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+:where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="hidden"]),
+  select,
+  textarea
+)::placeholder {
+  color: var(--cf-field-placeholder);
+}
+
+:where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="hidden"]),
+  select,
+  textarea
+):hover:not(:disabled):not(:focus-visible) {
+  border-color: color-mix(in srgb, var(--cf-field-border) 72%, #60a5fa 28%);
+}
+
+:where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="hidden"]),
+  select,
+  textarea
+):focus,
+:where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="hidden"]),
+  select,
+  textarea
+):focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--cf-field-border) 54%, #38bdf8 46%);
+  background: var(--cf-field-bg-focus);
+  box-shadow:
+    0 0 0 4px var(--cf-field-ring),
+    var(--cf-field-shadow);
+}
+
+:where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="hidden"]),
+  select,
+  textarea
+):disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+:root.dark :where(input, select, textarea) {
+  color-scheme: dark;
+}
+
+:root.dark :where(input[type="date"], input[type="datetime-local"], input[type="time"])::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.25);
+  opacity: 0.85;
+}
+
+:where(input, textarea):-webkit-autofill,
+:where(input, textarea):-webkit-autofill:hover,
+:where(input, textarea):-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--cf-field-text);
+  box-shadow:
+    0 0 0 1000px var(--cf-field-bg-focus) inset,
+    var(--cf-field-shadow);
+  transition: background-color 9999s ease-out;
+}
+
 @media (max-width: 639px) {
   .cf-admin-dark-scope {
     word-break: break-word;
@@ -79,9 +176,63 @@ textarea {
   background-color: rgb(30 41 59 / 0.88);
 }
 
+.dark .cf-admin-dark-scope .bg-emerald-50 {
+  background-color: rgb(6 78 59 / 0.28);
+}
+
+.dark .cf-admin-dark-scope .bg-teal-50,
+.dark .cf-admin-dark-scope .bg-cyan-50 {
+  background-color: rgb(8 145 178 / 0.18);
+}
+
+.dark .cf-admin-dark-scope .bg-amber-50,
+.dark .cf-admin-dark-scope .bg-orange-50 {
+  background-color: rgb(120 53 15 / 0.24);
+}
+
 .dark .cf-admin-dark-scope .bg-blue-50,
 .dark .cf-admin-dark-scope .bg-blue-50\/70 {
   background-color: rgb(8 145 178 / 0.14);
+}
+
+.dark .cf-admin-dark-scope .from-slate-50 {
+  --tw-gradient-from: rgb(15 23 42 / 0.92) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(15 23 42 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.dark .cf-admin-dark-scope .to-white {
+  --tw-gradient-to: rgb(30 41 59 / 0.92) var(--tw-gradient-to-position);
+}
+
+.dark .cf-admin-dark-scope .from-blue-50 {
+  --tw-gradient-from: rgb(14 116 144 / 0.24) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(14 116 144 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.dark .cf-admin-dark-scope .to-cyan-50 {
+  --tw-gradient-to: rgb(8 145 178 / 0.16) var(--tw-gradient-to-position);
+}
+
+.dark .cf-admin-dark-scope .from-emerald-50 {
+  --tw-gradient-from: rgb(6 78 59 / 0.28) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(6 78 59 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.dark .cf-admin-dark-scope .to-teal-50 {
+  --tw-gradient-to: rgb(13 148 136 / 0.16) var(--tw-gradient-to-position);
+}
+
+.dark .cf-admin-dark-scope .from-amber-50 {
+  --tw-gradient-from: rgb(120 53 15 / 0.28) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(120 53 15 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.dark .cf-admin-dark-scope .to-orange-50 {
+  --tw-gradient-to: rgb(154 52 18 / 0.16) var(--tw-gradient-to-position);
 }
 
 .dark .cf-admin-dark-scope .border-slate-200,
@@ -104,6 +255,14 @@ textarea {
   --tw-ring-color: rgb(34 211 238 / 0.22);
 }
 
+.dark .cf-admin-dark-scope .ring-emerald-100 {
+  --tw-ring-color: rgb(16 185 129 / 0.25);
+}
+
+.dark .cf-admin-dark-scope .ring-amber-100 {
+  --tw-ring-color: rgb(245 158 11 / 0.26);
+}
+
 .dark .cf-admin-dark-scope .text-slate-950,
 .dark .cf-admin-dark-scope .text-slate-900,
 .dark .cf-admin-dark-scope .text-slate-800 {
@@ -118,6 +277,16 @@ textarea {
 .dark .cf-admin-dark-scope .text-slate-600,
 .dark .cf-admin-dark-scope .text-slate-500 {
   color: rgb(148 163 184);
+}
+
+.dark .cf-admin-dark-scope .text-emerald-800,
+.dark .cf-admin-dark-scope .text-emerald-700 {
+  color: rgb(167 243 208);
+}
+
+.dark .cf-admin-dark-scope .text-amber-900,
+.dark .cf-admin-dark-scope .text-amber-800 {
+  color: rgb(253 230 138);
 }
 
 .dark .cf-admin-dark-scope .hover\:bg-slate-50:hover,

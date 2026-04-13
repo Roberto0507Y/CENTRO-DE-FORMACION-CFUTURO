@@ -21,7 +21,7 @@ const SUPPORT_HOURS = "Lun a Vie · 8:00 a.m. – 5:00 p.m.";
 
 function FieldLabel({ children }: { children: string }) {
   return (
-    <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">
+    <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
       {children}
     </label>
   );
@@ -36,13 +36,13 @@ function InputWithIcon({
 } & React.ComponentProps<typeof Input>) {
   return (
     <div className="relative">
-      <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+      <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
         {icon}
       </div>
       <Input
         {...props}
         className={[
-          "pl-10 border-slate-200/80 focus:border-blue-500/60 focus:ring-blue-500/25",
+          "border-slate-200/80 pl-10 focus:border-blue-500/60 focus:ring-blue-500/25 dark:border-slate-800 dark:focus:border-cyan-400/50 dark:focus:ring-cyan-400/20",
           className ?? "",
         ].join(" ")}
       />
@@ -65,21 +65,21 @@ function ContactCard({
 }) {
   const toneClass =
     tone === "emerald"
-      ? "bg-emerald-500/10 text-emerald-700 ring-emerald-600/15"
+      ? "bg-emerald-500/10 text-emerald-700 ring-emerald-600/15 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/20"
       : tone === "blue"
-        ? "bg-blue-600/10 text-blue-700 ring-blue-600/15"
-        : "bg-slate-900/5 text-slate-700 ring-slate-900/10";
+        ? "bg-blue-600/10 text-blue-700 ring-blue-600/15 dark:bg-cyan-400/15 dark:text-cyan-200 dark:ring-cyan-300/20"
+        : "bg-slate-900/5 text-slate-700 ring-slate-900/10 dark:bg-slate-800/90 dark:text-slate-200 dark:ring-slate-700";
 
   return (
-    <Card className="border-slate-200/70 bg-white p-5 shadow-sm shadow-slate-900/5 transition hover:-translate-y-0.5 hover:shadow-md">
+    <Card className="border-slate-200/70 bg-white p-5 shadow-sm shadow-slate-900/5 transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800/80 dark:bg-slate-900/90 dark:shadow-black/20 dark:hover:shadow-cyan-950/20">
       <div className="flex items-start gap-3">
         <div className={`grid h-11 w-11 place-items-center rounded-2xl ring-1 ${toneClass}`}>
           {icon}
         </div>
         <div className="min-w-0">
-          <div className="text-sm font-extrabold text-slate-900">{title}</div>
-          <div className="mt-0.5 text-sm text-slate-700">{value}</div>
-          {hint ? <div className="mt-1 text-xs text-slate-500">{hint}</div> : null}
+          <div className="text-sm font-extrabold text-slate-900 dark:text-slate-100">{title}</div>
+          <div className="mt-0.5 text-sm text-slate-700 dark:text-slate-300">{value}</div>
+          {hint ? <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{hint}</div> : null}
         </div>
       </div>
     </Card>
@@ -111,21 +111,21 @@ export function ContactPage() {
 
   return (
     <div className="space-y-10">
-      <section className="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white">
-        <div className="absolute inset-0 bg-[radial-gradient(900px_380px_at_15%_10%,rgba(37,99,235,0.10),transparent_55%),radial-gradient(850px_360px_at_85%_30%,rgba(6,182,212,0.10),transparent_55%)]" />
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white dark:border-slate-800/80 dark:bg-slate-950">
+        <div className="absolute inset-0 bg-[radial-gradient(900px_380px_at_15%_10%,rgba(37,99,235,0.10),transparent_55%),radial-gradient(850px_360px_at_85%_30%,rgba(6,182,212,0.10),transparent_55%)] dark:bg-[radial-gradient(900px_380px_at_15%_10%,rgba(37,99,235,0.18),transparent_55%),radial-gradient(850px_360px_at_85%_30%,rgba(34,211,238,0.16),transparent_55%)]" />
 
         <div className="relative px-6 py-12 md:px-12">
           <Reveal>
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/70 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-slate-700 shadow-sm backdrop-blur">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/70 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-slate-700 shadow-sm backdrop-blur dark:border-slate-700/80 dark:bg-slate-900/70 dark:text-slate-200">
               Soporte
               <span className="h-1 w-1 rounded-full bg-blue-600" />
               Contacto
             </div>
 
-            <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+            <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl dark:text-white">
               Escríbenos cuando lo necesites
             </h1>
-            <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">
+            <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300">
               Si tienes una duda con tu cuenta, cursos o pagos, aquí te ayudamos. Para cosas rápidas,
               WhatsApp suele ser lo mejor.
             </p>
@@ -167,14 +167,14 @@ export function ContactPage() {
                 </a>
 
                 {/* Support panel */}
-                <Card className="border-slate-200/70 bg-white p-6 shadow-sm shadow-slate-900/5">
-                  <div className="text-xs font-black uppercase tracking-wider text-slate-500">
+                <Card className="border-slate-200/70 bg-white p-6 shadow-sm shadow-slate-900/5 dark:border-slate-800/80 dark:bg-slate-900/90 dark:shadow-black/20">
+                  <div className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
                     Para ayudarte más rápido
                   </div>
-                  <div className="mt-2 text-lg font-black tracking-tight text-slate-900">
+                  <div className="mt-2 text-lg font-black tracking-tight text-slate-900 dark:text-white">
                     Incluye estos datos
                   </div>
-                  <ul className="mt-4 space-y-2 text-sm text-slate-700">
+                  <ul className="mt-4 space-y-2 text-sm text-slate-700 dark:text-slate-300">
                     <li className="flex items-start gap-2">
                       <span className="mt-2 h-1.5 w-1.5 rounded-full bg-blue-600" />
                       Tu correo (el mismo con el que ingresas).
@@ -188,7 +188,7 @@ export function ContactPage() {
                       Qué estabas intentando hacer y qué pasó.
                     </li>
                   </ul>
-                  <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-xs text-slate-600 ring-1 ring-slate-200">
+                  <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-xs text-slate-600 ring-1 ring-slate-200 dark:bg-slate-950/80 dark:text-slate-400 dark:ring-slate-800">
                     Consejo: revisa tu bandeja de spam si te escribimos por correo.
                   </div>
                 </Card>
@@ -197,30 +197,30 @@ export function ContactPage() {
 
             {/* Form */}
             <Reveal className="lg:col-span-7" delayMs={120}>
-              <div className="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-lg shadow-slate-900/5">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/6 via-transparent to-cyan-400/10" />
+              <div className="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-lg shadow-slate-900/5 dark:border-slate-800/80 dark:bg-slate-900/95 dark:shadow-black/20">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/6 via-transparent to-cyan-400/10 dark:from-cyan-400/10 dark:via-transparent dark:to-blue-500/10" />
 
                 <div className="relative p-6 md:p-8">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <div className="text-xs font-black uppercase tracking-wider text-slate-500">
+                      <div className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
                         Mensaje
                       </div>
-                      <div className="mt-2 text-xl font-black tracking-tight text-slate-900">
+                      <div className="mt-2 text-xl font-black tracking-tight text-slate-900 dark:text-white">
                         Cuéntanos qué pasó
                       </div>
-                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                      <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
                         Completa el formulario y te abrimos WhatsApp con el texto listo para enviar.
                       </p>
                     </div>
                   </div>
 
                   {sent ? (
-                    <div className="mt-5 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-                      <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
+                    <div className="mt-5 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 dark:border-emerald-400/25 dark:bg-emerald-500/10 dark:text-emerald-100">
+                      <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600 dark:text-emerald-300" />
                       <div className="min-w-0">
                         <div className="font-extrabold">Listo</div>
-                        <div className="mt-0.5 text-emerald-800/90">
+                        <div className="mt-0.5 text-emerald-800/90 dark:text-emerald-100/90">
                           Se abrió WhatsApp. Solo presiona “Enviar” para contactarnos.
                         </div>
                       </div>
@@ -270,24 +270,24 @@ export function ContactPage() {
                     <div className="space-y-2">
                       <FieldLabel>Mensaje</FieldLabel>
                       <div className="relative">
-                        <div className="pointer-events-none absolute left-3 top-3 text-slate-400">
+                        <div className="pointer-events-none absolute left-3 top-3 text-slate-400 dark:text-slate-500">
                           <Send className="h-4 w-4" />
                         </div>
                         <textarea
-                          className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-3 pl-10 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/25"
+                          className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-3 pl-10 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/25 dark:border-slate-800 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-cyan-400/50 dark:focus:ring-cyan-400/20"
                           rows={6}
                           value={message}
                           onChange={(e) => setMessage(e.target.value)}
                           placeholder="Cuéntanos qué estabas intentando hacer…"
                         />
                       </div>
-                      <div className="text-xs text-slate-500">
+                      <div className="text-xs text-slate-500 dark:text-slate-400">
                         Tip: si es sobre un pago, menciona el curso y la fecha aproximada.
                       </div>
                     </div>
 
                     <div className="flex flex-col gap-3 pt-1 md:flex-row md:items-center md:justify-between">
-                      <div className="text-xs text-slate-500">
+                      <div className="text-xs text-slate-500 dark:text-slate-400">
                         No guardamos datos aquí. Solo abrimos WhatsApp para enviarlo.
                       </div>
                       <Button
@@ -301,9 +301,9 @@ export function ContactPage() {
                       </Button>
                     </div>
 
-                    <div className="rounded-2xl bg-slate-50 p-4 text-xs text-slate-600 ring-1 ring-slate-200">
+                    <div className="rounded-2xl bg-slate-50 p-4 text-xs text-slate-600 ring-1 ring-slate-200 dark:bg-slate-950/80 dark:text-slate-400 dark:ring-slate-800">
                       Si prefieres correo:{" "}
-                      <a className="font-bold text-blue-700 hover:underline" href={`mailto:${SUPPORT_EMAIL}`}>
+                      <a className="font-bold text-blue-700 hover:underline dark:text-cyan-300" href={`mailto:${SUPPORT_EMAIL}`}>
                         {SUPPORT_EMAIL}
                       </a>
                       .
@@ -318,4 +318,3 @@ export function ContactPage() {
     </div>
   );
 }
-

@@ -30,7 +30,7 @@ function VerifiedBadge() {
 
 function TestimonialCard({ item }: { item: TestimonialMarqueeItem }) {
   return (
-    <div className="mx-4 w-80 shrink-0 rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm shadow-slate-900/5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-900/10">
+    <div className="mx-4 w-80 shrink-0 rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm shadow-slate-900/5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-900/10 dark:border-slate-800/80 dark:bg-slate-900/90 dark:shadow-black/20 dark:hover:shadow-cyan-950/20">
       <div className="flex gap-3">
         <img
           className="h-11 w-11 rounded-full object-cover"
@@ -40,21 +40,21 @@ function TestimonialCard({ item }: { item: TestimonialMarqueeItem }) {
         />
         <div className="min-w-0">
           <div className="flex items-center gap-1">
-            <p className="truncate text-sm font-extrabold text-slate-900">{item.name}</p>
+            <p className="truncate text-sm font-extrabold text-slate-900 dark:text-slate-100">{item.name}</p>
             <VerifiedBadge />
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {item.role ? (
-              <span className="text-xs font-semibold text-slate-500">{item.role}</span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{item.role}</span>
             ) : null}
             {item.handle ? (
-              <span className="text-xs font-semibold text-slate-400">{item.handle}</span>
+              <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">{item.handle}</span>
             ) : null}
           </div>
         </div>
       </div>
 
-      <p className="mt-4 text-sm leading-6 text-slate-700">{item.text}</p>
+      <p className="mt-4 text-sm leading-6 text-slate-700 dark:text-slate-300">{item.text}</p>
     </div>
   );
 }
@@ -68,7 +68,7 @@ function MarqueeRow({
 }) {
   return (
     <div className="relative mx-auto w-full max-w-6xl overflow-hidden">
-      <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-24 bg-gradient-to-r from-white to-transparent" />
+      <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-24 bg-gradient-to-r from-white to-transparent dark:from-slate-950 dark:to-transparent" />
       <div
         className={[
           "cf-marquee-inner flex min-w-[200%] transform-gpu py-7",
@@ -77,7 +77,7 @@ function MarqueeRow({
       >
         {children}
       </div>
-      <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-24 bg-gradient-to-l from-white to-transparent md:w-40" />
+      <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-24 bg-gradient-to-l from-white to-transparent md:w-40 dark:from-slate-950 dark:to-transparent" />
     </div>
   );
 }
@@ -96,7 +96,7 @@ export function TestimonialsMarquee({
           "https://images.unsplash.com/photo-1633332755192-727a05c4013d?q=80&w=200&auto=format&fit=crop",
         name: "Juan Pablo López",
         role: "Estudiante",
-        text: "Lo que más me gusta es que todo está en un solo lugar. Entro y ya sé qué tengo que hacer.",
+        text: "Antes perdía tiempo buscando tareas entre mensajes y correos. Ahora entro, veo lo pendiente y entrego a tiempo. Me ayudó a organizarme mejor y a bajar el estrés de cada semana.",
       },
       {
         id: "carlos",
@@ -104,7 +104,7 @@ export function TestimonialsMarquee({
           "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop",
         name: "Carlos Méndez",
         role: "Docente",
-        text: "Publicar anuncios y tareas es rápido. Me ahorra tiempo y los estudiantes lo encuentran todo más fácil.",
+        text: "Como docente, antes repetía las mismas indicaciones varias veces. Con C.FUTURO publico recursos, actividades y avisos en un solo lugar, y eso ha hecho el seguimiento mucho más claro para el grupo.",
       },
       {
         id: "andres",
@@ -112,7 +112,7 @@ export function TestimonialsMarquee({
           "https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=200&auto=format&fit=crop&q=60",
         name: "Andrés Pérez",
         role: "Estudiante",
-        text: "Antes me perdía con los módulos. Ahora sí entiendo el orden y voy avanzando sin enredarme.",
+        text: "Me pasaba que avanzaba sin saber qué tema seguía o qué ya había completado. Ahora veo el orden de los módulos y mi progreso, y eso me ha ayudado a terminar los cursos con más constancia.",
       },
       {
         id: "kevin",
@@ -120,7 +120,7 @@ export function TestimonialsMarquee({
           "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=200&auto=format&fit=crop&q=60",
         name: "Kevin Morales",
         role: "Estudiante",
-        text: "Lo uso desde el celular y va bien. Subir una tarea o ver un anuncio no me toma nada.",
+        text: "Trabajo y estudio al mismo tiempo, así que necesito algo práctico. Desde el celular reviso anuncios, materiales y tareas sin perderme, y eso me permite mantenerme al día aunque tenga poco tiempo.",
       },
     ];
 

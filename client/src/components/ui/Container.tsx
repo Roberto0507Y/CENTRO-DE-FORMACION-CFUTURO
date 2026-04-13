@@ -4,5 +4,5 @@ export function Container({
   className = "",
   ...props
 }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={`mx-auto w-full max-w-7xl px-4 ${className}`} {...props} />;
+  return <div className={`mx-auto min-w-0 w-full max-w-7xl px-4 ${className}`} {...props} />;
 }

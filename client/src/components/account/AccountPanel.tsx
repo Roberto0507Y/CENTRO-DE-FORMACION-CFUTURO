@@ -114,7 +114,7 @@ export function AccountPanel({ subtitle }: { subtitle?: string }) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="cf-account-scope space-y-6">
       <PageHeader
         title="Cuenta"
         subtitle={subtitle ?? "Administra tu perfil, seguridad y preferencias"}
@@ -124,8 +124,8 @@ export function AccountPanel({ subtitle }: { subtitle?: string }) {
         <div
           className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
             banner.tone === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-              : "border-rose-200 bg-rose-50 text-rose-800"
+              ? "border-emerald-200 bg-emerald-50/90 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/35 dark:text-emerald-200"
+              : "border-rose-200 bg-rose-50/90 text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/35 dark:text-rose-200"
           }`}
           role="status"
         >
@@ -135,7 +135,7 @@ export function AccountPanel({ subtitle }: { subtitle?: string }) {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6">
-          <Card className="p-6">
+          <Card className="border-white/80 bg-white/85 p-6 shadow-[0_26px_80px_-52px_rgba(15,23,42,0.55)] dark:border-slate-800 dark:bg-slate-900/90">
             <div className="flex items-start gap-4">
               <Avatar name={fullName || "Usuario"} src={user.foto_url} size={72} />
               <div className="min-w-0 flex-1">
@@ -151,17 +151,17 @@ export function AccountPanel({ subtitle }: { subtitle?: string }) {
             </div>
 
             <div className="mt-6 grid grid-cols-2 gap-3 text-sm">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/30">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/85 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/60">
                 <div className="text-xs font-bold text-slate-500 dark:text-slate-400">ID</div>
                 <div className="mt-1 font-extrabold text-slate-900 dark:text-slate-100">#{user.id}</div>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/30">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/85 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/60">
                 <div className="text-xs font-bold text-slate-500 dark:text-slate-400">Último acceso</div>
                 <div className="mt-1 text-xs font-bold text-slate-900 dark:text-slate-100">
                   {formatDateTime(user.ultimo_login)}
                 </div>
               </div>
-              <div className="col-span-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/30">
+              <div className="col-span-2 rounded-2xl border border-slate-200 bg-slate-50/85 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/60">
                 <div className="text-xs font-bold text-slate-500 dark:text-slate-400">Creación</div>
                 <div className="mt-1 text-xs font-bold text-slate-900 dark:text-slate-100">
                   {formatDateTime(user.created_at)}
@@ -170,7 +170,7 @@ export function AccountPanel({ subtitle }: { subtitle?: string }) {
             </div>
           </Card>
 
-          <Card className="p-6">
+          <Card className="border-white/80 bg-white/85 p-6 dark:border-slate-800 dark:bg-slate-900/90">
             <div className="text-sm font-black text-slate-900 dark:text-slate-100">Sesión</div>
             <div className="mt-1 text-sm text-slate-600 dark:text-slate-400">
               Mantén tu cuenta segura cerrando sesión en dispositivos compartidos.
@@ -187,7 +187,7 @@ export function AccountPanel({ subtitle }: { subtitle?: string }) {
         </div>
 
         <div className="space-y-6 lg:col-span-2">
-          <Card className="p-6">
+          <Card className="border-white/80 bg-white/88 p-6 shadow-[0_26px_80px_-54px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-900/90">
             <div className="flex flex-col gap-1">
               <div className="text-sm font-black text-slate-900 dark:text-slate-100">Perfil</div>
               <div className="text-sm text-slate-600 dark:text-slate-400">Actualiza tu información básica.</div>
@@ -218,6 +218,7 @@ export function AccountPanel({ subtitle }: { subtitle?: string }) {
                 <label className="text-xs font-extrabold text-slate-700 dark:text-slate-300">Teléfono</label>
                 <div className="mt-2">
                   <Input
+                    type="tel"
                     value={form.telefono}
                     onChange={(e) => setForm((p) => ({ ...p, telefono: e.target.value }))}
                     placeholder="Opcional"
@@ -228,6 +229,7 @@ export function AccountPanel({ subtitle }: { subtitle?: string }) {
                 <label className="text-xs font-extrabold text-slate-700 dark:text-slate-300">Fecha de nacimiento</label>
                 <div className="mt-2">
                   <Input
+                    type="date"
                     value={form.fecha_nacimiento}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, fecha_nacimiento: e.target.value }))
@@ -264,7 +266,7 @@ export function AccountPanel({ subtitle }: { subtitle?: string }) {
           </Card>
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-            <Card className="p-6">
+            <Card className="border-white/80 bg-white/88 p-6 dark:border-slate-800 dark:bg-slate-900/90">
               <div className="text-sm font-black text-slate-900 dark:text-slate-100">Seguridad</div>
               <div className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                 Te enviaremos un enlace para restablecer tu contraseña.
@@ -296,7 +298,7 @@ function PreferencesCard() {
   const { theme, notifications, setTheme, setNotifications } = usePreferences();
 
   return (
-    <Card className="p-6">
+    <Card className="border-white/80 bg-white/88 p-6 dark:border-slate-800 dark:bg-slate-900/90">
       <div className="text-sm font-black text-slate-900 dark:text-slate-100">Preferencias</div>
       <div className="mt-1 text-sm text-slate-600 dark:text-slate-400">Personaliza tu experiencia.</div>
 
@@ -310,7 +312,7 @@ function PreferencesCard() {
               className={`rounded-2xl border px-3 py-2 text-left font-semibold transition ${
                 theme === "claro"
                   ? "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-200"
-                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  : "border-slate-200 bg-white/90 text-slate-700 shadow-sm hover:-translate-y-0.5 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:bg-slate-800/90"
               }`}
             >
               Claro
@@ -321,7 +323,7 @@ function PreferencesCard() {
               className={`rounded-2xl border px-3 py-2 text-left font-semibold transition ${
                 theme === "oscuro"
                   ? "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-200"
-                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  : "border-slate-200 bg-white/90 text-slate-700 shadow-sm hover:-translate-y-0.5 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:bg-slate-800/90"
               }`}
             >
               Oscuro
@@ -338,7 +340,7 @@ function PreferencesCard() {
               className={`rounded-2xl border px-3 py-2 text-left font-semibold transition ${
                 notifications === "on"
                   ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/35 dark:text-emerald-200"
-                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  : "border-slate-200 bg-white/90 text-slate-700 shadow-sm hover:-translate-y-0.5 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:bg-slate-800/90"
               }`}
             >
               Activadas
@@ -349,7 +351,7 @@ function PreferencesCard() {
               className={`rounded-2xl border px-3 py-2 text-left font-semibold transition ${
                 notifications === "off"
                   ? "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/35 dark:text-rose-200"
-                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  : "border-slate-200 bg-white/90 text-slate-700 shadow-sm hover:-translate-y-0.5 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:bg-slate-800/90"
               }`}
             >
               Desactivadas

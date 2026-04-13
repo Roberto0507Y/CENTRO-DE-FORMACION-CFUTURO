@@ -29,14 +29,14 @@ export function ForgotPasswordPage() {
   };
 
   return (
-    <div className="relative flex h-screen w-full items-center justify-center overflow-hidden bg-slate-50 px-4 py-10 cf-animate-fade-in dark:bg-slate-950">
+    <div className="relative flex min-h-screen w-full items-start justify-center overflow-x-hidden overflow-y-auto bg-slate-50 px-4 py-6 cf-animate-fade-in sm:items-center sm:py-10 dark:bg-slate-950">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute inset-0 bg-gradient-to-b from-white via-slate-50 to-white dark:from-slate-950 dark:via-slate-950 dark:to-slate-900" />
         <div className="absolute -top-24 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-blue-600/12 blur-3xl" />
         <div className="absolute -bottom-24 right-[-80px] h-[420px] w-[420px] rounded-full bg-cyan-400/10 blur-3xl" />
       </div>
 
-      <Card className="relative w-full max-w-[480px] border-slate-200/70 bg-white p-7 shadow-lg shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/95 dark:shadow-black/30 sm:p-10">
+      <Card className="relative my-auto w-full max-w-[480px] border-slate-200/70 bg-white p-6 shadow-lg shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/95 dark:shadow-black/30 sm:p-10">
         <div className="grid gap-6">
           <div className="grid place-items-center gap-4 text-center">
             <div className="grid h-14 w-14 place-items-center rounded-2xl bg-blue-50 text-blue-700 ring-1 ring-blue-100 dark:bg-cyan-400/10 dark:text-cyan-200 dark:ring-cyan-300/20">

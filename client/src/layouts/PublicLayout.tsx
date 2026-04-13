@@ -1,16 +1,31 @@
+import { useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { PublicNavbar } from "../components/layout/PublicNavbar";
 import { PublicFooter } from "../components/layout/PublicFooter";
 import { Container } from "../components/ui/Container";
 
 export function PublicLayout() {
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
   const isAuth = pathname.startsWith("/auth/");
 
+  useEffect(() => {
+    if (isAuth) return;
+    if (pathname !== "/" || !hash) return;
+
+    const id = hash.slice(1);
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.getElementById(id);
+      if (!target) return;
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [hash, isAuth, pathname]);
+
   return (
-    <div className="min-h-full bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-full overflow-x-clip bg-slate-50 dark:bg-slate-950">
       {isAuth ? null : <PublicNavbar />}
-      <main className={isAuth ? "min-h-screen" : "py-10"}>
+      <main className={isAuth ? "min-h-screen overflow-x-clip" : "overflow-x-clip py-6 sm:py-8 md:py-10"}>
         {isAuth ? (
           <Outlet />
         ) : (

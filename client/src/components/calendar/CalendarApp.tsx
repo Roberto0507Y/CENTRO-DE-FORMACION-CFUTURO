@@ -61,7 +61,7 @@ function ButtonGroup({
     { id: "agenda", label: "Agenda" },
   ];
   return (
-    <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-950">
+    <div className="inline-flex rounded-[1rem] border border-slate-200/80 bg-white/90 p-1 shadow-sm dark:border-slate-800 dark:bg-slate-950/90 dark:shadow-black/20">
       {items.map((it) => {
         const active = it.id === value;
         return (
@@ -100,8 +100,8 @@ function Modal({
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/35" onClick={onClose} aria-hidden="true" />
       <div className="absolute inset-0 flex items-start justify-center p-4 md:p-8 overflow-hidden">
-        <div className="w-full max-w-xl rounded-2xl bg-white shadow-xl ring-1 ring-black/5 flex flex-col overflow-hidden dark:bg-slate-950 dark:ring-white/10">
-          <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between dark:border-slate-800">
+        <div className="flex w-full max-w-xl flex-col overflow-hidden rounded-[1.75rem] border border-white/80 bg-white/95 shadow-[0_36px_120px_-70px_rgba(15,23,42,0.8)] ring-1 ring-black/5 dark:border-slate-800 dark:bg-slate-950/95 dark:ring-white/10 dark:shadow-[0_36px_120px_-64px_rgba(2,6,23,0.95)]">
+          <div className="flex items-center justify-between border-b border-slate-200 bg-white/90 px-5 py-4 dark:border-slate-800 dark:bg-slate-950/90">
             <div className="text-sm font-extrabold text-slate-900 dark:text-white">{title}</div>
             <button
               type="button"
@@ -352,10 +352,10 @@ export function CalendarApp({ storageKey, sources, externalEvents = [], view = "
   }, [selected]);
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="cf-calendar-scope grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
       <section className="min-w-0">
-        <Card className="overflow-hidden">
-          <div className="border-b border-slate-200 bg-white px-4 py-3 md:px-5 dark:border-slate-800 dark:bg-slate-950">
+        <Card className="overflow-hidden border-white/80 bg-white/88 shadow-[0_26px_90px_-56px_rgba(15,23,42,0.48)] dark:border-slate-800 dark:bg-slate-900/92 dark:shadow-[0_26px_90px_-56px_rgba(2,6,23,0.92)]">
+          <div className="border-b border-slate-200 bg-white/90 px-4 py-3 md:px-5 dark:border-slate-800 dark:bg-slate-950/90">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Button variant="ghost" onClick={goToday}>
@@ -396,7 +396,7 @@ export function CalendarApp({ storageKey, sources, externalEvents = [], view = "
           </div>
 
           {mode === "month" ? (
-            <div className="bg-white dark:bg-slate-950">
+            <div className="bg-white/80 dark:bg-slate-950/85">
               <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-800">
                 {WEEKDAYS_ES.map((d) => (
                   <div key={d} className="px-3 py-2 text-xs font-extrabold text-slate-600 dark:text-slate-400">
@@ -482,7 +482,7 @@ export function CalendarApp({ storageKey, sources, externalEvents = [], view = "
               </div>
             </div>
           ) : mode === "week" ? (
-            <div className="bg-white dark:bg-slate-950">
+            <div className="bg-white/80 dark:bg-slate-950/85">
               <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-800">
                 {weekDays.map((d, idx) => (
                   <button
@@ -539,7 +539,7 @@ export function CalendarApp({ storageKey, sources, externalEvents = [], view = "
               </div>
             </div>
           ) : (
-            <div className="bg-white p-4 md:p-5 dark:bg-slate-950">
+            <div className="bg-white/80 p-4 md:p-5 dark:bg-slate-950/85">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Agenda · {monthLabel(cursor)}
               </div>
@@ -584,8 +584,8 @@ export function CalendarApp({ storageKey, sources, externalEvents = [], view = "
       </section>
 
       <aside className="space-y-4">
-        <Card className="overflow-hidden">
-          <div className="border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950">
+        <Card className="overflow-hidden border-white/80 bg-white/88 dark:border-slate-800 dark:bg-slate-900/92">
+          <div className="border-b border-slate-200 bg-white/90 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/90">
             <div className="flex items-center justify-between">
               <button
                 type="button"
@@ -645,8 +645,8 @@ export function CalendarApp({ storageKey, sources, externalEvents = [], view = "
           </div>
         </Card>
 
-        <Card className="overflow-hidden">
-          <div className="border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950">
+        <Card className="overflow-hidden border-white/80 bg-white/88 dark:border-slate-800 dark:bg-slate-900/92">
+          <div className="border-b border-slate-200 bg-white/90 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/90">
             <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Calendarios</div>
           </div>
           <div className="p-4">
@@ -817,7 +817,7 @@ export function CalendarApp({ storageKey, sources, externalEvents = [], view = "
                 <select
                   value={form.calendarId}
                   onChange={(e) => setForm((p) => ({ ...p, calendarId: e.target.value }))}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-blue-500 focus:ring-2 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+                  className="w-full rounded-[1rem] border border-slate-200/80 bg-white/92 px-3 py-2.5 text-sm font-semibold text-slate-900 shadow-[0_16px_34px_-30px_rgba(15,23,42,0.48)] outline-none transition focus:ring-4 focus:ring-blue-500/15 dark:border-slate-800 dark:bg-slate-900/92 dark:text-slate-100 dark:shadow-[0_20px_40px_-34px_rgba(2,6,23,0.95)] dark:focus:ring-cyan-400/15"
                 >
                   {sources.map((s) => (
                     <option key={s.id} value={s.id}>

@@ -11,11 +11,13 @@ export function Avatar({
   src,
   size = 56,
   className = "",
+  fit = "cover",
 }: {
   name: string;
   src?: string | null;
   size?: number;
   className?: string;
+  fit?: "cover" | "contain";
 }) {
   return (
     <div
@@ -24,8 +26,15 @@ export function Avatar({
       aria-label={name}
       title={name}
     >
-      {src ? <img src={src} alt={name} className="h-full w-full object-cover" /> : initials(name)}
+      {src ? (
+        <img
+          src={src}
+          alt={name}
+          className={`h-full w-full ${fit === "contain" ? "object-contain p-1.5" : "object-cover"}`}
+        />
+      ) : (
+        initials(name)
+      )}
     </div>
   );
 }
-

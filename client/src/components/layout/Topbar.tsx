@@ -60,7 +60,7 @@ export function Topbar({
   return (
     <header className="relative z-20 border-b border-slate-200/70 bg-white/[0.88] shadow-[0_18px_50px_-42px_rgba(15,23,42,0.65)] backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/[0.86]">
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-blue-500/25 to-transparent dark:via-cyan-300/25" />
-      <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-3 py-2.5 sm:px-4 md:min-h-20 md:px-6 md:py-3">
+      <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-2 px-3 py-2.5 sm:gap-3 sm:px-4 md:min-h-20 md:px-6 md:py-3">
         <div className="flex min-w-0 items-center gap-3">
           {onMenuClick ? (
             <button
@@ -97,7 +97,7 @@ export function Topbar({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {user && notifications === "on" ? <NotificationsBell api={api} role={user.rol} /> : null}
 
           <div className="relative" ref={menuRef}>
@@ -148,7 +148,7 @@ export function Topbar({
 
             {menuOpen ? (
               <div
-                className="absolute right-0 mt-3 w-64 overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-2xl shadow-slate-950/[0.12] dark:border-slate-800 dark:bg-slate-900"
+                className="absolute right-0 mt-3 w-[min(16rem,calc(100vw-1rem))] overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-2xl shadow-slate-950/[0.12] sm:w-64 dark:border-slate-800 dark:bg-slate-900"
                 role="menu"
                 aria-label="Menú de usuario"
               >

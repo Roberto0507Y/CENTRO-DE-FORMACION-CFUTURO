@@ -4,6 +4,28 @@ import { useAuth } from "../../hooks/useAuth";
 import { Button } from "../ui/Button";
 import { Container } from "../ui/Container";
 
+function desktopNavItemClass(isActive: boolean) {
+  return [
+    "relative inline-flex items-center rounded-2xl px-4 py-2.5 text-sm font-semibold tracking-[0.01em] transition-all duration-300",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
+    isActive
+      ? "text-white"
+      : "text-white/72 hover:-translate-y-[1px] hover:bg-white/[0.07] hover:text-white hover:shadow-[0_10px_24px_rgba(15,23,42,0.18)]",
+    isActive
+      ? "after:absolute after:left-1/2 after:bottom-0 after:h-[3px] after:w-8 after:-translate-x-1/2 after:rounded-full after:bg-gradient-to-r after:from-cyan-300 after:via-cyan-400 after:to-blue-500 after:shadow-[0_0_16px_rgba(34,211,238,0.35)]"
+      : "",
+  ].join(" ");
+}
+
+function mobileNavItemClass(isActive: boolean) {
+  return [
+    "relative inline-flex items-center rounded-2xl px-3.5 py-2.5 text-sm font-semibold transition-all duration-300",
+    isActive
+      ? "bg-white/10 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]"
+      : "text-white/80 hover:bg-white/10 hover:text-white",
+  ].join(" ");
+}
+
 function HashLink({
   toHash,
   label,
@@ -20,16 +42,7 @@ function HashLink({
     <Link
       to={{ pathname: "/", hash: toHash }}
       onClick={onClick}
-      className={[
-        "relative inline-flex items-center rounded-2xl px-3.5 py-2 text-sm font-semibold transition",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
-        isActive
-          ? "text-white"
-          : "text-white/70 hover:bg-white/5 hover:text-white",
-        isActive
-          ? "after:absolute after:inset-x-3 after:-bottom-1 after:h-0.5 after:rounded-full after:bg-cyan-300"
-          : "",
-      ].join(" ")}
+      className={desktopNavItemClass(isActive)}
     >
       {label}
     </Link>
@@ -39,94 +52,60 @@ function HashLink({
 export function PublicNavbar() {
   const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { pathname, hash } = useLocation();
 
   const panelHref = useMemo(() => {
     if (!user) return null;
     return user.rol === "admin" ? "/admin" : user.rol === "docente" ? "/teacher" : "/student";
   }, [user]);
 
+  const isHomeActive = pathname === "/" && !hash;
+
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-gradient-to-b from-[#020617]/80 to-[#020617]/60 shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur supports-[backdrop-filter]:from-[#020617]/70 supports-[backdrop-filter]:to-[#020617]/45">
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-[linear-gradient(180deg,rgba(2,6,23,0.88)_0%,rgba(4,11,29,0.82)_56%,rgba(6,13,32,0.74)_100%)] shadow-[0_14px_34px_rgba(2,6,23,0.20)] backdrop-blur-xl supports-[backdrop-filter]:bg-[linear-gradient(180deg,rgba(2,6,23,0.76)_0%,rgba(4,11,29,0.68)_56%,rgba(6,13,32,0.58)_100%)]">
       <Container className="px-3 sm:px-4 md:px-6 lg:px-10">
-        <div className="flex h-[68px] items-center gap-3 sm:gap-4 lg:h-24 lg:gap-5">
+        <div className="flex min-w-0 h-[70px] items-center gap-3 sm:gap-4 lg:h-24 lg:gap-6">
           {/* Brand */}
           <Link
             to="/"
-            className="group flex items-center"
+            className="group flex min-w-0 flex-1 items-center lg:flex-none"
             onClick={() => setMobileOpen(false)}
             aria-label="Ir al inicio"
           >
             <img
               src="/logo-horizontal.png"
               alt="C.FUTURO"
-              className="h-11 w-auto max-w-[190px] select-none object-contain transition will-change-transform group-hover:drop-shadow-[0_0_18px_rgba(34,211,238,0.55)] sm:h-12 sm:max-w-[280px] lg:h-20 lg:max-w-[640px]"
+              className="h-11 w-auto max-w-[170px] max-w-full select-none object-contain transition will-change-transform group-hover:drop-shadow-[0_0_18px_rgba(34,211,238,0.55)] sm:h-12 sm:max-w-[280px] lg:h-20 lg:max-w-[640px]"
               draggable={false}
             />
           </Link>
 
           {/* Desktop nav */}
           <nav className="hidden flex-1 items-center justify-center gap-6 lg:flex">
-            <NavLink
-              to="/"
-              end
-              className={({ isActive }) =>
-                [
-                  "relative inline-flex items-center rounded-2xl px-3.5 py-2 text-sm font-semibold transition",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
-                  isActive
-                    ? "text-white"
-                    : "text-white/70 hover:bg-white/5 hover:text-white",
-                  isActive
-                    ? "after:absolute after:inset-x-3 after:-bottom-1 after:h-0.5 after:rounded-full after:bg-cyan-300"
-                    : "",
-                ].join(" ")
-              }
-            >
+            <Link to="/" className={desktopNavItemClass(isHomeActive)}>
               Inicio
-            </NavLink>
+            </Link>
             <NavLink
               to="/courses"
-              className={({ isActive }) =>
-                [
-                  "relative inline-flex items-center rounded-2xl px-3.5 py-2 text-sm font-semibold transition",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
-                  isActive
-                    ? "text-white"
-                    : "text-white/70 hover:bg-white/5 hover:text-white",
-                  isActive
-                    ? "after:absolute after:inset-x-3 after:-bottom-1 after:h-0.5 after:rounded-full after:bg-cyan-300"
-                    : "",
-                ].join(" ")
-              }
+              className={({ isActive }) => desktopNavItemClass(isActive)}
             >
               Cursos
             </NavLink>
             <HashLink toHash="#nosotros" label="Nosotros" />
             <NavLink
               to="/contact"
-              className={({ isActive }) =>
-                [
-                  "relative inline-flex items-center rounded-2xl px-3.5 py-2 text-sm font-semibold transition",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
-                  isActive
-                    ? "text-white"
-                    : "text-white/70 hover:bg-white/5 hover:text-white",
-                  isActive
-                    ? "after:absolute after:inset-x-3 after:-bottom-1 after:h-0.5 after:rounded-full after:bg-cyan-300"
-                    : "",
-                ].join(" ")
-              }
+              className={({ isActive }) => desktopNavItemClass(isActive)}
             >
               Contacto
             </NavLink>
           </nav>
 
           {/* Actions */}
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
             {/* Mobile menu */}
             <button
               type="button"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white/80 shadow-sm shadow-black/30 transition hover:bg-white/10 hover:text-white lg:hidden"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white/80 shadow-sm shadow-black/30 transition-all duration-300 hover:-translate-y-[1px] hover:bg-white/10 hover:text-white hover:shadow-[0_14px_24px_rgba(2,6,23,0.24)] lg:hidden"
               onClick={() => setMobileOpen((v) => !v)}
               aria-label={mobileOpen ? "Cerrar menú" : "Abrir menú"}
               aria-expanded={mobileOpen}
@@ -146,14 +125,14 @@ export function PublicNavbar() {
                 <Link to="/auth/login" className="hidden lg:block">
                   <Button
                     variant="ghost"
-                    className="rounded-2xl border border-white/12 bg-white/5 px-5 text-white/85 shadow-sm shadow-black/25 hover:bg-white/10 hover:text-white hover:shadow-md hover:shadow-black/30"
+                    className="rounded-2xl border border-white/12 bg-white/5 px-5 text-white/85 shadow-sm shadow-black/25 transition-all duration-300 hover:-translate-y-[1px] hover:bg-white/10 hover:text-white hover:shadow-md hover:shadow-black/30"
                   >
-                    Ingresar
+                    Iniciar sesión
                   </Button>
                 </Link>
                 <Link to="/auth/register" className="hidden sm:block">
-                  <Button className="rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 text-white shadow-[0_18px_50px_rgba(34,211,238,0.18)] ring-1 ring-white/10 hover:from-cyan-400 hover:to-blue-500 hover:shadow-[0_22px_60px_rgba(34,211,238,0.24)]">
-                    Crear cuenta
+                  <Button className="rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 text-white shadow-[0_18px_50px_rgba(34,211,238,0.18)] ring-1 ring-white/10 transition-all duration-300 hover:-translate-y-[1px] hover:from-cyan-400 hover:to-blue-500 hover:shadow-[0_22px_60px_rgba(34,211,238,0.24)]">
+                    Comenzar ahora
                   </Button>
                 </Link>
               </>
@@ -208,30 +187,19 @@ export function PublicNavbar() {
           aria-label="Menú de navegación"
         >
           <div className="pb-4 pt-2">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-2 shadow-sm shadow-black/30 backdrop-blur">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-2 shadow-sm shadow-black/30 backdrop-blur-xl">
               <div className="flex flex-col">
-                <NavLink
+                <Link
                   to="/"
-                  end
                   onClick={() => setMobileOpen(false)}
-                  className={({ isActive }) =>
-                    [
-                      "relative inline-flex items-center rounded-2xl px-3.5 py-2 text-sm font-semibold transition",
-                      isActive ? "text-white" : "text-white/80 hover:bg-white/10 hover:text-white",
-                    ].join(" ")
-                  }
+                  className={mobileNavItemClass(isHomeActive)}
                 >
                   Inicio
-                </NavLink>
+                </Link>
                 <NavLink
                   to="/courses"
                   onClick={() => setMobileOpen(false)}
-                  className={({ isActive }) =>
-                    [
-                      "relative inline-flex items-center rounded-2xl px-3.5 py-2 text-sm font-semibold transition",
-                      isActive ? "text-white" : "text-white/80 hover:bg-white/10 hover:text-white",
-                    ].join(" ")
-                  }
+                  className={({ isActive }) => mobileNavItemClass(isActive)}
                 >
                   Cursos
                 </NavLink>
@@ -239,35 +207,30 @@ export function PublicNavbar() {
                 <NavLink
                   to="/contact"
                   onClick={() => setMobileOpen(false)}
-                  className={({ isActive }) =>
-                    [
-                      "relative inline-flex items-center rounded-2xl px-3.5 py-2 text-sm font-semibold transition",
-                      isActive ? "text-white" : "text-white/80 hover:bg-white/10 hover:text-white",
-                    ].join(" ")
-                  }
+                  className={({ isActive }) => mobileNavItemClass(isActive)}
                 >
                   Contacto
                 </NavLink>
 
-                <div className="mt-2 border-t border-slate-200/70 pt-2">
+                <div className="mt-2 border-t border-white/10 pt-2">
                   {!user ? (
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid gap-2 sm:grid-cols-2">
                       <Link to="/auth/login" onClick={() => setMobileOpen(false)}>
                         <Button
                           variant="ghost"
-                          className="w-full rounded-2xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+                          className="w-full rounded-2xl border border-white/10 bg-white/5 text-white/80 transition-all duration-300 hover:bg-white/10 hover:text-white"
                         >
-                          Ingresar
+                          Iniciar sesión
                         </Button>
                       </Link>
                       <Link to="/auth/register" onClick={() => setMobileOpen(false)}>
-                        <Button className="w-full rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 ring-1 ring-white/10">
-                          Crear cuenta
+                        <Button className="w-full rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 ring-1 ring-white/10 transition-all duration-300 hover:from-cyan-400 hover:to-blue-500">
+                          Comenzar ahora
                         </Button>
                       </Link>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid gap-2 sm:grid-cols-2">
                       {panelHref ? (
                         <Link to={panelHref} onClick={() => setMobileOpen(false)}>
                           <Button

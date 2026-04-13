@@ -266,30 +266,30 @@ export function CourseForumPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="cf-course-scope space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="text-xs font-black uppercase tracking-wider text-slate-500">Foro</div>
-          <div className="mt-1 text-2xl font-black tracking-tight text-slate-900">Temas del curso</div>
-          <div className="mt-1 text-sm text-slate-600">Preguntas, dudas y conversación del curso.</div>
+          <div className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Foro</div>
+          <div className="mt-1 text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">Temas del curso</div>
+          <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">Preguntas, dudas y conversación del curso.</div>
         </div>
         {mode === "idle" ? <Button onClick={startCreate}>+ Nuevo tema</Button> : null}
       </div>
 
       {error ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/35 dark:text-rose-200">
           {error}
         </div>
       ) : null}
       {success ? (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/35 dark:text-emerald-200">
           {success}
         </div>
       ) : null}
 
       {isLoading && !hasTopics ? (
-        <Card className="p-6">
-          <div className="flex items-center gap-3 text-sm text-slate-600">
+        <Card className="border-white/80 bg-white/88 p-6 shadow-[0_24px_72px_-52px_rgba(15,23,42,0.68)] dark:border-slate-800/80 dark:bg-slate-900/92">
+          <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
             <Spinner />
             Cargando…
           </div>
@@ -297,13 +297,13 @@ export function CourseForumPage() {
       ) : null}
 
       {mode === "create" ? (
-        <Card className="p-6">
+        <Card className="border-white/80 bg-white/88 p-6 shadow-[0_24px_72px_-52px_rgba(15,23,42,0.68)] dark:border-slate-800/80 dark:bg-slate-900/92">
           <div className="space-y-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="text-xs font-black uppercase tracking-wider text-slate-500">Nuevo tema</div>
-                <div className="mt-1 text-lg font-black tracking-tight text-slate-900">Crear tema</div>
-                <div className="mt-1 text-sm text-slate-600">Comparte una pregunta o inicia una conversación.</div>
+                <div className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Nuevo tema</div>
+                <div className="mt-1 text-lg font-black tracking-tight text-slate-900 dark:text-slate-100">Crear tema</div>
+                <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">Comparte una pregunta o inicia una conversación.</div>
               </div>
               <div className="flex gap-2">
                 <Button variant="ghost" onClick={cancelCreate} disabled={isBusy}>
@@ -316,7 +316,7 @@ export function CourseForumPage() {
             </div>
 
             <div>
-              <div className="mb-2 text-sm font-extrabold text-slate-800">Título</div>
+              <div className="mb-2 text-sm font-extrabold text-slate-800 dark:text-slate-100">Título</div>
               <Input
                 value={topicForm.titulo}
                 onChange={(e) => setTopicForm((s) => ({ ...s, titulo: e.target.value }))}
@@ -324,9 +324,9 @@ export function CourseForumPage() {
               />
             </div>
             <div>
-              <div className="mb-2 text-sm font-extrabold text-slate-800">Mensaje</div>
+              <div className="mb-2 text-sm font-extrabold text-slate-800 dark:text-slate-100">Mensaje</div>
               <textarea
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="w-full rounded-2xl border border-slate-200 bg-white/92 px-4 py-3 text-sm text-slate-900 outline-none transition-colors focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950/85 dark:text-slate-100"
                 rows={8}
                 value={topicForm.mensaje}
                 onChange={(e) => setTopicForm((s) => ({ ...s, mensaje: e.target.value }))}
@@ -343,7 +343,7 @@ export function CourseForumPage() {
             {visibleTopics.map((t) => (
               <Card
                 key={t.id}
-                className="cursor-pointer p-5 transition hover:-translate-y-0.5 hover:shadow-lg"
+                className="cursor-pointer border-white/80 bg-white/88 p-5 shadow-[0_22px_60px_-48px_rgba(15,23,42,0.6)] transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-800/80 dark:bg-slate-900/92"
                 onClick={() => setSelectedId(t.id)}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -352,16 +352,16 @@ export function CourseForumPage() {
                       {t.fijado ? <Badge variant="amber">Fijado</Badge> : null}
                       {topicStatusBadge(t.estado)}
                     </div>
-                    <div className="mt-3 truncate text-lg font-black text-slate-900">{t.titulo}</div>
-                    <div className="mt-1 truncate text-sm text-slate-500">
+                    <div className="mt-3 truncate text-lg font-black text-slate-900 dark:text-slate-100">{t.titulo}</div>
+                    <div className="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">
                       {t.autor.nombres} {t.autor.apellidos} · {formatDate(t.created_at)}
                     </div>
-                    <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+                    <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
                       <span className="font-extrabold">{t.respuestas_count}</span>
                       <span>respuestas</span>
                       {t.last_reply_at ? (
                         <>
-                          <span className="text-slate-300">•</span>
+                          <span className="text-slate-300 dark:text-slate-600">•</span>
                           <span>Última: {formatDate(t.last_reply_at)}</span>
                         </>
                       ) : null}
@@ -388,7 +388,7 @@ export function CourseForumPage() {
             Volver a temas
           </Button>
 
-          <Card className="p-6">
+          <Card className="border-white/80 bg-white/88 p-6 shadow-[0_24px_72px_-52px_rgba(15,23,42,0.68)] dark:border-slate-800/80 dark:bg-slate-900/92">
             {detail ? (
               <div className="space-y-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -397,8 +397,8 @@ export function CourseForumPage() {
                       {detail.fijado ? <Badge variant="amber">Fijado</Badge> : null}
                       {topicStatusBadge(detail.estado)}
                     </div>
-                    <div className="mt-2 text-2xl font-black tracking-tight text-slate-900">{detail.titulo}</div>
-                    <div className="mt-1 text-sm text-slate-600">
+                    <div className="mt-2 text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">{detail.titulo}</div>
+                    <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                       {detail.autor.nombres} {detail.autor.apellidos} · {formatDate(detail.created_at)}
                     </div>
                   </div>
@@ -432,28 +432,28 @@ export function CourseForumPage() {
                   </div>
                 </div>
 
-                <div className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">{detail.mensaje}</div>
+                <div className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800 dark:text-slate-100">{detail.mensaje}</div>
 
-                <div className="pt-4 border-t border-slate-200">
+                <div className="border-t border-slate-200 pt-4 dark:border-slate-800">
                   <div className="flex items-center justify-between">
-                    <div className="text-sm font-black text-slate-900">Respuestas</div>
-                    <div className="text-xs text-slate-500">{detail.respuestas_count} en total</div>
+                    <div className="text-sm font-black text-slate-900 dark:text-slate-100">Respuestas</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">{detail.respuestas_count} en total</div>
                   </div>
 
                   <div className="mt-4 space-y-3">
                     {detail.respuestas.length === 0 ? (
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-300">
                         Todavía no hay respuestas.
                       </div>
                     ) : (
                       visibleReplies.map((r) => (
-                        <div key={r.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                        <div key={r.id} className="rounded-2xl border border-slate-200 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950/65">
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <div className="text-sm font-black text-slate-900">
+                              <div className="text-sm font-black text-slate-900 dark:text-slate-100">
                                 {r.autor.nombres} {r.autor.apellidos}
                               </div>
-                              <div className="mt-1 text-xs text-slate-500">{formatDate(r.created_at)}</div>
+                              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{formatDate(r.created_at)}</div>
                             </div>
                             <div className="flex items-center gap-2">
                               {canModerate ? replyStatusBadge(r.estado) : null}
@@ -469,7 +469,7 @@ export function CourseForumPage() {
                               ) : null}
                             </div>
                           </div>
-                          <div className="mt-3 whitespace-pre-wrap text-sm text-slate-700">{r.mensaje}</div>
+                          <div className="mt-3 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200">{r.mensaje}</div>
                         </div>
                       ))
                     )}
@@ -484,14 +484,14 @@ export function CourseForumPage() {
 
                   <div className="mt-6">
                     {detail.estado === "cerrado" ? (
-                      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
                         Este tema está cerrado. Ya no admite nuevas respuestas.
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        <div className="text-sm font-extrabold text-slate-800">Responder</div>
+                        <div className="text-sm font-extrabold text-slate-800 dark:text-slate-100">Responder</div>
                         <textarea
-                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
+                          className="w-full rounded-2xl border border-slate-200 bg-white/92 px-4 py-3 text-sm text-slate-900 outline-none transition-colors focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950/85 dark:text-slate-100"
                           rows={4}
                           value={replyMsg}
                           onChange={(e) => setReplyMsg(e.target.value)}
@@ -508,7 +508,7 @@ export function CourseForumPage() {
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-3 text-sm font-semibold text-slate-600">
+              <div className="flex items-center gap-3 text-sm font-semibold text-slate-600 dark:text-slate-300">
                 <Spinner />
                 Cargando tema...
               </div>
