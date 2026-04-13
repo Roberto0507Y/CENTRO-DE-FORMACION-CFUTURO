@@ -1,16 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { Spinner } from "../../components/ui/Spinner";
 import { EmptyState } from "../../components/ui/EmptyState";
-import { BiPayEmbed } from "../../components/payment/BiPayEmbed";
 import { useAuth } from "../../hooks/useAuth";
 import type { ApiResponse } from "../../types/api";
 import type { PricingSetting, PricingStatus } from "../../types/pricing";
 import { getApiErrorMessage } from "../../utils/apiError";
 import { normalizePaymentLinkInput } from "../../utils/paymentLink";
+import { lazyNamed } from "../../utils/lazyNamed";
+
+const BiPayEmbed = lazyNamed(() => import("../../components/payment/BiPayEmbed"), "BiPayEmbed");
 
 export function AdminPricingPage() {
   const { api } = useAuth();
@@ -251,7 +253,15 @@ export function AdminPricingPage() {
               {normalizePaymentLinkInput(link) ? (
                 <div>
                   <div className="text-xs font-extrabold text-slate-700">Vista previa</div>
-                  <BiPayEmbed paymentLink={link} className="mt-2" />
+                  <Suspense
+                    fallback={
+                      <div className="mt-2 grid min-h-[8rem] place-items-center rounded-2xl border border-slate-200 bg-slate-50">
+                        <Spinner />
+                      </div>
+                    }
+                  >
+                    <BiPayEmbed paymentLink={link} className="mt-2" />
+                  </Suspense>
                 </div>
               ) : null}
             </div>

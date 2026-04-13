@@ -1,18 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { AxiosInstance } from "axios";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Input } from "../ui/Input";
 import { ConfirmActionModal } from "../ui/ConfirmActionModal";
-import { BiPayEmbed } from "../payment/BiPayEmbed";
 import type { ApiResponse } from "../../types/api";
 import type { User, UserListResponse } from "../../types/auth";
 import type { CourseAccessType, CourseLevel, CourseStatus } from "../../types/course";
 import type { PricingSetting } from "../../types/pricing";
 import { getApiErrorMessage } from "../../utils/apiError";
+import { lazyNamed } from "../../utils/lazyNamed";
 import { normalizePaymentLinkInput } from "../../utils/paymentLink";
 
 type CategoryItem = { id: number; nombre: string };
+const BiPayEmbed = lazyNamed(() => import("../payment/BiPayEmbed"), "BiPayEmbed");
 
 type Props = {
   api: AxiosInstance;
@@ -783,7 +784,15 @@ export function CourseCreateForm({ api, currentUser, variant, onCreated, hideHea
                                   </span>
                                 </div>
 
-                                <BiPayEmbed paymentLink={selectedPricing.payment_link} className="mt-4" />
+                                <Suspense
+                                  fallback={
+                                    <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-300">
+                                      Cargando vista previa del pago...
+                                    </div>
+                                  }
+                                >
+                                  <BiPayEmbed paymentLink={selectedPricing.payment_link} className="mt-4" />
+                                </Suspense>
                               </div>
                             ) : null}
                           </div>

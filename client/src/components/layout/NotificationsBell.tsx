@@ -51,40 +51,69 @@ export function NotificationsBell({ api, role }: { api: AxiosInstance; role: Not
   const [pendingDelete, setPendingDelete] = useState<NotificationItem | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const ref = useRef<HTMLDivElement | null>(null);
+  const pollInFlightRef = useRef(false);
   const navigate = useNavigate();
 
   const hasUnread = unreadCount > 0;
 
-  const load = async (opts?: { unreadOnly?: boolean }) => {
+  const load = async (opts?: { unreadOnly?: boolean; silent?: boolean }) => {
     try {
-      setLoading(true);
-      setError("");
+      if (!opts?.silent) {
+        setLoading(true);
+        setError("");
+      }
       const res = await api.get<ApiResponse<NotificationListResponse>>("/notifications", {
-        params: { limit: 12, offset: 0, unread: opts?.unreadOnly ? 1 : undefined },
+        params: {
+          limit: opts?.unreadOnly ? 1 : 12,
+          offset: 0,
+          unread: opts?.unreadOnly ? 1 : undefined,
+        },
       });
-      setItems(res.data.data.items);
+      if (!opts?.unreadOnly) {
+        setItems(res.data.data.items);
+      }
       setUnreadCount(res.data.data.unreadCount);
     } catch (err) {
-      setError(getApiErrorMessage(err, "No se pudieron cargar notificaciones."));
+      if (!opts?.silent) {
+        setError(getApiErrorMessage(err, "No se pudieron cargar notificaciones."));
+      }
     } finally {
-      setLoading(false);
+      if (!opts?.silent) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    // Poll ligero para el contador (solo si está cerrado)
+    // Poll ligero para el contador (solo si está cerrado y la pestaña está visible)
     const t = window.setInterval(() => {
-      if (open) return;
-      void load({ unreadOnly: true });
-    }, 30000);
+      if (open || document.visibilityState !== "visible" || pollInFlightRef.current) return;
+      pollInFlightRef.current = true;
+      void load({ unreadOnly: true, silent: true }).finally(() => {
+        pollInFlightRef.current = false;
+      });
+    }, 60000);
     return () => window.clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   useEffect(() => {
-    void load({ unreadOnly: true });
+    void load({ unreadOnly: true, silent: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (open || document.visibilityState !== "visible" || pollInFlightRef.current) return;
+      pollInFlightRef.current = true;
+      void load({ unreadOnly: true, silent: true }).finally(() => {
+        pollInFlightRef.current = false;
+      });
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;

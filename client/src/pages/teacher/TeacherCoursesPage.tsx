@@ -1,18 +1,17 @@
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Card } from "../../components/ui/Card";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { Spinner } from "../../components/ui/Spinner";
 import { useAuth } from "../../hooks/useAuth";
-import { CourseCreateForm } from "../../components/course/CourseCreateForm";
 import type { ApiResponse } from "../../types/api";
 import type { CourseListItem, CourseStatus } from "../../types/course";
 import { Button } from "../../components/ui/Button";
-import { CourseEditModal } from "../../components/course/CourseEditModal";
 import { PaginationControls } from "../../components/ui/PaginationControls";
 import { Link } from "react-router-dom";
 import { ArrowRight, CalendarDays, GraduationCap } from "lucide-react";
 import { Badge } from "../../components/ui/Badge";
 import { getApiErrorMessage } from "../../utils/apiError";
+import { lazyNamed } from "../../utils/lazyNamed";
 
 type TeachingResponse = { items: (CourseListItem & { estado: CourseStatus })[]; total: number; page: number; limit: number };
 const PAGE_SIZE = 12;
@@ -23,6 +22,14 @@ const courseAccents = [
   "from-amber-500 via-orange-500 to-slate-950",
   "from-indigo-500 via-violet-600 to-slate-950",
 ] as const;
+const CourseCreateForm = lazyNamed(
+  () => import("../../components/course/CourseCreateForm"),
+  "CourseCreateForm",
+);
+const CourseEditModal = lazyNamed(
+  () => import("../../components/course/CourseEditModal"),
+  "CourseEditModal",
+);
 
 function getCourseInitials(title: string) {
   const initials = title
@@ -116,15 +123,23 @@ export function TeacherCoursesPage() {
       ) : null}
 
       {user ? (
-        <CourseCreateForm
-          api={api}
-          currentUser={user}
-          variant="teacher"
-          onCreated={() => {
-            setPage(1);
-            void load(1);
-          }}
-        />
+        <Suspense
+          fallback={
+            <Card className="grid min-h-[14rem] place-items-center">
+              <Spinner />
+            </Card>
+          }
+        >
+          <CourseCreateForm
+            api={api}
+            currentUser={user}
+            variant="teacher"
+            onCreated={() => {
+              setPage(1);
+              void load(1);
+            }}
+          />
+        </Suspense>
       ) : null}
 
       {isLoading ? (
@@ -157,16 +172,20 @@ export function TeacherCoursesPage() {
         </Card>
       )}
 
-      <CourseEditModal
-        api={api}
-        open={editId !== null}
-        courseId={editId}
-        onClose={() => setEditId(null)}
-        onSaved={() => {
-          setEditId(null);
-          void load();
-        }}
-      />
+      {editId !== null ? (
+        <Suspense fallback={null}>
+          <CourseEditModal
+            api={api}
+            open={editId !== null}
+            courseId={editId}
+            onClose={() => setEditId(null)}
+            onSaved={() => {
+              setEditId(null);
+              void load();
+            }}
+          />
+        </Suspense>
+      ) : null}
     </div>
   );
 }

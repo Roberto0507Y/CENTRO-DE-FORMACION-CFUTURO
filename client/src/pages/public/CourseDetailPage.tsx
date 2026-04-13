@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
 import { Spinner } from "../../components/ui/Spinner";
-import { BiPayEmbed } from "../../components/payment/BiPayEmbed";
 import { useAuth } from "../../hooks/useAuth";
 import type { ApiResponse } from "../../types/api";
 import type { CourseDetail } from "../../types/course";
@@ -15,6 +14,9 @@ import { getApiErrorMessage } from "../../utils/apiError";
 import { downloadPaymentProof } from "../../utils/downloadFile";
 import { formatMoneyGTQ } from "../../utils/format";
 import { normalizePaymentLinkInput } from "../../utils/paymentLink";
+import { lazyNamed } from "../../utils/lazyNamed";
+
+const BiPayEmbed = lazyNamed(() => import("../../components/payment/BiPayEmbed"), "BiPayEmbed");
 
 type MyCoursePayment = {
   payment: {
@@ -608,7 +610,15 @@ export function CourseDetailPage() {
                 </div>
               ) : safePaymentLink ? (
                 <div className="grid gap-3">
-                  <BiPayEmbed paymentLink={course.payment_link} />
+                  <Suspense
+                    fallback={
+                      <div className="grid min-h-[9rem] place-items-center rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950/70">
+                        <Spinner />
+                      </div>
+                    }
+                  >
+                    <BiPayEmbed paymentLink={course.payment_link} />
+                  </Suspense>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-300">
                     Completa el pago, descarga el voucher del banco y luego súbelo en el formulario de comprobante.
                   </div>

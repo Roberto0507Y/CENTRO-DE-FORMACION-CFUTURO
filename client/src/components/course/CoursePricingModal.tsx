@@ -1,19 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import type { AxiosInstance } from "axios";
 import { Card } from "../ui/Card";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Spinner } from "../ui/Spinner";
-import { BiPayEmbed } from "../payment/BiPayEmbed";
 import type { ApiResponse } from "../../types/api";
 import type { CourseAccessType, CourseDetail } from "../../types/course";
 import { getApiErrorMessage } from "../../utils/apiError";
+import { lazyNamed } from "../../utils/lazyNamed";
 import { normalizePaymentLinkInput } from "../../utils/paymentLink";
 
 type FormState = {
   precio: string;
   payment_link: string;
 };
+const BiPayEmbed = lazyNamed(() => import("../payment/BiPayEmbed"), "BiPayEmbed");
 
 function Field({
   label,
@@ -205,7 +206,15 @@ export function CoursePricingModal({
                 {computedAccess === "pago" && normalizePaymentLinkInput(form.payment_link) ? (
                   <div>
                     <div className="text-xs font-extrabold text-slate-700">Vista previa</div>
-                    <BiPayEmbed paymentLink={form.payment_link} className="mt-2" />
+                    <Suspense
+                      fallback={
+                        <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-300">
+                          Cargando vista previa del pago...
+                        </div>
+                      }
+                    >
+                      <BiPayEmbed paymentLink={form.payment_link} className="mt-2" />
+                    </Suspense>
                   </div>
                 ) : null}
               </div>

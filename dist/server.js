@@ -12,6 +12,10 @@ async function main() {
         // eslint-disable-next-line no-console
         console.log(`Servidor corriendo en http://localhost:${env_1.env.PORT}`);
     });
+    server.keepAliveTimeout = 15000;
+    server.headersTimeout = 20000;
+    server.requestTimeout = 30000;
+    server.maxRequestsPerSocket = 100;
     let shuttingDown = false;
     async function shutdown(signal) {
         if (shuttingDown)

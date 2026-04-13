@@ -1,61 +1,204 @@
+import { Suspense, lazy, type ComponentType, type ReactNode } from "react";
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
+import { Spinner } from "../components/ui/Spinner";
 import { PublicLayout } from "../layouts/PublicLayout";
-import { StudentLayout } from "../layouts/StudentLayout";
-import { TeacherLayout } from "../layouts/TeacherLayout";
-import { AdminLayout } from "../layouts/AdminLayout";
+import { HomePage } from "../pages/public/HomePage";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { RouteErrorPage } from "./RouteErrorPage";
 
-import { HomePage } from "../pages/public/HomePage";
-import { CoursesPage } from "../pages/public/CoursesPage";
-import { CourseDetailPage } from "../pages/public/CourseDetailPage";
-import { ContactPage } from "../pages/public/ContactPage";
-import { LoginPage } from "../pages/auth/LoginPage";
-import { RegisterPage } from "../pages/auth/RegisterPage";
-import { ForgotPasswordPage } from "../pages/auth/ForgotPasswordPage";
-import { ResetPasswordPage } from "../pages/auth/ResetPasswordPage";
-import { StudentDashboardPage } from "../pages/student/StudentDashboardPage";
-import { MyCoursesPage } from "../pages/student/MyCoursesPage";
-import { CourseTasksStudentPage } from "../pages/student/CourseTasksStudentPage";
-import { CourseGradesStudentPage } from "../pages/student/CourseGradesStudentPage";
-import { CourseQuizzesStudentPage } from "../pages/student/CourseQuizzesStudentPage";
-import { CourseForumStudentPage } from "../pages/student/CourseForumStudentPage";
-import { StudentAccountPage } from "../pages/student/StudentAccountPage";
-import { StudentGroupsPage } from "../pages/student/StudentGroupsPage";
-import { StudentCalendarPage } from "../pages/student/StudentCalendarPage";
-import { StudentInboxPage } from "../pages/student/StudentInboxPage";
-import { StudentHistoryPage } from "../pages/student/StudentHistoryPage";
-import { MyPaymentsPage } from "../pages/student/MyPaymentsPage";
-import { TeacherDashboardPage } from "../pages/teacher/TeacherDashboardPage";
-import { TeacherCoursesPage } from "../pages/teacher/TeacherCoursesPage";
-import { TeacherAccountPage } from "../pages/teacher/TeacherAccountPage";
-import { TeacherGroupsPage } from "../pages/teacher/TeacherGroupsPage";
-import { TeacherCalendarPage } from "../pages/teacher/TeacherCalendarPage";
-import { TeacherInboxPage } from "../pages/teacher/TeacherInboxPage";
-import { TeacherHistoryPage } from "../pages/teacher/TeacherHistoryPage";
-import { AdminDashboardPage } from "../pages/admin/AdminDashboardPage";
-import { AdminAccountPage } from "../pages/admin/AdminAccountPage";
-import { AdminCoursesPage } from "../pages/admin/AdminCoursesPage";
-import { AdminCourseCreatePage } from "../pages/admin/AdminCourseCreatePage";
-import { AdminUsersPage } from "../pages/admin/AdminUsersPage";
-import { AdminCategoriesPage } from "../pages/admin/AdminCategoriesPage";
-import { AdminPaymentsPage } from "../pages/admin/AdminPaymentsPage";
-import { AdminPricingPage } from "../pages/admin/AdminPricingPage";
-import { AdminReportsPage } from "../pages/admin/AdminReportsPage";
-import { AdminGroupsPage } from "../pages/admin/AdminGroupsPage";
-import { AdminCalendarPage } from "../pages/admin/AdminCalendarPage";
-import { AdminInboxPage } from "../pages/admin/AdminInboxPage";
-import { AdminHistoryPage } from "../pages/admin/AdminHistoryPage";
-import { CourseTasksPage } from "../pages/shared/CourseTasksPage";
-import { CourseAnnouncementsPage } from "../pages/shared/CourseAnnouncementsPage";
-import { CourseAttendancePage } from "../pages/shared/CourseAttendancePage";
-import { CourseQuizzesPage } from "../pages/shared/CourseQuizzesPage";
-import { CourseMaterialsPage } from "../pages/shared/CourseMaterialsPage";
-import { CourseForumPage } from "../pages/shared/CourseForumPage";
-import { CourseHomePage } from "../pages/shared/CourseHomePage";
-import { CourseStudentsPage } from "../pages/shared/CourseStudentsPage";
-import { CourseManageLayout } from "../layouts/CourseManageLayout";
-import { CourseHomeStudentPage } from "../pages/student/CourseHomeStudentPage";
+function lazyNamed<TModule extends Record<string, ComponentType<any>>, TKey extends keyof TModule>(
+  factory: () => Promise<TModule>,
+  key: TKey,
+) {
+  return lazy(async () => {
+    const mod = await factory();
+    return { default: mod[key] as ComponentType<any> };
+  });
+}
+
+function RouteLoadingFallback() {
+  return (
+    <div className="grid min-h-[35vh] place-items-center">
+      <Spinner size={24} />
+    </div>
+  );
+}
+
+function suspenseElement(element: ReactNode) {
+  return <Suspense fallback={<RouteLoadingFallback />}>{element}</Suspense>;
+}
+
+const CoursesPage = lazyNamed(() => import("../pages/public/CoursesPage"), "CoursesPage");
+const CourseDetailPage = lazyNamed(
+  () => import("../pages/public/CourseDetailPage"),
+  "CourseDetailPage",
+);
+const ContactPage = lazyNamed(() => import("../pages/public/ContactPage"), "ContactPage");
+const LoginPage = lazyNamed(() => import("../pages/auth/LoginPage"), "LoginPage");
+const RegisterPage = lazyNamed(() => import("../pages/auth/RegisterPage"), "RegisterPage");
+const ForgotPasswordPage = lazyNamed(
+  () => import("../pages/auth/ForgotPasswordPage"),
+  "ForgotPasswordPage",
+);
+const ResetPasswordPage = lazyNamed(
+  () => import("../pages/auth/ResetPasswordPage"),
+  "ResetPasswordPage",
+);
+
+const StudentLayout = lazyNamed(() => import("../layouts/StudentLayout"), "StudentLayout");
+const TeacherLayout = lazyNamed(() => import("../layouts/TeacherLayout"), "TeacherLayout");
+const AdminLayout = lazyNamed(() => import("../layouts/AdminLayout"), "AdminLayout");
+const CourseManageLayout = lazyNamed(
+  () => import("../layouts/CourseManageLayout"),
+  "CourseManageLayout",
+);
+
+const StudentDashboardPage = lazyNamed(
+  () => import("../pages/student/StudentDashboardPage"),
+  "StudentDashboardPage",
+);
+const MyCoursesPage = lazyNamed(() => import("../pages/student/MyCoursesPage"), "MyCoursesPage");
+const CourseTasksStudentPage = lazyNamed(
+  () => import("../pages/student/CourseTasksStudentPage"),
+  "CourseTasksStudentPage",
+);
+const CourseGradesStudentPage = lazyNamed(
+  () => import("../pages/student/CourseGradesStudentPage"),
+  "CourseGradesStudentPage",
+);
+const CourseQuizzesStudentPage = lazyNamed(
+  () => import("../pages/student/CourseQuizzesStudentPage"),
+  "CourseQuizzesStudentPage",
+);
+const CourseForumStudentPage = lazyNamed(
+  () => import("../pages/student/CourseForumStudentPage"),
+  "CourseForumStudentPage",
+);
+const StudentAccountPage = lazyNamed(
+  () => import("../pages/student/StudentAccountPage"),
+  "StudentAccountPage",
+);
+const StudentGroupsPage = lazyNamed(
+  () => import("../pages/student/StudentGroupsPage"),
+  "StudentGroupsPage",
+);
+const StudentCalendarPage = lazyNamed(
+  () => import("../pages/student/StudentCalendarPage"),
+  "StudentCalendarPage",
+);
+const StudentInboxPage = lazyNamed(
+  () => import("../pages/student/StudentInboxPage"),
+  "StudentInboxPage",
+);
+const StudentHistoryPage = lazyNamed(
+  () => import("../pages/student/StudentHistoryPage"),
+  "StudentHistoryPage",
+);
+const MyPaymentsPage = lazyNamed(() => import("../pages/student/MyPaymentsPage"), "MyPaymentsPage");
+const CourseHomeStudentPage = lazyNamed(
+  () => import("../pages/student/CourseHomeStudentPage"),
+  "CourseHomeStudentPage",
+);
+
+const TeacherDashboardPage = lazyNamed(
+  () => import("../pages/teacher/TeacherDashboardPage"),
+  "TeacherDashboardPage",
+);
+const TeacherCoursesPage = lazyNamed(
+  () => import("../pages/teacher/TeacherCoursesPage"),
+  "TeacherCoursesPage",
+);
+const TeacherAccountPage = lazyNamed(
+  () => import("../pages/teacher/TeacherAccountPage"),
+  "TeacherAccountPage",
+);
+const TeacherGroupsPage = lazyNamed(
+  () => import("../pages/teacher/TeacherGroupsPage"),
+  "TeacherGroupsPage",
+);
+const TeacherCalendarPage = lazyNamed(
+  () => import("../pages/teacher/TeacherCalendarPage"),
+  "TeacherCalendarPage",
+);
+const TeacherInboxPage = lazyNamed(
+  () => import("../pages/teacher/TeacherInboxPage"),
+  "TeacherInboxPage",
+);
+const TeacherHistoryPage = lazyNamed(
+  () => import("../pages/teacher/TeacherHistoryPage"),
+  "TeacherHistoryPage",
+);
+
+const AdminDashboardPage = lazyNamed(
+  () => import("../pages/admin/AdminDashboardPage"),
+  "AdminDashboardPage",
+);
+const AdminAccountPage = lazyNamed(
+  () => import("../pages/admin/AdminAccountPage"),
+  "AdminAccountPage",
+);
+const AdminCoursesPage = lazyNamed(
+  () => import("../pages/admin/AdminCoursesPage"),
+  "AdminCoursesPage",
+);
+const AdminCourseCreatePage = lazyNamed(
+  () => import("../pages/admin/AdminCourseCreatePage"),
+  "AdminCourseCreatePage",
+);
+const AdminUsersPage = lazyNamed(() => import("../pages/admin/AdminUsersPage"), "AdminUsersPage");
+const AdminCategoriesPage = lazyNamed(
+  () => import("../pages/admin/AdminCategoriesPage"),
+  "AdminCategoriesPage",
+);
+const AdminPaymentsPage = lazyNamed(
+  () => import("../pages/admin/AdminPaymentsPage"),
+  "AdminPaymentsPage",
+);
+const AdminPricingPage = lazyNamed(
+  () => import("../pages/admin/AdminPricingPage"),
+  "AdminPricingPage",
+);
+const AdminReportsPage = lazyNamed(
+  () => import("../pages/admin/AdminReportsPage"),
+  "AdminReportsPage",
+);
+const AdminGroupsPage = lazyNamed(
+  () => import("../pages/admin/AdminGroupsPage"),
+  "AdminGroupsPage",
+);
+const AdminCalendarPage = lazyNamed(
+  () => import("../pages/admin/AdminCalendarPage"),
+  "AdminCalendarPage",
+);
+const AdminInboxPage = lazyNamed(() => import("../pages/admin/AdminInboxPage"), "AdminInboxPage");
+const AdminHistoryPage = lazyNamed(
+  () => import("../pages/admin/AdminHistoryPage"),
+  "AdminHistoryPage",
+);
+
+const CourseTasksPage = lazyNamed(() => import("../pages/shared/CourseTasksPage"), "CourseTasksPage");
+const CourseAnnouncementsPage = lazyNamed(
+  () => import("../pages/shared/CourseAnnouncementsPage"),
+  "CourseAnnouncementsPage",
+);
+const CourseAttendancePage = lazyNamed(
+  () => import("../pages/shared/CourseAttendancePage"),
+  "CourseAttendancePage",
+);
+const CourseQuizzesPage = lazyNamed(
+  () => import("../pages/shared/CourseQuizzesPage"),
+  "CourseQuizzesPage",
+);
+const CourseMaterialsPage = lazyNamed(
+  () => import("../pages/shared/CourseMaterialsPage"),
+  "CourseMaterialsPage",
+);
+const CourseForumPage = lazyNamed(() => import("../pages/shared/CourseForumPage"), "CourseForumPage");
+const CourseHomePage = lazyNamed(() => import("../pages/shared/CourseHomePage"), "CourseHomePage");
+const CourseStudentsPage = lazyNamed(
+  () => import("../pages/shared/CourseStudentsPage"),
+  "CourseStudentsPage",
+);
 
 const router = createBrowserRouter([
   {
@@ -63,13 +206,13 @@ const router = createBrowserRouter([
     errorElement: <RouteErrorPage />,
     children: [
       { path: "/", element: <HomePage /> },
-      { path: "/courses", element: <CoursesPage /> },
-      { path: "/courses/:slug", element: <CourseDetailPage /> },
-      { path: "/contact", element: <ContactPage /> },
-      { path: "/auth/login", element: <LoginPage /> },
-      { path: "/auth/register", element: <RegisterPage /> },
-      { path: "/auth/forgot-password", element: <ForgotPasswordPage /> },
-      { path: "/auth/reset-password", element: <ResetPasswordPage /> },
+      { path: "/courses", element: suspenseElement(<CoursesPage />) },
+      { path: "/courses/:slug", element: suspenseElement(<CourseDetailPage />) },
+      { path: "/contact", element: suspenseElement(<ContactPage />) },
+      { path: "/auth/login", element: suspenseElement(<LoginPage />) },
+      { path: "/auth/register", element: suspenseElement(<RegisterPage />) },
+      { path: "/auth/forgot-password", element: suspenseElement(<ForgotPasswordPage />) },
+      { path: "/auth/reset-password", element: suspenseElement(<ResetPasswordPage />) },
     ],
   },
   {
@@ -77,33 +220,31 @@ const router = createBrowserRouter([
     errorElement: <RouteErrorPage />,
     children: [
       {
-        element: <StudentLayout />,
+        element: suspenseElement(<StudentLayout />),
         children: [
-          { path: "/student", element: <StudentDashboardPage /> },
-          { path: "/student/account", element: <StudentAccountPage /> },
-          { path: "/student/my-courses", element: <MyCoursesPage /> },
-          { path: "/student/groups", element: <StudentGroupsPage /> },
-          { path: "/student/calendar", element: <StudentCalendarPage /> },
-          { path: "/student/inbox", element: <StudentInboxPage /> },
-          { path: "/student/history", element: <StudentHistoryPage /> },
-          { path: "/student/payments", element: <MyPaymentsPage /> },
+          { path: "/student", element: suspenseElement(<StudentDashboardPage />) },
+          { path: "/student/account", element: suspenseElement(<StudentAccountPage />) },
+          { path: "/student/my-courses", element: suspenseElement(<MyCoursesPage />) },
+          { path: "/student/groups", element: suspenseElement(<StudentGroupsPage />) },
+          { path: "/student/calendar", element: suspenseElement(<StudentCalendarPage />) },
+          { path: "/student/inbox", element: suspenseElement(<StudentInboxPage />) },
+          { path: "/student/history", element: suspenseElement(<StudentHistoryPage />) },
+          { path: "/student/payments", element: suspenseElement(<MyPaymentsPage />) },
         ],
       },
-      // Curso (layout propio, mismo estilo que admin/docente)
       {
         path: "/student/course/:courseId",
-        element: <CourseManageLayout base="student" />,
+        element: suspenseElement(<CourseManageLayout base="student" />),
         children: [
           { index: true, element: <Navigate to="home" replace /> },
-          { path: "home", element: <CourseHomeStudentPage /> },
-          { path: "announcements", element: <CourseAnnouncementsPage /> },
-          { path: "materials", element: <CourseMaterialsPage /> },
-          // (suspendido) mantenemos la ruta por compatibilidad, pero sin opción en el menú
+          { path: "home", element: suspenseElement(<CourseHomeStudentPage />) },
+          { path: "announcements", element: suspenseElement(<CourseAnnouncementsPage />) },
+          { path: "materials", element: suspenseElement(<CourseMaterialsPage />) },
           { path: "lessons", element: <Navigate to="../materials" replace /> },
-          { path: "tasks", element: <CourseTasksStudentPage /> },
-          { path: "grades", element: <CourseGradesStudentPage /> },
-          { path: "quizzes", element: <CourseQuizzesStudentPage /> },
-          { path: "forum", element: <CourseForumStudentPage /> },
+          { path: "tasks", element: suspenseElement(<CourseTasksStudentPage />) },
+          { path: "grades", element: suspenseElement(<CourseGradesStudentPage />) },
+          { path: "quizzes", element: suspenseElement(<CourseQuizzesStudentPage />) },
+          { path: "forum", element: suspenseElement(<CourseForumStudentPage />) },
         ],
       },
     ],
@@ -113,31 +254,30 @@ const router = createBrowserRouter([
     errorElement: <RouteErrorPage />,
     children: [
       {
-        element: <TeacherLayout />,
+        element: suspenseElement(<TeacherLayout />),
         children: [
-          { path: "/teacher", element: <TeacherDashboardPage /> },
-          { path: "/teacher/account", element: <TeacherAccountPage /> },
-          { path: "/teacher/courses", element: <TeacherCoursesPage /> },
-          { path: "/teacher/groups", element: <TeacherGroupsPage /> },
-          { path: "/teacher/calendar", element: <TeacherCalendarPage /> },
-          { path: "/teacher/inbox", element: <TeacherInboxPage /> },
-          { path: "/teacher/history", element: <TeacherHistoryPage /> },
+          { path: "/teacher", element: suspenseElement(<TeacherDashboardPage />) },
+          { path: "/teacher/account", element: suspenseElement(<TeacherAccountPage />) },
+          { path: "/teacher/courses", element: suspenseElement(<TeacherCoursesPage />) },
+          { path: "/teacher/groups", element: suspenseElement(<TeacherGroupsPage />) },
+          { path: "/teacher/calendar", element: suspenseElement(<TeacherCalendarPage />) },
+          { path: "/teacher/inbox", element: suspenseElement(<TeacherInboxPage />) },
+          { path: "/teacher/history", element: suspenseElement(<TeacherHistoryPage />) },
         ],
       },
-      // Gestión de curso: layout propio (sin sidebar/topbar global)
       {
         path: "/teacher/course/:courseId",
-        element: <CourseManageLayout base="teacher" />,
+        element: suspenseElement(<CourseManageLayout base="teacher" />),
         children: [
           { index: true, element: <Navigate to="home" replace /> },
-          { path: "home", element: <CourseHomePage /> },
-          { path: "students", element: <CourseStudentsPage /> },
-          { path: "tasks", element: <CourseTasksPage /> },
-          { path: "announcements", element: <CourseAnnouncementsPage /> },
-          { path: "materials", element: <CourseMaterialsPage /> },
-          { path: "forum", element: <CourseForumPage /> },
-          { path: "attendance", element: <CourseAttendancePage /> },
-          { path: "quizzes", element: <CourseQuizzesPage /> },
+          { path: "home", element: suspenseElement(<CourseHomePage />) },
+          { path: "students", element: suspenseElement(<CourseStudentsPage />) },
+          { path: "tasks", element: suspenseElement(<CourseTasksPage />) },
+          { path: "announcements", element: suspenseElement(<CourseAnnouncementsPage />) },
+          { path: "materials", element: suspenseElement(<CourseMaterialsPage />) },
+          { path: "forum", element: suspenseElement(<CourseForumPage />) },
+          { path: "attendance", element: suspenseElement(<CourseAttendancePage />) },
+          { path: "quizzes", element: suspenseElement(<CourseQuizzesPage />) },
         ],
       },
     ],
@@ -147,37 +287,36 @@ const router = createBrowserRouter([
     errorElement: <RouteErrorPage />,
     children: [
       {
-        element: <AdminLayout />,
+        element: suspenseElement(<AdminLayout />),
         children: [
-          { path: "/admin", element: <AdminDashboardPage /> },
-          { path: "/admin/account", element: <AdminAccountPage /> },
-          { path: "/admin/users", element: <AdminUsersPage /> },
-          { path: "/admin/categories", element: <AdminCategoriesPage /> },
-          { path: "/admin/course-create", element: <AdminCourseCreatePage /> },
-          { path: "/admin/courses", element: <AdminCoursesPage /> },
-          { path: "/admin/pricing", element: <AdminPricingPage /> },
-          { path: "/admin/payments", element: <AdminPaymentsPage /> },
-          { path: "/admin/reports", element: <AdminReportsPage /> },
-          { path: "/admin/groups", element: <AdminGroupsPage /> },
-          { path: "/admin/calendar", element: <AdminCalendarPage /> },
-          { path: "/admin/inbox", element: <AdminInboxPage /> },
-          { path: "/admin/history", element: <AdminHistoryPage /> },
+          { path: "/admin", element: suspenseElement(<AdminDashboardPage />) },
+          { path: "/admin/account", element: suspenseElement(<AdminAccountPage />) },
+          { path: "/admin/users", element: suspenseElement(<AdminUsersPage />) },
+          { path: "/admin/categories", element: suspenseElement(<AdminCategoriesPage />) },
+          { path: "/admin/course-create", element: suspenseElement(<AdminCourseCreatePage />) },
+          { path: "/admin/courses", element: suspenseElement(<AdminCoursesPage />) },
+          { path: "/admin/pricing", element: suspenseElement(<AdminPricingPage />) },
+          { path: "/admin/payments", element: suspenseElement(<AdminPaymentsPage />) },
+          { path: "/admin/reports", element: suspenseElement(<AdminReportsPage />) },
+          { path: "/admin/groups", element: suspenseElement(<AdminGroupsPage />) },
+          { path: "/admin/calendar", element: suspenseElement(<AdminCalendarPage />) },
+          { path: "/admin/inbox", element: suspenseElement(<AdminInboxPage />) },
+          { path: "/admin/history", element: suspenseElement(<AdminHistoryPage />) },
         ],
       },
-      // Gestión de curso: layout propio (sin sidebar/topbar global)
       {
         path: "/admin/course/:courseId",
-        element: <CourseManageLayout base="admin" />,
+        element: suspenseElement(<CourseManageLayout base="admin" />),
         children: [
           { index: true, element: <Navigate to="home" replace /> },
-          { path: "home", element: <CourseHomePage /> },
-          { path: "students", element: <CourseStudentsPage /> },
-          { path: "tasks", element: <CourseTasksPage /> },
-          { path: "announcements", element: <CourseAnnouncementsPage /> },
-          { path: "materials", element: <CourseMaterialsPage /> },
-          { path: "forum", element: <CourseForumPage /> },
-          { path: "attendance", element: <CourseAttendancePage /> },
-          { path: "quizzes", element: <CourseQuizzesPage /> },
+          { path: "home", element: suspenseElement(<CourseHomePage />) },
+          { path: "students", element: suspenseElement(<CourseStudentsPage />) },
+          { path: "tasks", element: suspenseElement(<CourseTasksPage />) },
+          { path: "announcements", element: suspenseElement(<CourseAnnouncementsPage />) },
+          { path: "materials", element: suspenseElement(<CourseMaterialsPage />) },
+          { path: "forum", element: suspenseElement(<CourseForumPage />) },
+          { path: "attendance", element: suspenseElement(<CourseAttendancePage />) },
+          { path: "quizzes", element: suspenseElement(<CourseQuizzesPage />) },
         ],
       },
     ],

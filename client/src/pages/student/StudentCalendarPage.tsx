@@ -1,14 +1,17 @@
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { Card } from "../../components/ui/Card";
 import { PageHeader } from "../../components/ui/PageHeader";
-import { useEffect, useMemo, useState } from "react";
+import { Spinner } from "../../components/ui/Spinner";
 import { useAuth } from "../../hooks/useAuth";
 import type { ApiResponse } from "../../types/api";
 import type { MyEnrollmentItem } from "../../types/enrollment";
 import type { CalendarEvent, CalendarSource } from "../../components/calendar/calendar.types";
 import type { Task } from "../../types/task";
-import { CalendarApp } from "../../components/calendar/CalendarApp";
 import { taskToCalendarEvent } from "../../utils/taskCalendarEvents";
+import { lazyNamed } from "../../utils/lazyNamed";
 
 const sourcePalette = ["#7c3aed", "#0ea5e9", "#059669", "#f59e0b", "#ef4444", "#14b8a6", "#8b5cf6", "#22c55e"];
+const CalendarApp = lazyNamed(() => import("../../components/calendar/CalendarApp"), "CalendarApp");
 
 export function StudentCalendarPage() {
   const { user, api } = useAuth();
@@ -97,13 +100,21 @@ export function StudentCalendarPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Calendario" subtitle="Fechas importantes" />
-      <CalendarApp
-        storageKey={storageKey}
-        sources={sources}
-        externalEvents={taskEvents}
-        onSourcesChange={handleSourcesChange}
-        view="month"
-      />
+      <Suspense
+        fallback={
+          <Card className="grid min-h-[24rem] place-items-center">
+            <Spinner />
+          </Card>
+        }
+      >
+        <CalendarApp
+          storageKey={storageKey}
+          sources={sources}
+          externalEvents={taskEvents}
+          onSourcesChange={handleSourcesChange}
+          view="month"
+        />
+      </Suspense>
     </div>
   );
 }

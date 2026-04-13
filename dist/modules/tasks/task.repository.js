@@ -20,6 +20,14 @@ class TaskRepository {
     async supportsSubmissionUploadLimit() {
         return TaskRepository.hasColumn("entregas_tareas", "subidas_archivo");
     }
+    async supportsSubmissionGrading() {
+        const [hasScore, hasComment, hasDate] = await Promise.all([
+            TaskRepository.hasColumn("entregas_tareas", "calificacion"),
+            TaskRepository.hasColumn("entregas_tareas", "comentario_docente"),
+            TaskRepository.hasColumn("entregas_tareas", "fecha_calificacion"),
+        ]);
+        return hasScore && hasComment && hasDate;
+    }
     async findCourseOwner(courseId) {
         const [rows] = await db_1.pool.query(`SELECT docente_id, estado AS curso_estado
        FROM cursos
@@ -231,11 +239,15 @@ class TaskRepository {
     async findMySubmission(taskId, studentId) {
         const hasLink = await TaskRepository.hasColumn("entregas_tareas", "enlace_url");
         const hasUploadCount = await this.supportsSubmissionUploadLimit();
+        const hasGrading = await this.supportsSubmissionGrading();
         const [rows] = await db_1.pool.query(`SELECT
         id, tarea_id, estudiante_id, archivo_url,
         ${hasUploadCount ? "subidas_archivo" : "0 AS subidas_archivo"},
         ${hasLink ? "enlace_url" : "NULL AS enlace_url"}, comentario_estudiante,
-        fecha_entrega, estado, calificacion, comentario_docente, fecha_calificacion,
+        fecha_entrega, estado,
+        ${hasGrading ? "calificacion" : "NULL AS calificacion"},
+        ${hasGrading ? "comentario_docente" : "NULL AS comentario_docente"},
+        ${hasGrading ? "fecha_calificacion" : "NULL AS fecha_calificacion"},
         created_at, updated_at
        FROM entregas_tareas
        WHERE tarea_id = ? AND estudiante_id = ?
@@ -243,20 +255,28 @@ class TaskRepository {
         return rows[0] ?? null;
     }
     async listSubmissionsForTask(taskId, pagination) {
+        const safeLimit = Number.isInteger(pagination.limit) && pagination.limit > 0
+            ? Math.min(pagination.limit, 50)
+            : 50;
+        const safeOffset = Number.isInteger(pagination.offset) && pagination.offset >= 0 ? pagination.offset : 0;
         const hasLink = await TaskRepository.hasColumn("entregas_tareas", "enlace_url");
         const hasUploadCount = await this.supportsSubmissionUploadLimit();
+        const hasGrading = await this.supportsSubmissionGrading();
         const [rows] = await db_1.pool.query(`SELECT
         e.id, e.tarea_id, e.estudiante_id, e.archivo_url,
         ${hasUploadCount ? "e.subidas_archivo" : "0 AS subidas_archivo"},
         ${hasLink ? "e.enlace_url" : "NULL AS enlace_url"}, e.comentario_estudiante,
-        e.fecha_entrega, e.estado, e.calificacion, e.comentario_docente, e.fecha_calificacion,
+        e.fecha_entrega, e.estado,
+        ${hasGrading ? "e.calificacion" : "NULL AS calificacion"},
+        ${hasGrading ? "e.comentario_docente" : "NULL AS comentario_docente"},
+        ${hasGrading ? "e.fecha_calificacion" : "NULL AS fecha_calificacion"},
         e.created_at, e.updated_at,
         u.nombres, u.apellidos, u.correo, u.foto_url
        FROM entregas_tareas e
        JOIN usuarios u ON u.id = e.estudiante_id
        WHERE e.tarea_id = ?
        ORDER BY e.fecha_entrega DESC, e.id DESC
-       LIMIT ? OFFSET ?`, [taskId, pagination.limit, pagination.offset]);
+       LIMIT ? OFFSET ?`, [taskId, safeLimit, safeOffset]);
         return rows.map((r) => ({
             id: r.id,
             tarea_id: r.tarea_id,
@@ -316,11 +336,15 @@ class TaskRepository {
     async findSubmissionWithStudentById(submissionId) {
         const hasLink = await TaskRepository.hasColumn("entregas_tareas", "enlace_url");
         const hasUploadCount = await this.supportsSubmissionUploadLimit();
+        const hasGrading = await this.supportsSubmissionGrading();
         const [rows] = await db_1.pool.query(`SELECT
         e.id, e.tarea_id, e.estudiante_id, e.archivo_url,
         ${hasUploadCount ? "e.subidas_archivo" : "0 AS subidas_archivo"},
         ${hasLink ? "e.enlace_url" : "NULL AS enlace_url"}, e.comentario_estudiante,
-        e.fecha_entrega, e.estado, e.calificacion, e.comentario_docente, e.fecha_calificacion,
+        e.fecha_entrega, e.estado,
+        ${hasGrading ? "e.calificacion" : "NULL AS calificacion"},
+        ${hasGrading ? "e.comentario_docente" : "NULL AS comentario_docente"},
+        ${hasGrading ? "e.fecha_calificacion" : "NULL AS fecha_calificacion"},
         e.created_at, e.updated_at,
         u.nombres, u.apellidos, u.correo, u.foto_url
        FROM entregas_tareas e

@@ -73,10 +73,79 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks(id) {
-            if (!id.includes('node_modules')) return
-            if (id.includes('react-router')) return 'router'
-            if (id.includes('framer-motion') || id.includes('motion-dom') || id.includes('motion-utils')) return 'motion'
-            if (id.includes('axios')) return 'http'
+            const normalizedId = id.replace(/\\/g, '/')
+
+            if (!normalizedId.includes('/node_modules/')) {
+              if (normalizedId.includes('/src/pages/admin/reports/')) {
+                return 'module-report-export'
+              }
+
+              if (normalizedId.includes('/src/components/calendar/')) {
+                return 'module-calendar'
+              }
+
+              if (normalizedId.includes('/src/components/account/')) {
+                return 'module-account'
+              }
+
+              if (normalizedId.includes('/src/components/payment/')) {
+                return 'module-payment'
+              }
+
+              if (normalizedId.includes('/src/components/course/')) {
+                return 'module-course-editor'
+              }
+
+              if (
+                normalizedId.includes('/src/pages/auth/') ||
+                normalizedId.includes('/src/pages/public/CoursesPage') ||
+                normalizedId.includes('/src/pages/public/CourseDetailPage') ||
+                normalizedId.includes('/src/pages/public/ContactPage')
+              ) {
+                return 'route-public'
+              }
+
+              if (
+                normalizedId.includes('/src/pages/student/') ||
+                normalizedId.includes('/src/layouts/StudentLayout')
+              ) {
+                return 'route-student'
+              }
+
+              if (
+                normalizedId.includes('/src/pages/teacher/') ||
+                normalizedId.includes('/src/layouts/TeacherLayout')
+              ) {
+                return 'route-teacher'
+              }
+
+              if (
+                normalizedId.includes('/src/pages/admin/') ||
+                normalizedId.includes('/src/layouts/AdminLayout')
+              ) {
+                return 'route-admin'
+              }
+
+              if (
+                normalizedId.includes('/src/pages/shared/') ||
+                normalizedId.includes('/src/layouts/CourseManageLayout') ||
+                normalizedId.includes('/src/components/task/')
+              ) {
+                return 'route-course-manage'
+              }
+
+              return
+            }
+
+            if (normalizedId.includes('react-router')) return 'router'
+            if (
+              normalizedId.includes('framer-motion') ||
+              normalizedId.includes('motion-dom') ||
+              normalizedId.includes('motion-utils')
+            ) {
+              return 'motion'
+            }
+            if (normalizedId.includes('axios')) return 'http'
             return 'vendor'
           },
         },

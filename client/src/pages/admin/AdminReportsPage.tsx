@@ -13,7 +13,6 @@ import type { ApiResponse } from "../../types/api";
 import type { AttendanceItem, AttendanceListResponse, AttendanceStatus } from "../../types/attendance";
 import type { CourseListItem, CourseStatus } from "../../types/course";
 import { getApiErrorMessage } from "../../utils/apiError";
-import { exportZoneExcel } from "./reports/reportExcel";
 import { formatNumber, formatPercent } from "./reports/reportFormat";
 import type { ReportMode, ZoneReportResponse, ZoneReportRow } from "./reports/reportTypes";
 
@@ -30,49 +29,12 @@ function todayInputValue() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function statusLabel(status: AttendanceStatus | null) {
-  if (status === "presente") return "Presente";
-  if (status === "ausente") return "Ausente";
-  if (status === "tarde") return "Tarde";
-  if (status === "justificado") return "Justificado";
-  return "Sin registro";
-}
-
 function statusBadge(status: AttendanceStatus | null) {
   if (status === "presente") return <Badge variant="green">Presente</Badge>;
   if (status === "ausente") return <Badge variant="rose">Ausente</Badge>;
   if (status === "tarde") return <Badge variant="amber">Tarde</Badge>;
   if (status === "justificado") return <Badge variant="blue">Justificado</Badge>;
   return <Badge variant="slate">Sin registro</Badge>;
-}
-
-function formatDateEs(value: string) {
-  const d = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return value;
-  return new Intl.DateTimeFormat("es-GT", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(d);
-}
-
-function escapeHtml(value: unknown) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-function sanitizeFilename(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9-_]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .toLowerCase();
 }
 
 function buildSummary(items: AttendanceItem[]) {
@@ -90,109 +52,6 @@ function buildSummary(items: AttendanceItem[]) {
   );
 }
 
-function exportAttendanceExcel(input: {
-  course: CourseOption;
-  date: string;
-  items: AttendanceItem[];
-}) {
-  const summary = buildSummary(input.items);
-  const rows = input.items
-    .map((item, index) => {
-      const fullName = `${item.estudiante.apellidos}, ${item.estudiante.nombres}`.trim();
-      const estado = item.asistencia?.estado ?? null;
-      return `
-        <tr>
-          <td class="center">${index + 1}</td>
-          <td>${escapeHtml(fullName)}</td>
-          <td>${escapeHtml(item.estudiante.correo)}</td>
-          <td class="status status-${escapeHtml(estado ?? "sin-registro")}">${escapeHtml(statusLabel(estado))}</td>
-          <td>${escapeHtml(item.asistencia?.comentario || "Sin comentario")}</td>
-        </tr>
-      `;
-    })
-    .join("");
-
-  const html = `
-    <!doctype html>
-    <html>
-      <head>
-        <meta charset="utf-8" />
-        <style>
-          body { font-family: Aptos, Calibri, Arial, sans-serif; color: #0f172a; }
-          .sheet { padding: 24px; }
-          .hero { background: linear-gradient(135deg, #2563eb, #06b6d4 55%, #020617); color: #fff; padding: 24px; border-radius: 18px; }
-          .eyebrow { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: #bfdbfe; font-weight: 800; }
-          h1 { margin: 8px 0 0; font-size: 28px; }
-          .subtitle { margin-top: 8px; color: #dbeafe; font-size: 14px; }
-          .summary { margin-top: 20px; border-collapse: separate; border-spacing: 10px; width: 100%; }
-          .summary td { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px; font-weight: 800; }
-          .summary .label { color: #64748b; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; }
-          .summary .value { display: block; margin-top: 6px; font-size: 22px; color: #020617; }
-          table.report { margin-top: 20px; width: 100%; border-collapse: collapse; }
-          .report th { background: #0f172a; color: #fff; padding: 12px; text-align: left; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
-          .report td { border-bottom: 1px solid #e2e8f0; padding: 12px; font-size: 13px; vertical-align: top; }
-          .report tr:nth-child(even) td { background: #f8fafc; }
-          .center { text-align: center; }
-          .status { font-weight: 800; }
-          .status-presente { color: #047857; }
-          .status-ausente { color: #be123c; }
-          .status-tarde { color: #b45309; }
-          .status-justificado { color: #1d4ed8; }
-          .status-sin-registro { color: #64748b; }
-        </style>
-      </head>
-      <body>
-        <div class="sheet">
-          <div class="hero">
-            <div class="eyebrow">C.FUTURO · Reporte de asistencia</div>
-            <h1>${escapeHtml(input.course.titulo)}</h1>
-            <div class="subtitle">
-              Fecha: ${escapeHtml(formatDateEs(input.date))} · Docente:
-              ${escapeHtml(`${input.course.docente.nombres} ${input.course.docente.apellidos}`.trim())}
-            </div>
-          </div>
-
-          <table class="summary">
-            <tr>
-              <td><span class="label">Estudiantes</span><span class="value">${input.items.length}</span></td>
-              <td><span class="label">Presentes</span><span class="value">${summary.presente}</span></td>
-              <td><span class="label">Tarde</span><span class="value">${summary.tarde}</span></td>
-              <td><span class="label">Justificados</span><span class="value">${summary.justificado}</span></td>
-              <td><span class="label">Ausentes</span><span class="value">${summary.ausente}</span></td>
-              <td><span class="label">Sin registro</span><span class="value">${summary.sinRegistro}</span></td>
-            </tr>
-          </table>
-
-          <table class="report">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Estudiante</th>
-                <th>Correo</th>
-                <th>Estado</th>
-                <th>Comentario</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>
-      </body>
-    </html>
-  `;
-
-  const blob = new Blob([`\ufeff${html}`], {
-    type: "application/vnd.ms-excel;charset=utf-8",
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `reporte-asistencia-${sanitizeFilename(input.course.titulo)}-${input.date}.xls`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
 export function AdminReportsPage() {
   const { api } = useAuth();
   const [reportMode, setReportMode] = useState<ReportMode>("attendance");
@@ -203,6 +62,7 @@ export function AdminReportsPage() {
   const [zoneReport, setZoneReport] = useState<ZoneReportResponse | null>(null);
   const [isLoadingCourses, setIsLoadingCourses] = useState(true);
   const [isLoadingReport, setIsLoadingReport] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [zonePage, setZonePage] = useState(1);
@@ -336,6 +196,22 @@ export function AdminReportsPage() {
             "Suma automáticamente las tareas calificadas y los quizzes completados para revisar la zona del curso.",
         };
 
+  const handleExport = async () => {
+    if (isExporting) return;
+    try {
+      setIsExporting(true);
+      const { exportAttendanceExcel, exportZoneExcel } = await import("./reports/reportExcel");
+      if (reportMode === "attendance" && selectedCourse) {
+        exportAttendanceExcel({ course: selectedCourse, date, items });
+      }
+      if (reportMode === "zone" && zoneReport) {
+        exportZoneExcel(zoneReport);
+      }
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -382,17 +258,12 @@ export function AdminReportsPage() {
             <Button
               type="button"
               variant="secondary"
-              disabled={!canExport}
-              onClick={() => {
-                if (reportMode === "attendance" && selectedCourse) {
-                  exportAttendanceExcel({ course: selectedCourse, date, items });
-                }
-                if (reportMode === "zone" && zoneReport) exportZoneExcel(zoneReport);
-              }}
+              disabled={!canExport || isExporting}
+              onClick={() => void handleExport()}
               className="gap-2 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100"
             >
               <Download className="h-4 w-4" aria-hidden="true" />
-              Exportar Excel
+              {isExporting ? "Preparando..." : "Exportar Excel"}
             </Button>
           </div>
         </div>

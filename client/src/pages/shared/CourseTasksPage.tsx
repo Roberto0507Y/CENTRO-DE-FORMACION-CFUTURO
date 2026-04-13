@@ -120,6 +120,7 @@ export function CourseTasksPage() {
   const [submissionsTask, setSubmissionsTask] = useState<Task | null>(null);
   const [submissionsLoading, setSubmissionsLoading] = useState(false);
   const [submissions, setSubmissions] = useState<TaskSubmissionWithStudent[]>([]);
+  const [submissionsError, setSubmissionsError] = useState<string | null>(null);
 
   const loadTasks = useCallback(async () => {
     try {
@@ -278,13 +279,18 @@ export function CourseTasksPage() {
   const openSubmissions = async (t: Task) => {
     setSubmissionsTask(t);
     setSubmissions([]);
+    setSubmissionsError(null);
     setSubmissionsOpen(true);
     try {
       setSubmissionsLoading(true);
-      const res = await api.get<ApiResponse<TaskSubmissionWithStudent[]>>(`/tasks/${t.id}/submissions`);
+      const res = await api.get<ApiResponse<TaskSubmissionWithStudent[]>>(`/tasks/${t.id}/submissions`, {
+        params: { limit: 50, offset: 0 },
+      });
       setSubmissions(res.data.data);
     } catch (err) {
-      setBanner({ tone: "error", text: getApiErrorMessage(err, "No se pudieron cargar las entregas.") });
+      const message = getApiErrorMessage(err, "No se pudieron cargar las entregas.");
+      setSubmissionsError(message);
+      setBanner({ tone: "error", text: message });
       setSubmissions([]);
     } finally {
       setSubmissionsLoading(false);
@@ -584,12 +590,15 @@ export function CourseTasksPage() {
           maxPoints={Number(submissionsTask.puntos)}
           loading={submissionsLoading}
           items={submissions}
+          errorMessage={submissionsError}
           onOpenFileUrl={(url, filename) => void downloadFileUrl(api, url, filename)}
           onGrade={(submissionId, input) => gradeSubmission(submissionId, input)}
+          onRetry={() => void openSubmissions(submissionsTask)}
           onClose={() => {
             setSubmissionsOpen(false);
             setSubmissionsTask(null);
             setSubmissions([]);
+            setSubmissionsError(null);
           }}
         />
       ) : null}
@@ -864,16 +873,20 @@ function SubmissionsModal({
   maxPoints,
   loading,
   items,
+  errorMessage,
   onOpenFileUrl,
   onGrade,
+  onRetry,
   onClose,
 }: {
   taskTitle: string;
   maxPoints: number;
   loading: boolean;
   items: TaskSubmissionWithStudent[];
+  errorMessage: string | null;
   onOpenFileUrl: (url: string, filename: string) => void;
   onGrade: (submissionId: number, input: GradeSubmissionInput) => Promise<void>;
+  onRetry: () => void;
   onClose: () => void;
 }) {
   const [drafts, setDrafts] = useState<Record<number, { calificacion: string; comentario_docente: string }>>({});
@@ -947,6 +960,16 @@ function SubmissionsModal({
           {loading ? (
             <div className="grid place-items-center py-10">
               <Spinner />
+            </div>
+          ) : errorMessage ? (
+            <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-800 dark:border-rose-400/30 dark:bg-rose-950/40 dark:text-rose-200">
+              <div className="font-black">No se pudieron cargar las entregas</div>
+              <div className="mt-2">{errorMessage}</div>
+              <div className="mt-4">
+                <Button size="sm" onClick={onRetry}>
+                  Reintentar
+                </Button>
+              </div>
             </div>
           ) : items.length === 0 ? (
             <EmptyState title="Sin entregas todavía" description="Aún no hay estudiantes que hayan entregado esta tarea." />

@@ -7,6 +7,9 @@
     "dev:client": "npm --prefix client run dev",
     "build": "tsc",
     "build:client": "npm --prefix client run build",
+    "build:all": "tsc && npm --prefix client run build",
+    "stage:dist": "git add -f dist client/dist",
+    "prepare:dist": "tsc && npm --prefix client run build && git add -f dist client/dist",
     "typecheck": "tsc --noEmit",
     "start": "node dist/server.js"
   },

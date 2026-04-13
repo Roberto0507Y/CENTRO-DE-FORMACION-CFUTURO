@@ -1,19 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import type { AxiosInstance } from "axios";
 import { Card } from "../ui/Card";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Badge } from "../ui/Badge";
 import { Spinner } from "../ui/Spinner";
-import { BiPayEmbed } from "../payment/BiPayEmbed";
 import type { ApiResponse } from "../../types/api";
 import type { CourseAccessType, CourseDetail, CourseLevel, CourseStatus } from "../../types/course";
 import { getApiErrorMessage } from "../../utils/apiError";
+import { lazyNamed } from "../../utils/lazyNamed";
 import { normalizePaymentLinkInput } from "../../utils/paymentLink";
 
 type UploadedFileDto = { url: string; key: string; mimeType: string; size: number };
 
 const SHORT_DESCRIPTION_MAX = 255;
+const BiPayEmbed = lazyNamed(() => import("../payment/BiPayEmbed"), "BiPayEmbed");
 
 function slugify(input: string): string {
   const normalized = input
@@ -442,7 +443,17 @@ export function CourseEditModal({
                   placeholder="Pega la URL o el snippet de EBI"
                 />
               </Field>
-              {normalizePaymentLinkInput(form.payment_link) ? <BiPayEmbed paymentLink={form.payment_link} /> : null}
+              {normalizePaymentLinkInput(form.payment_link) ? (
+                <Suspense
+                  fallback={
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-300">
+                      Cargando vista previa del pago...
+                    </div>
+                  }
+                >
+                  <BiPayEmbed paymentLink={form.payment_link} />
+                </Suspense>
+              ) : null}
             </Card>
           </div>
         </div>

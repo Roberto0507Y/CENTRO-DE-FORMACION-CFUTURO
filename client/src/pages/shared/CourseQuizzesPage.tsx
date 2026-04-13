@@ -130,6 +130,7 @@ export function CourseQuizzesPage() {
   const [creating, setCreating] = useState(false);
 
   const [qLoading, setQLoading] = useState(false);
+  const [qError, setQError] = useState<string | null>(null);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [qModal, setQModal] = useState(false);
   const [qEditing, setQEditing] = useState<QuizQuestion | null>(null);
@@ -160,10 +161,12 @@ export function CourseQuizzesPage() {
   const loadQuestions = useCallback(async (quizId: number) => {
     try {
       setQLoading(true);
+      setQError(null);
       const res = await api.get<ApiResponse<QuizQuestion[]>>(`/courses/${ctx.courseId}/quizzes/${quizId}/questions`);
       setQuestions(res.data.data);
-    } catch {
+    } catch (err) {
       setQuestions([]);
+      setQError(getApiErrorMessage(err, "No se pudieron cargar las preguntas."));
     } finally {
       setQLoading(false);
     }
@@ -177,6 +180,7 @@ export function CourseQuizzesPage() {
     if (!selected) {
       setForm(emptyQuizForm);
       setQuestions([]);
+      setQError(null);
       setTab("config");
       return;
     }
@@ -202,9 +206,52 @@ export function CourseQuizzesPage() {
     setCreating(true);
     setForm({ ...emptyQuizForm, estado: "borrador" });
     setQuestions([]);
+    setQError(null);
     setTab("config");
     setBanner(null);
   };
+
+  const questionValidation = useMemo(() => {
+    const errors: Record<string, string> = {};
+
+    if (!qForm.enunciado.trim()) errors.enunciado = "Escribe el enunciado.";
+
+    const points = Number(qForm.puntos || "0");
+    if (!Number.isFinite(points) || points <= 0) {
+      errors.puntos = "Los puntos deben ser mayores a 0.";
+    }
+
+    const order = Number(qForm.orden || "0");
+    if (!Number.isFinite(order) || order <= 0) {
+      errors.orden = "El orden debe ser mayor a 0.";
+    }
+
+    if (qForm.tipo === "opcion_unica") {
+      const options = [
+        qForm.opcion_a.trim(),
+        qForm.opcion_b.trim(),
+        qForm.opcion_c.trim(),
+        qForm.opcion_d.trim(),
+      ].filter(Boolean);
+
+      if (options.length < 2) {
+        errors.options = "Agrega al menos dos opciones.";
+      }
+
+      if (!["a", "b", "c", "d"].includes(qForm.respuesta_correcta.trim().toLowerCase())) {
+        errors.respuesta_correcta = "Selecciona cuál opción es la correcta.";
+      }
+    } else if (qForm.tipo === "verdadero_falso") {
+      const answer = qForm.respuesta_correcta.trim().toLowerCase();
+      if (answer !== "verdadero" && answer !== "falso") {
+        errors.respuesta_correcta = "Selecciona si la respuesta correcta es verdadero o falso.";
+      }
+    } else if (!qForm.respuesta_correcta.trim()) {
+      errors.respuesta_correcta = "La respuesta correcta es obligatoria.";
+    }
+
+    return { ok: Object.keys(errors).length === 0, errors };
+  }, [qForm]);
 
   const saveQuiz = async () => {
     try {
@@ -282,6 +329,11 @@ export function CourseQuizzesPage() {
 
   const saveQuestion = async () => {
     if (!selected) return;
+    if (!questionValidation.ok) {
+      const firstError = Object.values(questionValidation.errors)[0] ?? "Revisa los campos de la pregunta.";
+      setBanner({ tone: "error", text: firstError });
+      return;
+    }
     try {
       setSaving(true);
       setBanner(null);
@@ -292,7 +344,7 @@ export function CourseQuizzesPage() {
         opcion_b: qForm.opcion_b.trim() ? qForm.opcion_b.trim() : null,
         opcion_c: qForm.opcion_c.trim() ? qForm.opcion_c.trim() : null,
         opcion_d: qForm.opcion_d.trim() ? qForm.opcion_d.trim() : null,
-        respuesta_correcta: qForm.respuesta_correcta.trim(),
+        respuesta_correcta: qForm.respuesta_correcta.trim().toLowerCase(),
         explicacion: qForm.explicacion.trim() ? qForm.explicacion.trim() : null,
         puntos: Number(qForm.puntos || "1"),
         orden: Number(qForm.orden || "1"),
@@ -652,6 +704,16 @@ export function CourseQuizzesPage() {
                 <div className="grid place-items-center py-10">
                   <Spinner />
                 </div>
+              ) : qError ? (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-800">
+                  <div className="font-black">No se pudieron cargar las preguntas</div>
+                  <div className="mt-2">{qError}</div>
+                  <div className="mt-4">
+                    <Button size="sm" variant="secondary" onClick={() => void loadQuestions(selected.id)}>
+                      Reintentar
+                    </Button>
+                  </div>
+                </div>
               ) : questions.length === 0 ? (
                 <EmptyState
                   title="Sin preguntas"
@@ -739,6 +801,7 @@ export function CourseQuizzesPage() {
           title={qEditing ? "Editar pregunta" : "Nueva pregunta"}
           saving={saving}
           value={qForm}
+          errors={questionValidation.errors}
           onChange={setQForm}
           onClose={() => {
             setQModal(false);
@@ -767,6 +830,7 @@ function QuestionModal({
   title,
   saving,
   value,
+  errors,
   onChange,
   onClose,
   onSave,
@@ -774,12 +838,19 @@ function QuestionModal({
   title: string;
   saving: boolean;
   value: QuestionForm;
+  errors: Record<string, string>;
   onChange: (v: QuestionForm) => void;
   onClose: () => void;
   onSave: () => void;
 }) {
   const showOptions = value.tipo === "opcion_unica";
   const showTF = value.tipo === "verdadero_falso";
+  const optionChoices = [
+    { value: "a", label: value.opcion_a.trim() ? `A · ${value.opcion_a.trim()}` : "A", enabled: value.opcion_a.trim().length > 0 },
+    { value: "b", label: value.opcion_b.trim() ? `B · ${value.opcion_b.trim()}` : "B", enabled: value.opcion_b.trim().length > 0 },
+    { value: "c", label: value.opcion_c.trim() ? `C · ${value.opcion_c.trim()}` : "C", enabled: value.opcion_c.trim().length > 0 },
+    { value: "d", label: value.opcion_d.trim() ? `D · ${value.opcion_d.trim()}` : "D", enabled: value.opcion_d.trim().length > 0 },
+  ];
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4" role="dialog" aria-modal="true">
@@ -805,6 +876,7 @@ function QuestionModal({
               rows={4}
               className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none ring-blue-500 focus:ring-2"
             />
+            {errors.enunciado ? <div className="mt-2 text-xs font-bold text-rose-700">{errors.enunciado}</div> : null}
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -812,7 +884,24 @@ function QuestionModal({
               <div className="text-xs font-extrabold text-slate-700">Tipo</div>
               <select
                 value={value.tipo}
-                onChange={(e) => onChange({ ...value, tipo: e.target.value as QuestionType })}
+                onChange={(e) => {
+                  const nextType = e.target.value as QuestionType;
+                  const currentAnswer = value.respuesta_correcta.trim().toLowerCase();
+                  onChange({
+                    ...value,
+                    tipo: nextType,
+                    respuesta_correcta:
+                      nextType === "verdadero_falso"
+                        ? currentAnswer === "falso"
+                          ? "falso"
+                          : "verdadero"
+                        : nextType === "opcion_unica"
+                          ? ["a", "b", "c", "d"].includes(currentAnswer)
+                            ? currentAnswer
+                            : "a"
+                          : "",
+                  });
+                }}
                 className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none ring-blue-500 focus:ring-2"
               >
                 <option value="opcion_unica">Opción única</option>
@@ -834,11 +923,14 @@ function QuestionModal({
           </div>
 
           {showOptions ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              <Input value={value.opcion_a} onChange={(e) => onChange({ ...value, opcion_a: e.target.value })} placeholder="Opción A" />
-              <Input value={value.opcion_b} onChange={(e) => onChange({ ...value, opcion_b: e.target.value })} placeholder="Opción B" />
-              <Input value={value.opcion_c} onChange={(e) => onChange({ ...value, opcion_c: e.target.value })} placeholder="Opción C" />
-              <Input value={value.opcion_d} onChange={(e) => onChange({ ...value, opcion_d: e.target.value })} placeholder="Opción D" />
+            <div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <Input value={value.opcion_a} onChange={(e) => onChange({ ...value, opcion_a: e.target.value })} placeholder="Opción A" />
+                <Input value={value.opcion_b} onChange={(e) => onChange({ ...value, opcion_b: e.target.value })} placeholder="Opción B" />
+                <Input value={value.opcion_c} onChange={(e) => onChange({ ...value, opcion_c: e.target.value })} placeholder="Opción C" />
+                <Input value={value.opcion_d} onChange={(e) => onChange({ ...value, opcion_d: e.target.value })} placeholder="Opción D" />
+              </div>
+              {errors.options ? <div className="mt-2 text-xs font-bold text-rose-700">{errors.options}</div> : null}
             </div>
           ) : null}
 
@@ -851,16 +943,47 @@ function QuestionModal({
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <div className="text-xs font-extrabold text-slate-700">Respuesta correcta</div>
-              <Input value={value.respuesta_correcta} onChange={(e) => onChange({ ...value, respuesta_correcta: e.target.value })} />
+              {showOptions ? (
+                <select
+                  value={value.respuesta_correcta.trim().toLowerCase()}
+                  onChange={(e) => onChange({ ...value, respuesta_correcta: e.target.value })}
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none ring-blue-500 focus:ring-2"
+                >
+                  <option value="">Selecciona una opción</option>
+                  {optionChoices
+                    .filter((item) => item.enabled)
+                    .map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
+                    ))}
+                </select>
+              ) : showTF ? (
+                <select
+                  value={value.respuesta_correcta.trim().toLowerCase() || "verdadero"}
+                  onChange={(e) => onChange({ ...value, respuesta_correcta: e.target.value })}
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none ring-blue-500 focus:ring-2"
+                >
+                  <option value="verdadero">Verdadero</option>
+                  <option value="falso">Falso</option>
+                </select>
+              ) : (
+                <Input value={value.respuesta_correcta} onChange={(e) => onChange({ ...value, respuesta_correcta: e.target.value })} />
+              )}
+              {errors.respuesta_correcta ? (
+                <div className="mt-2 text-xs font-bold text-rose-700">{errors.respuesta_correcta}</div>
+              ) : null}
             </div>
             <div className="grid gap-4 grid-cols-2">
               <div>
                 <div className="text-xs font-extrabold text-slate-700">Puntos</div>
                 <Input inputMode="numeric" value={value.puntos} onChange={(e) => onChange({ ...value, puntos: e.target.value })} />
+                {errors.puntos ? <div className="mt-2 text-xs font-bold text-rose-700">{errors.puntos}</div> : null}
               </div>
               <div>
                 <div className="text-xs font-extrabold text-slate-700">Orden</div>
                 <Input inputMode="numeric" value={value.orden} onChange={(e) => onChange({ ...value, orden: e.target.value })} />
+                {errors.orden ? <div className="mt-2 text-xs font-bold text-rose-700">{errors.orden}</div> : null}
               </div>
             </div>
           </div>

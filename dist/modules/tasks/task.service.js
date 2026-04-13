@@ -13,6 +13,17 @@ function parseMysqlDatetime(dt) {
     return Number.isNaN(d.getTime()) ? null : d;
 }
 const MAX_STUDENT_FILE_UPLOADS_PER_TASK = 3;
+const DEFAULT_SUBMISSIONS_LIMIT = 50;
+const MAX_SUBMISSIONS_LIMIT = 50;
+function normalizeSubmissionsPagination(query) {
+    const rawLimit = Number(query?.limit);
+    const rawOffset = Number(query?.offset);
+    const limit = Number.isInteger(rawLimit) && rawLimit > 0
+        ? Math.min(rawLimit, MAX_SUBMISSIONS_LIMIT)
+        : DEFAULT_SUBMISSIONS_LIMIT;
+    const offset = Number.isInteger(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
+    return { limit, offset };
+}
 class TaskService {
     constructor() {
         this.repo = new task_repository_1.TaskRepository();
@@ -241,9 +252,13 @@ class TaskService {
         if (!ctx)
             throw (0, httpErrors_1.notFound)("Tarea no encontrada");
         this.assertCanManage(requester, ctx.docente_id);
-        return this.repo.listSubmissionsForTask(taskId, query);
+        return this.repo.listSubmissionsForTask(taskId, normalizeSubmissionsPagination(query));
     }
     async gradeSubmission(requester, taskId, submissionId, input) {
+        const gradingReady = await this.repo.supportsSubmissionGrading();
+        if (!gradingReady) {
+            throw (0, httpErrors_1.serviceUnavailable)("Calificación de entregas no disponible: ejecuta db/alter_entregas_tareas_add_calificacion.sql.");
+        }
         const ctx = await this.repo.getSubmissionContext(submissionId);
         if (!ctx || ctx.tarea_id !== taskId)
             throw (0, httpErrors_1.notFound)("Entrega no encontrada");

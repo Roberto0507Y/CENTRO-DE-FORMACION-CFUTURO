@@ -11,6 +11,7 @@ const routes_1 = __importDefault(require("./routes"));
 const env_1 = require("./config/env");
 const error_middleware_1 = require("./middlewares/error.middleware");
 const app = (0, express_1.default)();
+const isProduction = env_1.env.NODE_ENV === "production";
 app.set("trust proxy", env_1.env.NODE_ENV === "production" ? 1 : false);
 app.disable("x-powered-by");
 const DEFAULT_DEV_CORS_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"];
@@ -121,9 +122,11 @@ app.use((0, cors_1.default)({
     optionsSuccessStatus: 204,
     exposedHeaders: ["Content-Disposition"],
 }));
-app.use((0, morgan_1.default)(env_1.env.NODE_ENV === "production" ? "combined" : "dev"));
-app.use(express_1.default.json({ limit: "1mb" }));
-app.use(express_1.default.urlencoded({ extended: true }));
+app.use((0, morgan_1.default)(isProduction ? "tiny" : "dev", {
+    skip: (req) => req.path === "/api/health",
+}));
+app.use(express_1.default.json({ limit: isProduction ? "512kb" : "1mb" }));
+app.use(express_1.default.urlencoded({ extended: false, limit: isProduction ? "256kb" : "512kb" }));
 app.get("/api/health", (_req, res) => res.status(200).json({ ok: true }));
 app.use("/api", routes_1.default);
 app.use((_req, res) => {

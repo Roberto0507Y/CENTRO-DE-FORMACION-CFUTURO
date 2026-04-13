@@ -26,13 +26,16 @@ export class NotificationRepository {
     );
     const total = Number(countRows[0]?.total ?? 0);
 
-    const [unreadRows] = await pool.query<CountRow[]>(
-      `SELECT COUNT(*) AS total
-       FROM notificaciones n
-       WHERE n.usuario_id = ? AND n.leida = 0`,
-      [userId]
-    );
-    const unreadCount = Number(unreadRows[0]?.total ?? 0);
+    let unreadCount = total;
+    if (!q.unread) {
+      const [unreadRows] = await pool.query<CountRow[]>(
+        `SELECT COUNT(*) AS total
+         FROM notificaciones n
+         WHERE n.usuario_id = ? AND n.leida = 0`,
+        [userId]
+      );
+      unreadCount = Number(unreadRows[0]?.total ?? 0);
+    }
 
     const [rows] = await pool.query<NotificationRow[]>(
       `SELECT

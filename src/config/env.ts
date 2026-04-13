@@ -35,6 +35,10 @@ const envSchema = z.object({
   DB_USER: z.string().min(1, "DB_USER es requerido"),
   DB_PASSWORD: z.string().min(1, "DB_PASSWORD es requerido"),
   DB_NAME: z.string().min(1, "DB_NAME es requerido"),
+  DB_POOL_LIMIT: optionalNumberFromEnv("DB_POOL_LIMIT"),
+  DB_POOL_MAX_IDLE: optionalNumberFromEnv("DB_POOL_MAX_IDLE"),
+  DB_POOL_IDLE_MS: optionalNumberFromEnv("DB_POOL_IDLE_MS"),
+  DB_POOL_QUEUE_LIMIT: optionalNumberFromEnv("DB_POOL_QUEUE_LIMIT"),
 
   JWT_SECRET: z.string().min(20, "JWT_SECRET debe tener al menos 20 caracteres"),
   JWT_EXPIRES_IN: z.string().min(1, "JWT_EXPIRES_IN es requerido"),

@@ -7,6 +7,7 @@ import { env } from "./config/env";
 import { errorMiddleware } from "./middlewares/error.middleware";
 
 const app = express();
+const isProduction = env.NODE_ENV === "production";
 app.set("trust proxy", env.NODE_ENV === "production" ? 1 : false);
 app.disable("x-powered-by");
 
@@ -134,9 +135,13 @@ app.use(
   })
 );
 
-app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
-app.use(express.json({ limit: "1mb" }));
-app.use(express.urlencoded({ extended: true }));
+app.use(
+  morgan(isProduction ? "tiny" : "dev", {
+    skip: (req) => req.path === "/api/health",
+  })
+);
+app.use(express.json({ limit: isProduction ? "512kb" : "1mb" }));
+app.use(express.urlencoded({ extended: false, limit: isProduction ? "256kb" : "512kb" }));
 
 app.get("/api/health", (_req, res) => res.status(200).json({ ok: true }));
 app.use("/api", routes);

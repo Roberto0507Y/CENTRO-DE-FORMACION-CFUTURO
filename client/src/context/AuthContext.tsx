@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useEffect, useMemo, useRef, useState } from "react";
 import type { AxiosInstance } from "axios";
 import { clearCachedCsrfToken, createApiClient, hydrateCsrfToken } from "../api/axios";
 import type { ApiResponse } from "../types/api";
@@ -32,6 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const refreshPromiseRef = useRef<Promise<void> | null>(null);
 
   const api = useMemo(() => createApiClient(), []);
 
@@ -53,9 +54,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshMe = async () => {
-    const res = await api.get<ApiResponse<User>>("/auth/me");
-    setToken(AUTH_SESSION_MARKER);
-    setUser(res.data.data);
+    if (refreshPromiseRef.current) {
+      return refreshPromiseRef.current;
+    }
+
+    const request = api
+      .get<ApiResponse<User>>("/auth/me")
+      .then((res) => {
+        setToken(AUTH_SESSION_MARKER);
+        setUser(res.data.data);
+      })
+      .finally(() => {
+        refreshPromiseRef.current = null;
+      });
+
+    refreshPromiseRef.current = request;
+    return request;
   };
 
   const login = async (correo: string, password: string): Promise<User> => {

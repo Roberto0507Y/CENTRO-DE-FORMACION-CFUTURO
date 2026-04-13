@@ -8,6 +8,11 @@ exports.pingDb = pingDb;
 exports.withTransaction = withTransaction;
 const promise_1 = __importDefault(require("mysql2/promise"));
 const env_1 = require("./env");
+const defaultConnectionLimit = env_1.env.NODE_ENV === "production" ? 5 : 10;
+const connectionLimit = Math.max(1, env_1.env.DB_POOL_LIMIT ?? defaultConnectionLimit);
+const maxIdle = Math.min(connectionLimit, Math.max(1, env_1.env.DB_POOL_MAX_IDLE ?? Math.min(3, connectionLimit)));
+const idleTimeout = Math.max(10000, env_1.env.DB_POOL_IDLE_MS ?? 60000);
+const queueLimit = Math.max(0, env_1.env.DB_POOL_QUEUE_LIMIT ?? 50);
 exports.pool = promise_1.default.createPool({
     host: env_1.env.DB_HOST,
     port: env_1.env.DB_PORT,
@@ -15,8 +20,12 @@ exports.pool = promise_1.default.createPool({
     password: env_1.env.DB_PASSWORD,
     database: env_1.env.DB_NAME,
     waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0,
+    connectionLimit,
+    maxIdle,
+    idleTimeout,
+    queueLimit,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 10000,
     namedPlaceholders: false,
     timezone: "Z",
     decimalNumbers: true,

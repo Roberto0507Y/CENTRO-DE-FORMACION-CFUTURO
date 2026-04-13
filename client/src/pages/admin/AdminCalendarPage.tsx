@@ -1,8 +1,12 @@
-import { PageHeader } from "../../components/ui/PageHeader";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { Card } from "../../components/ui/Card";
 import { useAuth } from "../../hooks/useAuth";
 import type { CalendarSource } from "../../components/calendar/calendar.types";
-import { CalendarApp } from "../../components/calendar/CalendarApp";
+import { PageHeader } from "../../components/ui/PageHeader";
+import { Spinner } from "../../components/ui/Spinner";
+import { lazyNamed } from "../../utils/lazyNamed";
+
+const CalendarApp = lazyNamed(() => import("../../components/calendar/CalendarApp"), "CalendarApp");
 
 export function AdminCalendarPage() {
   const { user } = useAuth();
@@ -14,7 +18,15 @@ export function AdminCalendarPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Calendario" subtitle="Gestión (admin)" />
-      <CalendarApp storageKey={storageKey} sources={sources} onSourcesChange={setSources} view="month" />
+      <Suspense
+        fallback={
+          <Card className="grid min-h-[24rem] place-items-center">
+            <Spinner />
+          </Card>
+        }
+      >
+        <CalendarApp storageKey={storageKey} sources={sources} onSourcesChange={setSources} view="month" />
+      </Suspense>
     </div>
   );
 }

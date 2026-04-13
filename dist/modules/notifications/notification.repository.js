@@ -13,10 +13,13 @@ class NotificationRepository {
        FROM notificaciones n
        WHERE ${where.join(" AND ")}`, params);
         const total = Number(countRows[0]?.total ?? 0);
-        const [unreadRows] = await db_1.pool.query(`SELECT COUNT(*) AS total
-       FROM notificaciones n
-       WHERE n.usuario_id = ? AND n.leida = 0`, [userId]);
-        const unreadCount = Number(unreadRows[0]?.total ?? 0);
+        let unreadCount = total;
+        if (!q.unread) {
+            const [unreadRows] = await db_1.pool.query(`SELECT COUNT(*) AS total
+         FROM notificaciones n
+         WHERE n.usuario_id = ? AND n.leida = 0`, [userId]);
+            unreadCount = Number(unreadRows[0]?.total ?? 0);
+        }
         const [rows] = await db_1.pool.query(`SELECT
         n.id,
         n.usuario_id,

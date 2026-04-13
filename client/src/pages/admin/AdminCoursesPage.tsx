@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useState } from "react";
+import { Suspense, useDeferredValue, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { ApiResponse } from "../../types/api";
@@ -13,9 +13,9 @@ import { PaginationControls } from "../../components/ui/PaginationControls";
 import { Input } from "../../components/ui/Input";
 import { Badge } from "../../components/ui/Badge";
 import { ConfirmDeleteModal } from "../../components/ui/ConfirmDeleteModal";
-import { CourseEditModal } from "../../components/course/CourseEditModal";
 import { getApiErrorMessage } from "../../utils/apiError";
 import { ArrowRight, Coins, GraduationCap, UserRound } from "lucide-react";
+import { lazyNamed } from "../../utils/lazyNamed";
 
 type CourseRow = CourseListItem & { estado: CourseStatus };
 
@@ -26,6 +26,10 @@ const courseAccents = [
   "from-amber-500 via-orange-500 to-slate-950",
   "from-indigo-500 via-violet-600 to-slate-950",
 ] as const;
+const CourseEditModal = lazyNamed(
+  () => import("../../components/course/CourseEditModal"),
+  "CourseEditModal",
+);
 
 function getCourseInitials(title: string) {
   const initials = title
@@ -265,16 +269,20 @@ export function AdminCoursesPage() {
         }}
       />
 
-      <CourseEditModal
-        api={api}
-        open={editId !== null}
-        courseId={editId}
-        onClose={() => setEditId(null)}
-        onSaved={() => {
-          setEditId(null);
-          void load();
-        }}
-      />
+      {editId !== null ? (
+        <Suspense fallback={null}>
+          <CourseEditModal
+            api={api}
+            open={editId !== null}
+            courseId={editId}
+            onClose={() => setEditId(null)}
+            onSaved={() => {
+              setEditId(null);
+              void load();
+            }}
+          />
+        </Suspense>
+      ) : null}
     </div>
   );
 }
