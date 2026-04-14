@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { AxiosInstance } from "axios";
 import type { ApiResponse } from "../../types/api";
@@ -52,37 +52,55 @@ export function NotificationsBell({ api, role }: { api: AxiosInstance; role: Not
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const ref = useRef<HTMLDivElement | null>(null);
   const pollInFlightRef = useRef(false);
+  const requestRef = useRef<AbortController | null>(null);
+  const lastLoadedAtRef = useRef(0);
   const navigate = useNavigate();
 
   const hasUnread = unreadCount > 0;
 
-  const load = async (opts?: { unreadOnly?: boolean; silent?: boolean }) => {
-    try {
-      if (!opts?.silent) {
-        setLoading(true);
-        setError("");
+  const load = useCallback(
+    async (opts?: { unreadOnly?: boolean; silent?: boolean; force?: boolean }) => {
+      const now = Date.now();
+      if (!opts?.force && !opts?.unreadOnly && items.length > 0 && now - lastLoadedAtRef.current < 30000) {
+        return;
       }
-      const res = await api.get<ApiResponse<NotificationListResponse>>("/notifications", {
-        params: {
-          limit: opts?.unreadOnly ? 1 : 12,
-          offset: 0,
-          unread: opts?.unreadOnly ? 1 : undefined,
-        },
-      });
-      if (!opts?.unreadOnly) {
-        setItems(res.data.data.items);
+
+      requestRef.current?.abort();
+      const controller = new AbortController();
+      requestRef.current = controller;
+
+      try {
+        if (!opts?.silent) {
+          setLoading(true);
+          setError("");
+        }
+        const res = await api.get<ApiResponse<NotificationListResponse>>("/notifications", {
+          params: {
+            limit: opts?.unreadOnly ? 1 : 12,
+            offset: 0,
+            unread: opts?.unreadOnly ? 1 : undefined,
+          },
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
+        if (!opts?.unreadOnly) {
+          setItems(res.data.data.items);
+          lastLoadedAtRef.current = Date.now();
+        }
+        setUnreadCount(res.data.data.unreadCount);
+      } catch (err) {
+        if ((err as { code?: string }).code === "ERR_CANCELED" || controller.signal.aborted) return;
+        if (!opts?.silent) {
+          setError(getApiErrorMessage(err, "No se pudieron cargar notificaciones."));
+        }
+      } finally {
+        if (!opts?.silent && !controller.signal.aborted) {
+          setLoading(false);
+        }
       }
-      setUnreadCount(res.data.data.unreadCount);
-    } catch (err) {
-      if (!opts?.silent) {
-        setError(getApiErrorMessage(err, "No se pudieron cargar notificaciones."));
-      }
-    } finally {
-      if (!opts?.silent) {
-        setLoading(false);
-      }
-    }
-  };
+    },
+    [api, items.length]
+  );
 
   useEffect(() => {
     // Poll ligero para el contador (solo si está cerrado y la pestaña está visible)
@@ -95,12 +113,11 @@ export function NotificationsBell({ api, role }: { api: AxiosInstance; role: Not
     }, 60000);
     return () => window.clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [load, open]);
 
   useEffect(() => {
-    void load({ unreadOnly: true, silent: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    void load({ unreadOnly: true, silent: true, force: true });
+  }, [load]);
 
   useEffect(() => {
     const onVisibility = () => {
@@ -112,14 +129,12 @@ export function NotificationsBell({ api, role }: { api: AxiosInstance; role: Not
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [load, open]);
 
   useEffect(() => {
     if (!open) return;
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [load, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -133,7 +148,11 @@ export function NotificationsBell({ api, role }: { api: AxiosInstance; role: Not
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
 
-  const markRead = async (id: number) => {
+  useEffect(() => {
+    return () => requestRef.current?.abort();
+  }, []);
+
+  const markRead = useCallback(async (id: number) => {
     try {
       await api.patch<ApiResponse<{ ok: true }>>(`/notifications/${id}/read`);
       setItems((prev) => prev.map((n) => (n.id === id ? { ...n, leida: 1 } : n)));
@@ -141,17 +160,17 @@ export function NotificationsBell({ api, role }: { api: AxiosInstance; role: Not
     } catch {
       // ignore
     }
-  };
+  }, [api]);
 
-  const openNotification = async (n: NotificationItem) => {
+  const openNotification = useCallback(async (n: NotificationItem) => {
     await markRead(n.id);
     const href = notificationHref(n, role);
     if (!href) return;
     setOpen(false);
     navigate(href);
-  };
+  }, [markRead, navigate, role]);
 
-  const deleteNotification = async (n: NotificationItem) => {
+  const deleteNotification = useCallback(async (n: NotificationItem) => {
     try {
       setDeletingId(n.id);
       await api.delete<ApiResponse<{ ok: true }>>(`/notifications/${n.id}`);
@@ -163,9 +182,9 @@ export function NotificationsBell({ api, role }: { api: AxiosInstance; role: Not
       setDeletingId(null);
       setPendingDelete(null);
     }
-  };
+  }, [api]);
 
-  const markAll = async () => {
+  const markAll = useCallback(async () => {
     try {
       await api.patch<ApiResponse<{ affected: number }>>("/notifications/read-all");
       setItems((prev) => prev.map((n) => ({ ...n, leida: 1 })));
@@ -173,7 +192,7 @@ export function NotificationsBell({ api, role }: { api: AxiosInstance; role: Not
     } catch {
       // ignore
     }
-  };
+  }, [api]);
 
   const headerText = useMemo(() => {
     if (hasUnread) return `Notificaciones (${unreadCount})`;
@@ -231,50 +250,12 @@ export function NotificationsBell({ api, role }: { api: AxiosInstance; role: Not
             ) : (
               <div className="space-y-1">
                 {items.map((n) => (
-                  <div
+                  <NotificationRow
                     key={n.id}
-                    className={`group flex w-full items-stretch overflow-hidden rounded-xl transition hover:bg-slate-50 dark:hover:bg-slate-800 ${
-                      n.leida ? "" : "bg-amber-50/60 dark:bg-amber-400/10"
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => void openNotification(n)}
-                      className="min-w-0 flex-1 px-3 py-3 text-left"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-black text-slate-900 dark:text-slate-100">
-                            {n.titulo}
-                          </div>
-                          <div className="mt-1 line-clamp-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                            {n.mensaje}
-                          </div>
-                        </div>
-                        <div className="shrink-0 text-[11px] font-bold text-slate-400">{timeAgo(n.created_at)}</div>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setPendingDelete(n);
-                      }}
-                      className="my-2 mr-2 grid h-9 w-9 shrink-0 place-items-center rounded-xl text-slate-400 transition hover:bg-rose-50 hover:text-rose-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/30 dark:text-slate-500 dark:hover:bg-rose-500/10 dark:hover:text-rose-300"
-                      aria-label={`Eliminar notificación: ${n.titulo}`}
-                      title="Eliminar"
-                    >
-                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path
-                          d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </button>
-                  </div>
+                    notification={n}
+                    onOpen={openNotification}
+                    onDelete={setPendingDelete}
+                  />
                 ))}
               </div>
             )}
@@ -296,3 +277,59 @@ export function NotificationsBell({ api, role }: { api: AxiosInstance; role: Not
     </div>
   );
 }
+
+const NotificationRow = memo(function NotificationRow({
+  notification,
+  onOpen,
+  onDelete,
+}: {
+  notification: NotificationItem;
+  onOpen: (notification: NotificationItem) => Promise<void>;
+  onDelete: (notification: NotificationItem) => void;
+}) {
+  return (
+    <div
+      className={`group flex w-full items-stretch overflow-hidden rounded-xl transition hover:bg-slate-50 dark:hover:bg-slate-800 ${
+        notification.leida ? "" : "bg-amber-50/60 dark:bg-amber-400/10"
+      }`}
+    >
+      <button
+        type="button"
+        onClick={() => void onOpen(notification)}
+        className="min-w-0 flex-1 px-3 py-3 text-left"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="truncate text-sm font-black text-slate-900 dark:text-slate-100">
+              {notification.titulo}
+            </div>
+            <div className="mt-1 line-clamp-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+              {notification.mensaje}
+            </div>
+          </div>
+          <div className="shrink-0 text-[11px] font-bold text-slate-400">{timeAgo(notification.created_at)}</div>
+        </div>
+      </button>
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onDelete(notification);
+        }}
+        className="my-2 mr-2 grid h-9 w-9 shrink-0 place-items-center rounded-xl text-slate-400 transition hover:bg-rose-50 hover:text-rose-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/30 dark:text-slate-500 dark:hover:bg-rose-500/10 dark:hover:text-rose-300"
+        aria-label={`Eliminar notificación: ${notification.titulo}`}
+        title="Eliminar"
+      >
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+    </div>
+  );
+});

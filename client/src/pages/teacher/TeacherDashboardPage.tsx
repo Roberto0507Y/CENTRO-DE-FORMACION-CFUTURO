@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "../../components/ui/Card";
 import { PageHeader } from "../../components/ui/PageHeader";
@@ -7,6 +7,7 @@ import { StatCard } from "../../components/ui/StatCard";
 import { useAuth } from "../../hooks/useAuth";
 import type { ApiResponse } from "../../types/api";
 import type { CourseListItem } from "../../types/course";
+import "../../styles/admin-dashboard.css";
 
 function getCourseInitial(title: string) {
   return title.trim().charAt(0).toUpperCase() || "C";
@@ -17,35 +18,49 @@ export function TeacherDashboardPage() {
   const [items, setItems] = useState<Array<CourseListItem & { estado: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    (async () => {
+  const loadCourses = useCallback(
+    async (signal?: AbortSignal) => {
       try {
         setIsLoading(true);
         const res = await api.get<ApiResponse<{ items: Array<CourseListItem & { estado: string }> }>>(
           "/courses/my/teaching",
-          { params: { page: 1, limit: 50 } }
+          {
+            params: { page: 1, limit: 50 },
+            signal,
+          }
         );
+        if (signal?.aborted) return;
         setItems(res.data.data.items);
+      } catch (err) {
+        if ((err as { code?: string }).code === "ERR_CANCELED" || signal?.aborted) return;
+        setItems([]);
       } finally {
-        setIsLoading(false);
+        if (!signal?.aborted) setIsLoading(false);
       }
-    })();
-  }, [api]);
-
-  const publishedCount = useMemo(
-    () => items.filter((c) => c.estado === "publicado").length,
-    [items]
+    },
+    [api]
   );
 
-  const draftCount = useMemo(
-    () => items.filter((c) => c.estado === "borrador").length,
-    [items]
-  );
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadCourses(controller.signal);
+    return () => controller.abort();
+  }, [loadCourses]);
 
-  const hiddenCount = useMemo(
-    () => items.filter((c) => c.estado === "oculto").length,
-    [items]
-  );
+  const stats = useMemo(() => {
+    return items.reduce(
+      (acc, course) => {
+        if (course.estado === "publicado") acc.published += 1;
+        else if (course.estado === "borrador") acc.draft += 1;
+        else if (course.estado === "oculto") acc.hidden += 1;
+        return acc;
+      },
+      { published: 0, draft: 0, hidden: 0 }
+    );
+  }, [items]);
+
+  const visibleCourses = useMemo(() => items.slice(0, 12), [items]);
+  const recentCourses = useMemo(() => items.slice(0, 5), [items]);
 
   return (
     <div className="space-y-6">
@@ -56,7 +71,7 @@ export function TeacherDashboardPage() {
 
       <div className="grid gap-3 md:grid-cols-3">
         <StatCard label="Cursos" value={`${items.length}`} hint="Total" />
-        <StatCard label="Publicados" value={`${publishedCount}`} hint="Visibles al público" />
+        <StatCard label="Publicados" value={`${stats.published}`} hint="Visibles al público" />
         <StatCard label="Rol" value={user?.rol ?? "—"} hint="Cuenta" />
       </div>
 
@@ -87,7 +102,7 @@ export function TeacherDashboardPage() {
                 <div className="text-sm text-slate-600 dark:text-slate-300">Aún no has creado cursos.</div>
               ) : (
                 <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-                  {items.slice(0, 12).map((c) => {
+                  {visibleCourses.map((c) => {
                     const badge =
                       c.estado === "publicado"
                         ? "bg-emerald-50 text-emerald-700 ring-emerald-100 dark:bg-emerald-950/35 dark:text-emerald-200 dark:ring-emerald-900/40"
@@ -97,10 +112,10 @@ export function TeacherDashboardPage() {
 
                     return (
                       <Link key={c.id} to="/teacher/courses" className="group">
-                          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/85 dark:hover:shadow-cyan-950/20">
-                          <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-blue-600 via-cyan-600 to-slate-950">
-                            <div className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full border border-white/20" />
-                            <div className="pointer-events-none absolute -right-3 top-12 h-20 w-20 rounded-full bg-white/10 blur-sm" />
+                          <div className="cf-admin-quick-link overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 dark:border-slate-800 dark:bg-slate-900/85">
+                          <div className="cf-teacher-course-hero relative aspect-[16/9] overflow-hidden">
+                            <div className="cf-teacher-course-ring pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full" />
+                            <div className="cf-teacher-course-glow pointer-events-none absolute -right-3 top-12 h-20 w-20 rounded-full" />
                             <div className="absolute left-3 bottom-3 grid h-12 w-12 place-items-center rounded-2xl bg-white/95 text-base font-black text-slate-950 shadow-lg shadow-black/20 dark:bg-slate-950/90 dark:text-cyan-200 dark:shadow-cyan-950/30">
                               {getCourseInitial(c.titulo)}
                             </div>
@@ -153,15 +168,15 @@ export function TeacherDashboardPage() {
                   <div className="mt-2 grid gap-2 sm:grid-cols-3">
                     <div className="rounded-xl bg-emerald-50 p-3 ring-1 ring-emerald-100 dark:bg-emerald-950/35 dark:ring-emerald-900/40">
                       <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-200">Publicados</div>
-                      <div className="mt-1 text-lg font-black text-emerald-800 dark:text-emerald-100">{publishedCount}</div>
+                      <div className="mt-1 text-lg font-black text-emerald-800 dark:text-emerald-100">{stats.published}</div>
                     </div>
                     <div className="rounded-xl bg-amber-50 p-3 ring-1 ring-amber-100 dark:bg-amber-950/35 dark:ring-amber-900/40">
                       <div className="text-[11px] font-bold text-amber-800 dark:text-amber-200">Borrador</div>
-                      <div className="mt-1 text-lg font-black text-amber-900 dark:text-amber-100">{draftCount}</div>
+                      <div className="mt-1 text-lg font-black text-amber-900 dark:text-amber-100">{stats.draft}</div>
                     </div>
                     <div className="rounded-xl bg-slate-100 p-3 ring-1 ring-slate-200 dark:bg-slate-800/80 dark:ring-slate-700">
                       <div className="text-[11px] font-bold text-slate-700 dark:text-slate-200">Ocultos</div>
-                      <div className="mt-1 text-lg font-black text-slate-900 dark:text-white">{hiddenCount}</div>
+                      <div className="mt-1 text-lg font-black text-slate-900 dark:text-white">{stats.hidden}</div>
                     </div>
                   </div>
                 </div>
@@ -183,7 +198,7 @@ export function TeacherDashboardPage() {
                 <div className="text-sm text-slate-600 dark:text-slate-300">Sin actividad reciente.</div>
               ) : (
                 <div className="grid gap-2">
-                  {items.slice(0, 5).map((c) => (
+                  {recentCourses.map((c) => (
                     <div
                       key={c.id}
                       className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/70"

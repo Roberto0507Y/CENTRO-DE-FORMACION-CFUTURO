@@ -1,0 +1,125 @@
+.cf-admin-payments-summary {
+  padding: 1.25rem;
+  background: linear-gradient(135deg, rgb(248 250 252), rgb(255 255 255));
+}
+
+.cf-admin-payments-summary--green {
+  background: linear-gradient(135deg, rgb(236 253 245), rgb(240 253 250));
+}
+
+.cf-admin-payments-summary--blue {
+  background: linear-gradient(135deg, rgb(239 246 255), rgb(236 254 255));
+}
+
+.cf-admin-payments-summary--amber {
+  background: linear-gradient(135deg, rgb(255 251 235), rgb(255 247 237));
+}
+
+.dark .cf-admin-payments-summary {
+  background: linear-gradient(135deg, rgb(15 23 42), rgb(30 41 59 / 0.8));
+}
+
+.dark .cf-admin-payments-summary--green {
+  background: linear-gradient(135deg, rgb(16 185 129 / 0.15), rgb(45 212 191 / 0.1));
+}
+
+.dark .cf-admin-payments-summary--blue {
+  background: linear-gradient(135deg, rgb(59 130 246 / 0.15), rgb(34 211 238 / 0.1));
+}
+
+.dark .cf-admin-payments-summary--amber {
+  background: linear-gradient(135deg, rgb(245 158 11 / 0.15), rgb(251 146 60 / 0.1));
+}
+
+.cf-admin-payments-hero-kicker {
+  letter-spacing: 0.28em;
+}
+
+.cf-admin-payments-currency-pill {
+  letter-spacing: 0.22em;
+}
+
+.cf-admin-payments-row {
+  border-radius: 1.35rem;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.cf-admin-payments-row:hover {
+  transform: translateY(-2px);
+  border-color: rgb(191 219 254);
+  box-shadow: 0 10px 28px rgb(226 232 240 / 0.6);
+}
+
+.dark .cf-admin-payments-row:hover {
+  border-color: rgb(34 211 238 / 0.4);
+  box-shadow: 0 12px 28px rgb(8 47 73 / 0.2);
+}
+
+.cf-admin-payments-row-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .cf-admin-payments-row-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .cf-admin-payments-row-grid {
+    grid-template-columns:
+      minmax(0, 1.15fr)
+      minmax(0, 1fr)
+      minmax(0, 0.7fr)
+      minmax(0, 0.8fr);
+  }
+}
+
+.cf-admin-payments-row-label {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.cf-admin-payments-chart-metric {
+  border-radius: 1.25rem;
+}
+
+.cf-admin-payments-chart-metric-label {
+  letter-spacing: 0.22em;
+}
+
+.cf-admin-payments-chart-shell {
+  overflow: hidden;
+  border-radius: 1.5rem;
+  border: 1px solid rgb(15 23 42);
+  background: rgb(2 6 23);
+  padding: 1rem;
+  box-shadow: 0 24px 80px -50px rgb(14 165 233 / 0.8);
+}
+
+.cf-admin-payments-chart-kicker {
+  letter-spacing: 0.26em;
+}
+
+.cf-admin-payments-chart-svg {
+  height: 280px;
+  min-width: 760px;
+  width: 100%;
+}
+
+.cf-admin-payments-chart-axis-label,
+.cf-admin-payments-chart-point-label {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.cf-admin-payments-chart-date-label {
+  font-size: 12px;
+  font-weight: 700;
+}

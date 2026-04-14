@@ -7,6 +7,8 @@ import { useAuth } from "../hooks/useAuth";
 import type { ApiResponse } from "../types/api";
 import type { CourseDetail } from "../types/course";
 import type { CourseManageOutletContext } from "../pages/shared/courseManage.types";
+import "../styles/admin-dark-scope.css";
+import "../styles/internal-shell.css";
 
 type CourseNavItem = {
   to: string;
@@ -90,7 +92,7 @@ function CourseMobileDrawer({
       />
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[340px] max-w-[90vw] transform flex-col bg-slate-950 text-white shadow-2xl transition-transform ${
+        className={`cf-course-shell-drawer fixed inset-y-0 left-0 z-50 flex transform flex-col bg-slate-950 text-white shadow-2xl transition-transform ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
         role="dialog"
@@ -117,9 +119,9 @@ function CourseMobileDrawer({
         </div>
 
         <div className="px-4 pt-4">
-          <Card className="overflow-hidden border-white/10 bg-white/[0.06] p-0 text-white">
+          <Card className="overflow-hidden border-white/10 bg-white/5 p-0 text-white">
             <div className="relative p-4">
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(34,211,238,0.18),transparent_38%),linear-gradient(135deg,rgba(255,255,255,0.07),transparent_60%)]" />
+              <div className="cf-course-shell-context-glow pointer-events-none absolute inset-0" />
               <div className="relative flex items-start gap-3">
                 <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/10 text-sm font-black text-cyan-100 ring-1 ring-white/10">
                   {(course?.titulo?.trim()?.[0] ?? "C").toUpperCase()}
@@ -347,7 +349,7 @@ export function CourseManageLayout({ base }: { base: "admin" | "teacher" | "stud
 
         {/* Contexto del curso */}
         <div className="px-6 pt-5">
-          <Card className="overflow-hidden border-white/10 bg-white/[0.06] p-0 text-white shadow-[0_24px_80px_-58px_rgba(0,0,0,0.9)]">
+          <Card className="cf-course-shell-context-card overflow-hidden border-white/10 bg-white/5 p-0 text-white">
             {isLoading ? (
               <div className="flex items-center gap-3 p-4 text-sm text-white/80">
                 <Spinner />
@@ -355,7 +357,7 @@ export function CourseManageLayout({ base }: { base: "admin" | "teacher" | "stud
               </div>
             ) : (
               <div className="relative p-4">
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(34,211,238,0.18),transparent_38%),linear-gradient(135deg,rgba(255,255,255,0.07),transparent_60%)]" />
+                <div className="cf-course-shell-context-glow pointer-events-none absolute inset-0" />
                 <div className="relative flex items-start gap-3">
                   <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/10 text-sm font-black text-cyan-100 ring-1 ring-white/10 shadow-lg shadow-black/20">
                     {(course?.titulo?.trim()?.[0] ?? "C").toUpperCase()}
@@ -422,7 +424,7 @@ export function CourseManageLayout({ base }: { base: "admin" | "teacher" | "stud
 
       {/* Main */}
       <div className="flex min-h-[100dvh] min-w-0 flex-1 flex-col xl:min-h-0">
-        <header className="relative z-20 border-b border-slate-200/70 bg-white/[0.9] px-3 py-3 shadow-[0_18px_50px_-42px_rgba(15,23,42,0.65)] backdrop-blur-xl sm:px-4 xl:hidden dark:border-slate-800/80 dark:bg-slate-950/[0.9]">
+        <header className="cf-course-shell-mobile-header relative z-20 border-b border-slate-200/70 bg-white/90 px-3 py-3 backdrop-blur-xl sm:px-4 xl:hidden dark:border-slate-800/80 dark:bg-slate-950/90">
           <div className="flex items-center justify-between gap-3">
             <button
               type="button"
@@ -452,7 +454,7 @@ export function CourseManageLayout({ base }: { base: "admin" | "teacher" | "stud
             </a>
           </div>
         </header>
-        <main className="cf-admin-dark-scope min-h-0 min-w-0 flex-1 overflow-visible bg-[radial-gradient(circle_at_18%_0%,rgba(59,130,246,0.10),transparent_30%),linear-gradient(180deg,rgba(248,250,252,0.96),rgba(241,245,249,1))] xl:overflow-y-auto dark:bg-[radial-gradient(circle_at_18%_0%,rgba(34,211,238,0.12),transparent_30%),linear-gradient(180deg,rgba(2,6,23,1),rgba(15,23,42,1))]">
+        <main className="cf-admin-dark-scope cf-app-shell-main min-h-0 min-w-0 flex-1 overflow-visible xl:overflow-y-auto">
           <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6">
             <Outlet context={outletCtx} />
           </div>

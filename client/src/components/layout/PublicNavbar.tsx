@@ -6,14 +6,11 @@ import { Container } from "../ui/Container";
 
 function desktopNavItemClass(isActive: boolean) {
   return [
-    "relative inline-flex items-center rounded-2xl px-4 py-2.5 text-sm font-semibold tracking-[0.01em] transition-all duration-300",
+    "cf-public-nav-link relative inline-flex items-center rounded-2xl px-4 py-2.5 text-sm font-semibold tracking-[0.01em] transition-all duration-300",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
     isActive
-      ? "text-white"
-      : "text-white/72 hover:-translate-y-[1px] hover:bg-white/[0.07] hover:text-white hover:shadow-[0_10px_24px_rgba(15,23,42,0.18)]",
-    isActive
-      ? "after:absolute after:left-1/2 after:bottom-0 after:h-[3px] after:w-8 after:-translate-x-1/2 after:rounded-full after:bg-gradient-to-r after:from-cyan-300 after:via-cyan-400 after:to-blue-500 after:shadow-[0_0_16px_rgba(34,211,238,0.35)]"
-      : "",
+      ? "cf-public-nav-link-active text-white"
+      : "cf-public-hover-link text-white/72 hover:-translate-y-[1px] hover:bg-white/[0.07] hover:text-white",
   ].join(" ");
 }
 
@@ -62,7 +59,7 @@ export function PublicNavbar() {
   const isHomeActive = pathname === "/" && !hash;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-[linear-gradient(180deg,rgba(2,6,23,0.88)_0%,rgba(4,11,29,0.82)_56%,rgba(6,13,32,0.74)_100%)] shadow-[0_14px_34px_rgba(2,6,23,0.20)] backdrop-blur-xl supports-[backdrop-filter]:bg-[linear-gradient(180deg,rgba(2,6,23,0.76)_0%,rgba(4,11,29,0.68)_56%,rgba(6,13,32,0.58)_100%)]">
+    <header className="cf-public-navbar sticky top-0 z-40">
       <Container className="px-3 sm:px-4 md:px-6 lg:px-10">
         <div className="flex min-w-0 h-[70px] items-center gap-3 sm:gap-4 lg:h-24 lg:gap-6">
           {/* Brand */}
@@ -116,7 +113,7 @@ export function PublicNavbar() {
             {/* Mobile menu */}
             <button
               type="button"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white/80 shadow-sm shadow-black/30 transition-all duration-300 hover:-translate-y-[1px] hover:bg-white/10 hover:text-white hover:shadow-[0_14px_24px_rgba(2,6,23,0.24)] lg:hidden"
+              className="cf-public-hover-card inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white/80 shadow-sm shadow-black/30 transition-all duration-300 hover:-translate-y-[1px] hover:bg-white/10 hover:text-white lg:hidden"
               onClick={() => setMobileOpen((v) => !v)}
               aria-label={mobileOpen ? "Cerrar menú" : "Abrir menú"}
               aria-expanded={mobileOpen}
@@ -136,13 +133,13 @@ export function PublicNavbar() {
                 <Link to="/auth/login" className="hidden lg:block">
                   <Button
                     variant="ghost"
-                    className="rounded-2xl border border-white/12 bg-white/5 px-5 text-white/85 shadow-sm shadow-black/25 transition-all duration-300 hover:-translate-y-[1px] hover:bg-white/10 hover:text-white hover:shadow-md hover:shadow-black/30"
+                    className="cf-public-hover-card rounded-2xl border border-white/12 bg-white/5 px-5 text-white/85 shadow-sm shadow-black/25 transition-all duration-300 hover:-translate-y-[1px] hover:bg-white/10 hover:text-white hover:shadow-md hover:shadow-black/30"
                   >
                     Iniciar sesión
                   </Button>
                 </Link>
                 <Link to="/auth/register" className="hidden sm:block">
-                  <Button className="rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 text-white shadow-[0_18px_50px_rgba(34,211,238,0.18)] ring-1 ring-white/10 transition-all duration-300 hover:-translate-y-[1px] hover:from-cyan-400 hover:to-blue-500 hover:shadow-[0_22px_60px_rgba(34,211,238,0.24)]">
+                  <Button className="cf-public-primary-btn rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 text-white ring-1 ring-white/10 transition-all duration-300 hover:-translate-y-[1px] hover:from-cyan-400 hover:to-blue-500">
                     Comenzar ahora
                   </Button>
                 </Link>
@@ -235,7 +232,7 @@ export function PublicNavbar() {
                         </Button>
                       </Link>
                       <Link to="/auth/register" onClick={() => setMobileOpen(false)}>
-                        <Button className="w-full rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 ring-1 ring-white/10 transition-all duration-300 hover:from-cyan-400 hover:to-blue-500">
+                        <Button className="cf-public-primary-btn w-full rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 ring-1 ring-white/10 transition-all duration-300 hover:from-cyan-400 hover:to-blue-500">
                           Comenzar ahora
                         </Button>
                       </Link>

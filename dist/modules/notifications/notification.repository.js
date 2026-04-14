@@ -4,23 +4,22 @@ exports.NotificationRepository = void 0;
 const db_1 = require("../../config/db");
 class NotificationRepository {
     async listForUser(userId, q) {
+        const limit = Math.max(1, Math.min(Number(q.limit) || 20, 50));
+        const offset = Math.max(0, Number(q.offset) || 0);
         const where = ["n.usuario_id = ?"];
         const params = [userId];
         if (q.unread) {
             where.push("n.leida = 0");
         }
-        const [countRows] = await db_1.pool.query(`SELECT COUNT(*) AS total
+        const totalQuery = db_1.pool.query(`SELECT COUNT(*) AS total
        FROM notificaciones n
        WHERE ${where.join(" AND ")}`, params);
-        const total = Number(countRows[0]?.total ?? 0);
-        let unreadCount = total;
-        if (!q.unread) {
-            const [unreadRows] = await db_1.pool.query(`SELECT COUNT(*) AS total
-         FROM notificaciones n
-         WHERE n.usuario_id = ? AND n.leida = 0`, [userId]);
-            unreadCount = Number(unreadRows[0]?.total ?? 0);
-        }
-        const [rows] = await db_1.pool.query(`SELECT
+        const unreadQuery = q.unread
+            ? null
+            : db_1.pool.query(`SELECT COUNT(*) AS total
+           FROM notificaciones n
+           WHERE n.usuario_id = ? AND n.leida = 0`, [userId]);
+        const itemsQuery = db_1.pool.query(`SELECT
         n.id,
         n.usuario_id,
         n.titulo,
@@ -34,8 +33,19 @@ class NotificationRepository {
         n.updated_at
        FROM notificaciones n
        WHERE ${where.join(" AND ")}
-       ORDER BY n.created_at DESC
-       LIMIT ? OFFSET ?`, [...params, q.limit, q.offset]);
+       ORDER BY n.created_at DESC, n.id DESC
+       LIMIT ? OFFSET ?`, [...params, limit, offset]);
+        const [[countRows], unreadResult, [rows]] = await Promise.all([
+            totalQuery,
+            unreadQuery ?? Promise.resolve([[{ total: 0 }], undefined]),
+            itemsQuery,
+        ]);
+        const total = Number(countRows[0]?.total ?? 0);
+        let unreadCount = total;
+        if (!q.unread) {
+            const [unreadRows] = unreadResult;
+            unreadCount = Number(unreadRows[0]?.total ?? 0);
+        }
         return { items: rows, total, unreadCount };
     }
     async markRead(userId, id) {

@@ -127,6 +127,13 @@ export class PaymentRepository {
     return proofValue ? `/api/payments/${paymentId}/proof/download` : null;
   }
 
+  private normalizeWindow(q: ListPaymentsQuery): Pick<ListPaymentsQuery, "limit" | "offset"> {
+    return {
+      limit: Math.max(1, Math.min(Number(q.limit) || 20, 100)),
+      offset: Math.max(0, Number(q.offset) || 0),
+    };
+  }
+
   private buildWhere(q: ListPaymentsQuery) {
     const where: string[] = ["1=1"];
     const params: Array<string | number> = [];
@@ -148,11 +155,11 @@ export class PaymentRepository {
       params.push(q.curso_id);
     }
     if (q.date_from) {
-      where.push("DATE(p.created_at) >= ?");
+      where.push("p.created_at >= ?");
       params.push(q.date_from);
     }
     if (q.date_to) {
-      where.push("DATE(p.created_at) <= ?");
+      where.push("p.created_at < DATE_ADD(?, INTERVAL 1 DAY)");
       params.push(q.date_to);
     }
 
@@ -161,42 +168,46 @@ export class PaymentRepository {
 
   async list(q: ListPaymentsQuery): Promise<{ items: PaymentListItem[]; total: number }> {
     const { whereSql, params } = this.buildWhere(q);
+    const { limit, offset } = this.normalizeWindow(q);
 
-    const [countRows] = await pool.query<RowDataPacket[]>(
-      `SELECT COUNT(DISTINCT p.id) AS total
-       FROM pagos p
-       LEFT JOIN detalle_pagos dp ON dp.pago_id = p.id
-       WHERE ${whereSql}`,
-      params
-    );
+    const [countResult, rowsResult] = await Promise.all([
+      pool.query<RowDataPacket[]>(
+        `SELECT COUNT(*) AS total
+         FROM pagos p
+         WHERE ${whereSql}`,
+        params
+      ),
+      pool.query<PaymentListRow[]>(
+        `SELECT
+          p.id,
+          p.referencia_pago,
+          p.usuario_id,
+          u.nombres,
+          u.apellidos,
+          u.correo,
+          GROUP_CONCAT(DISTINCT c.titulo ORDER BY c.titulo SEPARATOR ' · ') AS cursos,
+          p.monto_total,
+          p.moneda,
+          p.metodo_pago,
+          p.estado,
+          p.comprobante_url,
+          p.fecha_pago,
+          p.created_at
+         FROM pagos p
+         JOIN usuarios u ON u.id = p.usuario_id
+         LEFT JOIN detalle_pagos dp ON dp.pago_id = p.id
+         LEFT JOIN cursos c ON c.id = dp.curso_id
+         WHERE ${whereSql}
+         GROUP BY p.id
+         ORDER BY p.created_at DESC
+         LIMIT ? OFFSET ?`,
+        [...params, limit, offset]
+      ),
+    ]);
+    const [countRows] = countResult;
     const total = Number((countRows[0] as { total?: unknown } | undefined)?.total ?? 0);
 
-    const [rows] = await pool.query<PaymentListRow[]>(
-      `SELECT
-        p.id,
-        p.referencia_pago,
-        p.usuario_id,
-        u.nombres,
-        u.apellidos,
-        u.correo,
-        GROUP_CONCAT(DISTINCT c.titulo ORDER BY c.titulo SEPARATOR ' · ') AS cursos,
-        p.monto_total,
-        p.moneda,
-        p.metodo_pago,
-        p.estado,
-        p.comprobante_url,
-        p.fecha_pago,
-        p.created_at
-       FROM pagos p
-       JOIN usuarios u ON u.id = p.usuario_id
-       LEFT JOIN detalle_pagos dp ON dp.pago_id = p.id
-       LEFT JOIN cursos c ON c.id = dp.curso_id
-       WHERE ${whereSql}
-       GROUP BY p.id
-       ORDER BY p.created_at DESC
-       LIMIT ? OFFSET ?`,
-      [...params, q.limit, q.offset]
-    );
+    const [rows] = rowsResult;
 
     const items: PaymentListItem[] = rows.map((r) => ({
       id: r.id,
@@ -384,26 +395,27 @@ export class PaymentRepository {
   }
 
   async myCoursePayment(userId: number, courseId: number): Promise<MyCoursePayment> {
-    const [payRows] = await pool.query<MyPaymentRow[]>(
-      `SELECT
-        p.id, p.estado, p.metodo_pago, p.monto_total, p.moneda, p.comprobante_url, p.observaciones,
-        p.created_at, p.fecha_pago
-       FROM pagos p
-       JOIN detalle_pagos dp ON dp.pago_id = p.id
-       WHERE p.usuario_id = ?
-         AND dp.curso_id = ?
-       ORDER BY p.created_at DESC
-       LIMIT 1`,
-      [userId, courseId]
-    );
-
-    const [enrRows] = await pool.query<MyEnrollmentRow[]>(
-      `SELECT id, estado, tipo_inscripcion
-       FROM inscripciones
-       WHERE usuario_id = ? AND curso_id = ?
-       LIMIT 1`,
-      [userId, courseId]
-    );
+    const [[payRows], [enrRows]] = await Promise.all([
+      pool.query<MyPaymentRow[]>(
+        `SELECT
+          p.id, p.estado, p.metodo_pago, p.monto_total, p.moneda, p.comprobante_url, p.observaciones,
+          p.created_at, p.fecha_pago
+         FROM pagos p
+         JOIN detalle_pagos dp ON dp.pago_id = p.id
+         WHERE p.usuario_id = ?
+           AND dp.curso_id = ?
+         ORDER BY p.created_at DESC
+         LIMIT 1`,
+        [userId, courseId]
+      ),
+      pool.query<MyEnrollmentRow[]>(
+        `SELECT id, estado, tipo_inscripcion
+         FROM inscripciones
+         WHERE usuario_id = ? AND curso_id = ?
+         LIMIT 1`,
+        [userId, courseId]
+      ),
+    ]);
 
     const p = payRows[0];
     const e = enrRows[0];

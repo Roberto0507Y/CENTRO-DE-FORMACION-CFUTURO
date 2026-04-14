@@ -4,6 +4,8 @@ import { Topbar } from "../components/layout/Topbar";
 import { CanvasSidebar } from "../components/layout/CanvasSidebar";
 import { CanvasMobileDrawer } from "../components/layout/CanvasMobileDrawer";
 import { teacherNav } from "../components/layout/canvasSidebarNav";
+import "../styles/admin-dark-scope.css";
+import "../styles/internal-shell.css";
 
 export function TeacherLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -34,7 +36,7 @@ export function TeacherLayout() {
       />
       <div className="flex min-h-[100dvh] min-w-0 flex-1 flex-col xl:min-h-0 xl:pl-[17rem]">
         <Topbar title={title} onMenuClick={() => setMobileMenuOpen(true)} />
-        <main className="cf-admin-dark-scope min-h-0 min-w-0 flex-1 overflow-visible bg-[radial-gradient(circle_at_18%_0%,rgba(59,130,246,0.10),transparent_30%),linear-gradient(180deg,rgba(248,250,252,0.96),rgba(241,245,249,1))] xl:overflow-y-auto dark:bg-[radial-gradient(circle_at_18%_0%,rgba(34,211,238,0.12),transparent_30%),linear-gradient(180deg,rgba(2,6,23,1),rgba(15,23,42,1))]">
+        <main className="cf-admin-dark-scope cf-app-shell-main min-h-0 min-w-0 flex-1 overflow-visible xl:overflow-y-auto">
           <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6">
             <Outlet />
           </div>

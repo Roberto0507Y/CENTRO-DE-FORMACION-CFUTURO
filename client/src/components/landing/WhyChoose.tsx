@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import { Gauge, Headphones, Layers3, LineChart } from "lucide-react";
 
 const cards = [
@@ -54,13 +53,10 @@ export function WhyChoose() {
           {cards.map((c, idx) => {
             const Icon = c.icon;
             return (
-              <motion.div
+              <div
                 key={c.title}
-                initial={{ opacity: 0, y: 10 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.35 }}
-                transition={{ type: "spring", stiffness: 120, damping: 18, delay: idx * 0.04 }}
                 className="group"
+                style={{ animationDelay: `${idx * 40}ms` }}
               >
                 <div
                   className={[
@@ -87,7 +83,7 @@ export function WhyChoose() {
                     {c.desc}
                   </div>
                 </div>
-              </motion.div>
+              </div>
             );
           })}
         </div>

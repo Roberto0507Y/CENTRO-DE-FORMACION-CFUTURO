@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { Card } from "../../components/ui/Card";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Input } from "../../components/ui/Input";
+import { PaginationControls } from "../../components/ui/PaginationControls";
 import { Spinner } from "../../components/ui/Spinner";
 import { useAuth } from "../../hooks/useAuth";
 import type { ApiResponse } from "../../types/api";
 import { getApiErrorMessage } from "../../utils/apiError";
 import type { CourseManageOutletContext } from "./courseManage.types";
+
+const PAGE_SIZE = 10;
 
 type CourseStudentItem = {
   usuario_id: number;
@@ -28,31 +31,51 @@ export function CourseStudentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search.trim().toLowerCase());
+  const [page, setPage] = useState(1);
 
-  const load = async () => {
-    try {
-      setLoading(true);
-      setError("");
-      const res = await api.get<ApiResponse<CourseStudentItem[]>>(`/enrollments/course/${ctx.courseId}/students`);
-      setItems(Array.isArray(res.data.data) ? res.data.data : []);
-    } catch (err) {
-      setItems([]);
-      setError(getApiErrorMessage(err, "No se pudo cargar el listado de estudiantes."));
-    } finally {
-      setLoading(false);
-    }
-  };
+  const load = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        setLoading(true);
+        setError("");
+        const res = await api.get<ApiResponse<CourseStudentItem[]>>(`/enrollments/course/${ctx.courseId}/students`, {
+          signal,
+        });
+        if (signal?.aborted) return;
+        setItems(Array.isArray(res.data.data) ? res.data.data : []);
+      } catch (err) {
+        if ((err as { code?: string }).code === "ERR_CANCELED" || signal?.aborted) return;
+        setItems([]);
+        setError(getApiErrorMessage(err, "No se pudo cargar el listado de estudiantes."));
+      } finally {
+        if (!signal?.aborted) setLoading(false);
+      }
+    },
+    [api, ctx.courseId]
+  );
 
   useEffect(() => {
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctx.courseId]);
+    const controller = new AbortController();
+    void load(controller.signal);
+    return () => controller.abort();
+  }, [load]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = deferredSearch;
     if (!q) return items;
     return items.filter((s) => `${s.nombres} ${s.apellidos} ${s.correo}`.toLowerCase().includes(q));
-  }, [items, search]);
+  }, [deferredSearch, items]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [deferredSearch]);
+
+  const safePage = Math.min(page, Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)));
+  const paginated = useMemo(() => {
+    const start = (safePage - 1) * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [filtered, safePage]);
 
   return (
     <div className="space-y-6">
@@ -98,43 +121,55 @@ export function CourseStudentsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filtered.map((s) => (
-                  <tr key={s.usuario_id} className="hover:bg-slate-50/60">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="grid h-10 w-10 place-items-center overflow-hidden rounded-2xl bg-slate-100 ring-1 ring-slate-200">
-                          {s.foto_url ? (
-                            <img src={s.foto_url} alt="" className="h-full w-full object-cover" />
-                          ) : (
-                            <span className="text-xs font-black text-slate-600">
-                              {(s.nombres?.[0] ?? "E").toUpperCase()}
-                              {(s.apellidos?.[0] ?? "S").toUpperCase()}
-                            </span>
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="truncate font-black text-slate-900">
-                            {s.apellidos}, {s.nombres}
-                          </div>
-                          <div className="truncate text-xs text-slate-500">{s.correo}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 font-semibold text-slate-900">{s.progreso}%</td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">
-                        {s.tipo_inscripcion}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-slate-700">{s.fecha_inscripcion}</td>
-                  </tr>
+                {paginated.map((s) => (
+                  <StudentRow key={s.usuario_id} student={s} />
                 ))}
               </tbody>
             </table>
           </div>
+          <PaginationControls
+            page={safePage}
+            pageSize={PAGE_SIZE}
+            total={filtered.length}
+            isLoading={loading}
+            onPageChange={setPage}
+          />
         </Card>
       )}
     </div>
   );
 }
 
+const StudentRow = memo(function StudentRow({ student }: { student: CourseStudentItem }) {
+  return (
+    <tr className="hover:bg-slate-50/60">
+      <td className="px-6 py-4">
+        <div className="flex items-center gap-3">
+          <div className="grid h-10 w-10 place-items-center overflow-hidden rounded-2xl bg-slate-100 ring-1 ring-slate-200">
+            {student.foto_url ? (
+              <img src={student.foto_url} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <span className="text-xs font-black text-slate-600">
+                {(student.nombres?.[0] ?? "E").toUpperCase()}
+                {(student.apellidos?.[0] ?? "S").toUpperCase()}
+              </span>
+            )}
+          </div>
+          <div className="min-w-0">
+            <div className="truncate font-black text-slate-900">
+              {student.apellidos}, {student.nombres}
+            </div>
+            <div className="truncate text-xs text-slate-500">{student.correo}</div>
+          </div>
+        </div>
+      </td>
+      <td className="px-6 py-4 font-semibold text-slate-900">{student.progreso}%</td>
+      <td className="px-6 py-4">
+        <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">
+          {student.tipo_inscripcion}
+        </span>
+      </td>
+      <td className="px-6 py-4 text-slate-700">{student.fecha_inscripcion}</td>
+    </tr>
+  );
+});

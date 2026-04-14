@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "../../components/ui/Card";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { Button } from "../../components/ui/Button";
@@ -14,9 +14,19 @@ import type { PaymentDetail, PaymentListItem, PaymentsListResponse, PaymentsSumm
 import type { PaymentMethod, PaymentStatus } from "../../types/payment";
 import { getApiErrorMessage } from "../../utils/apiError";
 import { downloadPaymentProof } from "../../utils/downloadFile";
+import { lazyNamed } from "../../utils/lazyNamed";
+import "../../styles/admin-payments.css";
 
 type Banner = { tone: "success" | "error"; text: string } | null;
 const PAGE_SIZE = 10;
+const PaymentDetailModal = lazyNamed(
+  () => import("../../components/payment/AdminPaymentModals"),
+  "PaymentDetailModal"
+);
+const PaymentRejectModal = lazyNamed(
+  () => import("../../components/payment/AdminPaymentModals"),
+  "PaymentRejectModal"
+);
 
 function formatMoney(amount: string, currency: string) {
   const n = Number(amount);
@@ -84,6 +94,17 @@ function methodLabel(m: PaymentMethod) {
   return "Manual";
 }
 
+const modalFallback = (
+  <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true">
+    <Card className="w-full max-w-md p-6">
+      <div className="flex items-center gap-3 text-sm font-semibold text-slate-600">
+        <Spinner />
+        Cargando…
+      </div>
+    </Card>
+  </div>
+);
+
 export function AdminPaymentsPage() {
   const { api } = useAuth();
   const [banner, setBanner] = useState<Banner>(null);
@@ -120,20 +141,24 @@ export function AdminPaymentsPage() {
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectId, setRejectId] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const detailRequestRef = useRef<AbortController | null>(null);
+
+  const deferredCourseId = useDeferredValue(filters.curso_id.trim());
+  const deferredUsuarioId = useDeferredValue(filters.usuario_id.trim());
 
   const hasActiveFilters = Boolean(
     filters.date_from ||
       filters.date_to ||
       filters.estado ||
       filters.metodo_pago ||
-      filters.curso_id ||
-      filters.usuario_id
+      deferredCourseId ||
+      deferredUsuarioId
   );
 
-  const updateFilters = <K extends keyof typeof filters>(key: K, value: (typeof filters)[K]) => {
+  const updateFilters = useCallback(<K extends keyof typeof filters>(key: K, value: (typeof filters)[K]) => {
     setPage(1);
     setFilters((prev) => ({ ...prev, [key]: value }));
-  };
+  }, []);
 
   const query = useMemo(() => {
     const toNum = (v: string) => {
@@ -145,78 +170,110 @@ export function AdminPaymentsPage() {
       offset: (page - 1) * PAGE_SIZE,
       estado: filters.estado || undefined,
       metodo_pago: filters.metodo_pago || undefined,
-      curso_id: toNum(filters.curso_id),
-      usuario_id: toNum(filters.usuario_id),
+      curso_id: toNum(deferredCourseId),
+      usuario_id: toNum(deferredUsuarioId),
       date_from: filters.date_from || undefined,
       date_to: filters.date_to || undefined,
     };
-  }, [filters, page]);
+  }, [deferredCourseId, deferredUsuarioId, filters.date_from, filters.date_to, filters.estado, filters.metodo_pago, page]);
 
-  const loadDashboard = async () => {
-    try {
-      const summaryReq = api.get<ApiResponse<PaymentsSummary>>("/payments/summary");
-      const revenueReq = api.get<ApiResponse<RevenuePoint[]>>("/payments/reports/revenue", {
-        params: { days: 14 },
-      });
+  const loadDashboard = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        const summaryReq = api.get<ApiResponse<PaymentsSummary>>("/payments/summary", { signal });
+        const revenueReq = api.get<ApiResponse<RevenuePoint[]>>("/payments/reports/revenue", {
+          params: { days: 14 },
+          signal,
+        });
 
-      const [s, r] = await Promise.all([summaryReq, revenueReq]);
-      setSummary(s.data.data);
-      setRevenue(r.data.data);
-    } catch (err) {
-      setBanner({ tone: "error", text: getApiErrorMessage(err, "No se pudieron cargar los pagos.") });
-      setSummary(null);
-      setRevenue([]);
-    }
-  };
-
-  const loadList = async (pageToLoad = page) => {
-    try {
-      setIsLoading(true);
-      setBanner(null);
-      const res = await api.get<ApiResponse<PaymentsListResponse>>("/payments", { params: query });
-      const data = res.data.data;
-      const totalPages = Math.max(1, Math.ceil(data.total / data.limit));
-      if (data.total > 0 && pageToLoad > totalPages) {
-        setPage(totalPages);
-        return;
+        const [s, r] = await Promise.all([summaryReq, revenueReq]);
+        if (signal?.aborted) return;
+        setSummary(s.data.data);
+        setRevenue(r.data.data);
+      } catch (err) {
+        if ((err as { code?: string }).code === "ERR_CANCELED" || signal?.aborted) return;
+        setBanner({ tone: "error", text: getApiErrorMessage(err, "No se pudieron cargar los pagos.") });
+        setSummary(null);
+        setRevenue([]);
       }
-      setList(data);
-    } catch (err) {
-      setBanner({ tone: "error", text: getApiErrorMessage(err, "No se pudieron cargar los pagos.") });
-      setList({ items: [], total: 0, limit: PAGE_SIZE, offset: (pageToLoad - 1) * PAGE_SIZE });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+    [api]
+  );
 
-  const loadAll = async () => {
-    await Promise.all([loadDashboard(), loadList()]);
-  };
+  const loadList = useCallback(
+    async (pageToLoad = page, signal?: AbortSignal) => {
+      try {
+        setIsLoading(true);
+        setBanner(null);
+        const nextQuery = {
+          ...query,
+          offset: (pageToLoad - 1) * PAGE_SIZE,
+        };
+        const res = await api.get<ApiResponse<PaymentsListResponse>>("/payments", {
+          params: nextQuery,
+          signal,
+        });
+        if (signal?.aborted) return;
+        const data = res.data.data;
+        const totalPages = Math.max(1, Math.ceil(data.total / data.limit));
+        if (data.total > 0 && pageToLoad > totalPages) {
+          setPage(totalPages);
+          return;
+        }
+        setList(data);
+      } catch (err) {
+        if ((err as { code?: string }).code === "ERR_CANCELED" || signal?.aborted) return;
+        setBanner({ tone: "error", text: getApiErrorMessage(err, "No se pudieron cargar los pagos.") });
+        setList({ items: [], total: 0, limit: PAGE_SIZE, offset: (pageToLoad - 1) * PAGE_SIZE });
+      } finally {
+        if (!signal?.aborted) setIsLoading(false);
+      }
+    },
+    [api, page, query]
+  );
+
+  const loadAll = useCallback(async () => {
+    await Promise.all([loadDashboard(), loadList(page)]);
+  }, [loadDashboard, loadList, page]);
 
   useEffect(() => {
-    void loadDashboard();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api]);
+    const controller = new AbortController();
+    void loadDashboard(controller.signal);
+    return () => controller.abort();
+  }, [loadDashboard]);
 
   useEffect(() => {
-    void loadList(page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, query]);
+    const controller = new AbortController();
+    void loadList(page, controller.signal);
+    return () => controller.abort();
+  }, [loadList, page]);
 
-  const openDetail = async (id: number) => {
-    setDetailOpen(true);
-    setDetailLoading(true);
-    setDetail(null);
-    try {
-      const res = await api.get<ApiResponse<PaymentDetail>>(`/payments/${id}`);
-      setDetail(res.data.data);
-    } catch (err) {
-      setBanner({ tone: "error", text: getApiErrorMessage(err, "No se pudo cargar el detalle.") });
-      setDetailOpen(false);
-    } finally {
-      setDetailLoading(false);
-    }
-  };
+  const openDetail = useCallback(
+    async (id: number) => {
+      detailRequestRef.current?.abort();
+      const controller = new AbortController();
+      detailRequestRef.current = controller;
+      setDetailOpen(true);
+      setDetailLoading(true);
+      setDetail(null);
+      try {
+        const res = await api.get<ApiResponse<PaymentDetail>>(`/payments/${id}`, { signal: controller.signal });
+        if (controller.signal.aborted) return;
+        setDetail(res.data.data);
+      } catch (err) {
+        if ((err as { code?: string }).code === "ERR_CANCELED" || controller.signal.aborted) return;
+        setBanner({ tone: "error", text: getApiErrorMessage(err, "No se pudo cargar el detalle.") });
+        setDetailOpen(false);
+      } finally {
+        if (!controller.signal.aborted) setDetailLoading(false);
+      }
+    },
+    [api]
+  );
+
+  useEffect(() => {
+    return () => detailRequestRef.current?.abort();
+  }, []);
 
   const updateStatus = async (
     id: number,
@@ -312,11 +369,11 @@ export function AdminPaymentsPage() {
         <div className="border-b border-slate-200 bg-slate-950 px-6 py-5 text-white dark:border-slate-800 dark:bg-slate-950">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <div className="text-xs font-black uppercase tracking-[0.28em] text-cyan-300">Reportes</div>
+              <div className="cf-admin-payments-hero-kicker text-xs font-black uppercase text-cyan-300">Reportes</div>
               <div className="mt-2 text-2xl font-black tracking-tight">Ingresos recientes</div>
               <div className="mt-1 text-sm font-semibold text-slate-300">Últimos 14 días registrados</div>
             </div>
-            <div className="rounded-full border border-white/10 bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-slate-200">
+            <div className="cf-admin-payments-currency-pill rounded-full border border-white/10 bg-white/10 px-4 py-2 text-xs font-black uppercase text-slate-200">
               GTQ
             </div>
           </div>
@@ -482,7 +539,7 @@ export function AdminPaymentsPage() {
                       return (
                         <article
                           key={p.id}
-                          className="rounded-[1.35rem] border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg hover:shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900/70 dark:hover:border-cyan-400/40 dark:hover:shadow-cyan-950/20"
+                          className="cf-admin-payments-row border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70"
                         >
                           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                             <div className="min-w-0 flex-1">
@@ -494,9 +551,9 @@ export function AdminPaymentsPage() {
                                 </span>
                               </div>
 
-                              <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-[1.15fr_1fr_0.7fr_0.8fr]">
+                              <div className="cf-admin-payments-row-grid mt-3">
                                 <div className="min-w-0 rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/60">
-                                  <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                                  <div className="cf-admin-payments-row-label text-slate-500 dark:text-slate-400">
                                     Estudiante
                                   </div>
                                   <div className="mt-1 truncate text-sm font-black text-slate-950 dark:text-white">
@@ -508,7 +565,7 @@ export function AdminPaymentsPage() {
                                 </div>
 
                                 <div className="min-w-0 rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/60">
-                                  <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                                  <div className="cf-admin-payments-row-label text-slate-500 dark:text-slate-400">
                                     Curso
                                   </div>
                                   <div className="mt-1 truncate text-sm font-black text-slate-950 dark:text-white">
@@ -520,7 +577,7 @@ export function AdminPaymentsPage() {
                                 </div>
 
                                 <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/60">
-                                  <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                                  <div className="cf-admin-payments-row-label text-slate-500 dark:text-slate-400">
                                     Monto
                                   </div>
                                   <div className="mt-1 text-sm font-black text-slate-950 dark:text-white">
@@ -532,7 +589,7 @@ export function AdminPaymentsPage() {
                                 </div>
 
                                 <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/60">
-                                  <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                                  <div className="cf-admin-payments-row-label text-slate-500 dark:text-slate-400">
                                     Comprobante
                                   </div>
                                   {p.comprobante_url ? (
@@ -595,14 +652,16 @@ export function AdminPaymentsPage() {
       </div>
 
       {detailOpen ? (
-        <DetailModal
-          isLoading={detailLoading}
-          payment={detail}
-          onClose={() => setDetailOpen(false)}
-          onApprove={() => (detail ? setPendingApprovePayment(detail) : undefined)}
-          onReject={() => (detail ? openReject(detail.id) : undefined)}
-          onDownloadProof={downloadProof}
-        />
+        <Suspense fallback={modalFallback}>
+          <PaymentDetailModal
+            isLoading={detailLoading}
+            payment={detail}
+            onClose={() => setDetailOpen(false)}
+            onApprove={() => (detail ? setPendingApprovePayment(detail) : undefined)}
+            onReject={() => (detail ? openReject(detail.id) : undefined)}
+            onDownloadProof={downloadProof}
+          />
+        </Suspense>
       ) : null}
 
       <ConfirmActionModal
@@ -622,16 +681,18 @@ export function AdminPaymentsPage() {
       />
 
       {rejectOpen ? (
-        <RejectModal
-          value={rejectReason}
-          onChange={setRejectReason}
-          onClose={() => {
-            setRejectOpen(false);
-            setRejectId(null);
-            setRejectReason("");
-          }}
-          onConfirm={() => void confirmReject()}
-        />
+        <Suspense fallback={modalFallback}>
+          <PaymentRejectModal
+            value={rejectReason}
+            onChange={setRejectReason}
+            onClose={() => {
+              setRejectOpen(false);
+              setRejectId(null);
+              setRejectReason("");
+            }}
+            onConfirm={() => void confirmReject()}
+          />
+        </Suspense>
       ) : null}
     </div>
   );
@@ -648,16 +709,16 @@ function SummaryCard({
 }) {
   const toneStyles =
     tone === "green"
-      ? "from-emerald-50 to-teal-50 dark:from-emerald-500/15 dark:to-teal-400/10"
+      ? "cf-admin-payments-summary--green"
       : tone === "blue"
-        ? "from-blue-50 to-cyan-50 dark:from-blue-500/15 dark:to-cyan-400/10"
+        ? "cf-admin-payments-summary--blue"
         : tone === "amber"
-          ? "from-amber-50 to-orange-50 dark:from-amber-500/15 dark:to-orange-400/10"
-          : "from-slate-50 to-white dark:from-slate-900 dark:to-slate-800/80";
+          ? "cf-admin-payments-summary--amber"
+          : "";
 
   return (
     <Card className="overflow-hidden">
-      <div className={`bg-gradient-to-br ${toneStyles} p-5`}>
+      <div className={`cf-admin-payments-summary ${toneStyles}`}>
         <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</div>
         <div className="mt-1 truncate text-base font-black tracking-tight text-slate-900 dark:text-white">{value}</div>
       </div>
@@ -665,7 +726,7 @@ function SummaryCard({
   );
 }
 
-function RevenueChart({ points }: { points: RevenuePoint[] }) {
+const RevenueChart = memo(function RevenueChart({ points }: { points: RevenuePoint[] }) {
   const data = useMemo(() => {
     return points.slice(-14).map((p) => {
       const amount = Number(p.total);
@@ -719,20 +780,20 @@ function RevenueChart({ points }: { points: RevenuePoint[] }) {
   return (
     <div className="space-y-5">
       <div className="grid gap-3 md:grid-cols-3">
-        <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-950/80">
-          <div className="text-xs font-black uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">Periodo</div>
+        <div className="cf-admin-payments-chart-metric border border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-950/80">
+          <div className="cf-admin-payments-chart-metric-label text-xs font-black uppercase text-slate-500 dark:text-slate-400">Periodo</div>
           <div className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
             {formatMoney(metrics.total.toFixed(2), "GTQ")}
           </div>
         </div>
-        <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-950/80">
-          <div className="text-xs font-black uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">Promedio diario</div>
+        <div className="cf-admin-payments-chart-metric border border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-950/80">
+          <div className="cf-admin-payments-chart-metric-label text-xs font-black uppercase text-slate-500 dark:text-slate-400">Promedio diario</div>
           <div className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
             {formatMoney(metrics.average.toFixed(2), "GTQ")}
           </div>
         </div>
-        <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-950/80">
-          <div className="text-xs font-black uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">Mejor día</div>
+        <div className="cf-admin-payments-chart-metric border border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-950/80">
+          <div className="cf-admin-payments-chart-metric-label text-xs font-black uppercase text-slate-500 dark:text-slate-400">Mejor día</div>
           <div className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
             {formatMoney(metrics.best.amount.toFixed(2), "GTQ")}
           </div>
@@ -740,10 +801,10 @@ function RevenueChart({ points }: { points: RevenuePoint[] }) {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-[1.5rem] border border-slate-900 bg-slate-950 p-4 shadow-[0_24px_80px_-50px_rgba(14,165,233,0.8)]">
+      <div className="cf-admin-payments-chart-shell">
         <div className="flex flex-col gap-2 px-1 pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="text-xs font-black uppercase tracking-[0.26em] text-cyan-300">Curva de ingresos</div>
+            <div className="cf-admin-payments-chart-kicker text-xs font-black uppercase text-cyan-300">Curva de ingresos</div>
             <div className="mt-1 text-sm font-semibold text-slate-300">Pagos aprobados por día</div>
           </div>
           <div className="rounded-full bg-cyan-400/10 px-3 py-1 text-xs font-black text-cyan-200 ring-1 ring-cyan-300/20">
@@ -754,7 +815,7 @@ function RevenueChart({ points }: { points: RevenuePoint[] }) {
         <div className="overflow-x-auto">
           <svg
             viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-            className="h-[280px] w-full min-w-[760px]"
+            className="cf-admin-payments-chart-svg"
             role="img"
             aria-label="Gráfica de ingresos de los últimos 14 días"
           >
@@ -774,7 +835,7 @@ function RevenueChart({ points }: { points: RevenuePoint[] }) {
               return (
                 <g key={guide}>
                   <line x1={padding.left} x2={chartWidth - padding.right} y1={y} y2={y} stroke="#1e293b" strokeDasharray="4 8" />
-                  <text x={padding.left - 12} y={y + 4} textAnchor="end" className="fill-slate-500 text-[11px] font-bold">
+                  <text x={padding.left - 12} y={y + 4} textAnchor="end" className="cf-admin-payments-chart-axis-label fill-slate-500">
                     {formatCompactMoney(ceiling * guide)}
                   </text>
                 </g>
@@ -788,7 +849,7 @@ function RevenueChart({ points }: { points: RevenuePoint[] }) {
               <g key={p.date}>
                 <circle cx={p.x} cy={p.y} r="6" fill="#0f172a" stroke="#67e8f9" strokeWidth="4" />
                 {p.amount > 0 ? (
-                  <text x={p.x} y={Math.max(18, p.y - 14)} textAnchor="middle" className="fill-slate-100 text-[11px] font-black">
+                  <text x={p.x} y={Math.max(18, p.y - 14)} textAnchor="middle" className="cf-admin-payments-chart-point-label fill-slate-100">
                     {formatCompactMoney(p.amount)}
                   </text>
                 ) : null}
@@ -799,7 +860,7 @@ function RevenueChart({ points }: { points: RevenuePoint[] }) {
               const shouldShow = index === 0 || index === plotted.length - 1 || index % 3 === 0;
               if (!shouldShow) return null;
               return (
-                <text key={`${p.date}-label`} x={p.x} y={chartHeight - 18} textAnchor="middle" className="fill-slate-400 text-[12px] font-bold">
+                <text key={`${p.date}-label`} x={p.x} y={chartHeight - 18} textAnchor="middle" className="cf-admin-payments-chart-date-label fill-slate-400">
                   {formatChartDate(p.date)}
                 </text>
               );
@@ -809,197 +870,4 @@ function RevenueChart({ points }: { points: RevenuePoint[] }) {
       </div>
     </div>
   );
-}
-
-function DetailModal({
-  isLoading,
-  payment,
-  onClose,
-  onApprove,
-  onReject,
-  onDownloadProof,
-}: {
-  isLoading: boolean;
-  payment: PaymentDetail | null;
-  onClose: () => void;
-  onApprove: () => void;
-  onReject: () => void;
-  onDownloadProof: (id: number) => Promise<void>;
-}) {
-  const s = payment ? statusUi(payment.estado) : null;
-
-  return (
-    <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/35" onClick={onClose} aria-hidden="true" />
-      <div className="absolute inset-0 overflow-y-auto p-4">
-        <div className="mx-auto w-full max-w-3xl">
-          <Card className="overflow-hidden">
-            <div className="border-b border-slate-200 bg-white px-6 py-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-sm font-black text-slate-900">Detalle de pago</div>
-                  <div className="mt-1 text-sm text-slate-600">
-                    {payment ? `Pago #${payment.id}` : "Cargando…"}
-                  </div>
-                </div>
-                <Button variant="ghost" onClick={onClose}>
-                  Cerrar
-                </Button>
-              </div>
-            </div>
-
-            <div className="p-6">
-              {isLoading ? (
-                <div className="grid place-items-center py-10">
-                  <Spinner />
-                </div>
-              ) : !payment ? (
-                <EmptyState title="No se pudo cargar el pago" description="Intenta de nuevo." />
-              ) : (
-                <div className="space-y-6">
-                  <div className="grid gap-3 md:grid-cols-3">
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <div className="text-xs font-extrabold text-slate-500">Estado</div>
-                      <div className="mt-2">{s ? <Badge variant={s.variant}>{s.label}</Badge> : null}</div>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <div className="text-xs font-extrabold text-slate-500">Monto</div>
-                      <div className="mt-1 text-base font-black text-slate-900">
-                        {formatMoney(payment.monto_total, payment.moneda)}
-                      </div>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <div className="text-xs font-extrabold text-slate-500">Método</div>
-                      <div className="mt-1 text-base font-black text-slate-900">
-                        {methodLabel(payment.metodo_pago)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <div className="text-xs font-extrabold text-slate-500">Estudiante</div>
-                      <div className="mt-1 text-sm font-black text-slate-900">
-                        {payment.usuario.nombres} {payment.usuario.apellidos}
-                      </div>
-                      <div className="mt-1 text-sm text-slate-600">{payment.usuario.correo}</div>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <div className="text-xs font-extrabold text-slate-500">Fechas</div>
-                      <div className="mt-1 text-sm text-slate-700">
-                        Creado: <span className="font-bold">{formatDateTime(payment.created_at)}</span>
-                      </div>
-                      <div className="mt-1 text-sm text-slate-700">
-                        Pago: <span className="font-bold">{formatDateTime(payment.fecha_pago)}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <div className="text-xs font-extrabold text-slate-500">Comprobante</div>
-                    <div className="mt-2">
-                      {payment.comprobante_url ? (
-                        <button
-                          type="button"
-                          onClick={() => void onDownloadProof(payment.id)}
-                          className="text-sm font-semibold text-blue-700 hover:underline"
-                        >
-                          Abrir comprobante
-                        </button>
-                      ) : (
-                        <div className="text-sm text-slate-600">—</div>
-                      )}
-                    </div>
-                    {payment.observaciones ? (
-                      <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                        {payment.observaciones}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <div className="text-xs font-extrabold text-slate-500">Detalle por curso</div>
-                    <div className="mt-3 space-y-2">
-                      {payment.items.length === 0 ? (
-                        <div className="text-sm text-slate-600">Sin items.</div>
-                      ) : (
-                        payment.items.map((it) => (
-                          <div
-                            key={it.id}
-                            className="flex flex-col justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center"
-                          >
-                            <div className="min-w-0">
-                              <div className="truncate text-sm font-black text-slate-900">{it.curso.titulo}</div>
-                              <div className="mt-1 text-xs text-slate-500">Curso ID: {it.curso.id}</div>
-                            </div>
-                            <div className="text-sm font-black text-slate-900">
-                              {formatMoney(it.subtotal, payment.moneda)}
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-
-                  {payment.estado === "pendiente" ? (
-                    <div className="flex flex-wrap items-center justify-end gap-2">
-                      <Button variant="secondary" onClick={onApprove}>
-                        Aprobar pago
-                      </Button>
-                      <Button variant="danger" onClick={onReject}>
-                        Rechazar
-                      </Button>
-                    </div>
-                  ) : null}
-                </div>
-              )}
-            </div>
-          </Card>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function RejectModal({
-  value,
-  onChange,
-  onClose,
-  onConfirm,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  onClose: () => void;
-  onConfirm: () => void;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true">
-      <Card className="w-full max-w-lg overflow-hidden">
-        <div className="border-b border-slate-200 bg-white px-6 py-5">
-          <div className="text-base font-black text-slate-900">Rechazar pago</div>
-          <div className="mt-1 text-sm text-slate-600">
-            Si quieres, escribe el motivo. El estudiante lo verá en el curso.
-          </div>
-        </div>
-        <div className="p-6">
-          <div className="text-xs font-extrabold text-slate-700">Motivo (opcional)</div>
-          <textarea
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            rows={4}
-            placeholder="Ej: Comprobante ilegible, monto incorrecto…"
-            className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none ring-blue-500 focus:ring-2"
-          />
-          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
-            <Button variant="ghost" onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button variant="danger" onClick={onConfirm}>
-              Rechazar
-            </Button>
-          </div>
-        </div>
-      </Card>
-    </div>
-  );
-}
+});

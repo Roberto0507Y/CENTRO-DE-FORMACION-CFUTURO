@@ -15,6 +15,7 @@ import { downloadPaymentProof } from "../../utils/downloadFile";
 import { formatMoneyGTQ } from "../../utils/format";
 import { normalizePaymentLinkInput } from "../../utils/paymentLink";
 import { lazyNamed } from "../../utils/lazyNamed";
+import "../../styles/course-detail.css";
 
 const BiPayEmbed = lazyNamed(() => import("../../components/payment/BiPayEmbed"), "BiPayEmbed");
 
@@ -131,92 +132,140 @@ export function CourseDetailPage() {
   const [lessonsLoadingIds, setLessonsLoadingIds] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
+    const controller = new AbortController();
+
     (async () => {
       try {
         setIsLoading(true);
         setError(null);
-        const res = await api.get<ApiResponse<CourseDetail>>(`/courses/slug/${slug}`);
+        const res = await api.get<ApiResponse<CourseDetail>>(`/courses/slug/${slug}`, {
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
         setCourse(res.data.data);
       } catch {
+        if (controller.signal.aborted) return;
         setError("Curso no encontrado.");
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     })();
+
+    return () => controller.abort();
   }, [api, slug]);
 
   useEffect(() => {
-    (async () => {
-      if (!course) return;
-      if (!token) {
-        setPayInfo(null);
-        setAccessInfo(null);
-        return;
-      }
+    if (!course) return;
+    if (!token) {
+      setPayInfo(null);
+      setAccessInfo(null);
+      return;
+    }
 
-      // Consultar acceso/inscripción (gratis o pago) para evitar re-inscripciones y dar feedback correcto.
-      try {
-        setAccessLoading(true);
-        const res = await api.get<ApiResponse<AccessCheck>>(`/enrollments/${course.id}/check-access`);
-        setAccessInfo(res.data.data);
-      } catch {
+    const controller = new AbortController();
+
+    (async () => {
+      setAccessLoading(true);
+      setPayLoading(course.tipo_acceso === "pago");
+
+      const accessRequest = api.get<ApiResponse<AccessCheck>>(
+        `/enrollments/${course.id}/check-access`,
+        { signal: controller.signal },
+      );
+      const paymentRequest =
+        course.tipo_acceso === "pago"
+          ? api.get<ApiResponse<MyCoursePayment>>(`/payments/my/course/${course.id}`, {
+              signal: controller.signal,
+            })
+          : Promise.resolve(null);
+
+      const [accessResult, paymentResult] = await Promise.allSettled([
+        accessRequest,
+        paymentRequest,
+      ]);
+
+      if (controller.signal.aborted) return;
+
+      if (accessResult.status === "fulfilled") {
+        setAccessInfo(accessResult.value.data.data);
+      } else {
         setAccessInfo(null);
-      } finally {
-        setAccessLoading(false);
       }
 
       if (course.tipo_acceso !== "pago") {
         setPayInfo(null);
-        return;
-      }
-      try {
-        setPayLoading(true);
-        const res = await api.get<ApiResponse<MyCoursePayment>>(`/payments/my/course/${course.id}`);
-        setPayInfo(res.data.data);
-      } catch {
+      } else if (paymentResult.status === "fulfilled" && paymentResult.value) {
+        setPayInfo(paymentResult.value.data.data);
+      } else {
         setPayInfo(null);
-      } finally {
-        setPayLoading(false);
       }
+
+      setAccessLoading(false);
+      setPayLoading(false);
     })();
+
+    return () => controller.abort();
   }, [api, course, token]);
 
   useEffect(() => {
+    if (!course) return;
+
+    const controller = new AbortController();
+
     (async () => {
-      if (!course) return;
       try {
         setModulesLoading(true);
         setModulesError(null);
-        const res = await api.get<ApiResponse<CourseModule[]>>(`/course-modules/course/${course.id}`);
+        const res = await api.get<ApiResponse<CourseModule[]>>(`/course-modules/course/${course.id}`, {
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
         const list = Array.isArray(res.data.data) ? res.data.data : [];
         setModules(list);
         setOpenModuleId((prev) => prev ?? (list[0]?.id ?? null));
       } catch {
+        if (controller.signal.aborted) return;
         setModules([]);
         setModulesError("No se pudo cargar el contenido del curso.");
       } finally {
-        setModulesLoading(false);
+        if (!controller.signal.aborted) {
+          setModulesLoading(false);
+        }
       }
     })();
+
+    return () => controller.abort();
   }, [api, course]);
 
   useEffect(() => {
+    if (!openModuleId) return;
+    if (lessonsByModuleId[openModuleId]) return;
+
+    const controller = new AbortController();
+
     (async () => {
-      if (!openModuleId) return;
-      if (lessonsByModuleId[openModuleId]) return;
       try {
         setLessonsLoadingIds((m) => ({ ...m, [openModuleId]: true }));
-        const res = await api.get<ApiResponse<LessonListItem[]>>(`/lessons/module/${openModuleId}`);
+        const res = await api.get<ApiResponse<LessonListItem[]>>(`/lessons/module/${openModuleId}`, {
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
         const list = Array.isArray(res.data.data) ? res.data.data : [];
         setLessonsByModuleId((m) => ({ ...m, [openModuleId]: list }));
       } catch {
+        if (controller.signal.aborted) return;
         setLessonsByModuleId((m) => ({ ...m, [openModuleId]: [] }));
       } finally {
-        setLessonsLoadingIds((m) => ({ ...m, [openModuleId]: false }));
+        if (!controller.signal.aborted) {
+          setLessonsLoadingIds((m) => ({ ...m, [openModuleId]: false }));
+        }
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, openModuleId]);
+
+    return () => controller.abort();
+  }, [api, lessonsByModuleId, openModuleId]);
 
   const enrollFree = async () => {
     if (!course) return;
@@ -378,10 +427,10 @@ export function CourseDetailPage() {
           </div>
 
           {isPaid ? (
-            <div className="grid gap-4 bg-gradient-to-br from-slate-50 via-white to-blue-50 p-5 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 md:grid-cols-3 md:p-6">
-              <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
-                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-blue-50 text-blue-700 ring-1 ring-blue-100 dark:bg-cyan-400/10 dark:text-cyan-200 dark:ring-cyan-300/20">
-                  <span className="text-sm font-black">1</span>
+            <div className="cf-course-detail-paid-steps grid gap-4 p-5 md:grid-cols-3 md:p-6">
+              <div className="cf-course-detail-step">
+                <div className="cf-course-detail-step-index cf-course-detail-step-index--blue">
+                  <span>1</span>
                 </div>
                 <div className="mt-4 text-sm font-black text-slate-900 dark:text-white">Realiza el pago</div>
                 <div className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
@@ -389,9 +438,9 @@ export function CourseDetailPage() {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
-                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-amber-50 text-amber-700 ring-1 ring-amber-100 dark:bg-amber-500/15 dark:text-amber-200 dark:ring-amber-400/20">
-                  <span className="text-sm font-black">2</span>
+              <div className="cf-course-detail-step">
+                <div className="cf-course-detail-step-index cf-course-detail-step-index--amber">
+                  <span>2</span>
                 </div>
                 <div className="mt-4 text-sm font-black text-slate-900 dark:text-white">Descarga el voucher</div>
                 <div className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
@@ -399,9 +448,9 @@ export function CourseDetailPage() {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
-                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/20">
-                  <span className="text-sm font-black">3</span>
+              <div className="cf-course-detail-step">
+                <div className="cf-course-detail-step-index cf-course-detail-step-index--green">
+                  <span>3</span>
                 </div>
                 <div className="mt-4 text-sm font-black text-slate-900 dark:text-white">Sube el comprobante</div>
                 <div className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
@@ -411,7 +460,7 @@ export function CourseDetailPage() {
             </div>
           ) : (
             <div className="bg-slate-50 p-5 dark:bg-slate-950/70 md:p-6">
-              <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5 text-sm font-semibold leading-6 text-emerald-900 dark:border-emerald-400/25 dark:bg-emerald-500/10 dark:text-emerald-100">
+              <div className="cf-course-detail-free-note text-sm font-semibold leading-6">
                 Puedes inscribirte gratis y entrar al curso sin subir comprobante.
               </div>
             </div>
@@ -592,7 +641,7 @@ export function CourseDetailPage() {
                   </Button>
                 )
               ) : needsPaymentSession ? (
-                <div className="rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-cyan-50 p-4 shadow-sm dark:border-cyan-400/20 dark:from-slate-900 dark:via-slate-950 dark:to-cyan-950/40">
+                <div className="cf-course-detail-login-prompt">
                   <div className="text-sm font-extrabold text-slate-950 dark:text-white">
                     Primero entra a tu cuenta
                   </div>

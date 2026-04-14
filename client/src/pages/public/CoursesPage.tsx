@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Card } from "../../components/ui/Card";
 import { CourseCard } from "../../components/ui/CourseCard";
@@ -23,24 +23,43 @@ export function CoursesPage() {
   const [list, setList] = useState<CourseListResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [draftSearch, setDraftSearch] = useState(search);
 
   const query = useMemo(() => ({ search: search || undefined, page, limit: PAGE_SIZE }), [page, search]);
 
-  const updateParams = (next: { search?: string; page?: number }) => {
+  const updateParams = useCallback((next: { search?: string; page?: number }) => {
     const nextSearch = next.search ?? search;
     const nextPage = next.page ?? page;
     const params: Record<string, string> = {};
     if (nextSearch) params.search = nextSearch;
     if (nextPage > 1) params.page = String(nextPage);
     setSearchParams(params);
-  };
+  }, [page, search, setSearchParams]);
 
   useEffect(() => {
+    setDraftSearch(search);
+  }, [search]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      if (draftSearch === search) return;
+      updateParams({ search: draftSearch, page: 1 });
+    }, 320);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [draftSearch, search, updateParams]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
     (async () => {
       try {
         setError(null);
         setIsLoading(true);
-        const res = await api.get<ApiResponse<CourseListResponse>>("/courses", { params: query });
+        const res = await api.get<ApiResponse<CourseListResponse>>("/courses", {
+          params: query,
+          signal: controller.signal,
+        });
         const data = res.data.data;
         const totalPages = Math.max(1, Math.ceil(data.total / data.limit));
         if (data.total > 0 && page > totalPages) {
@@ -54,15 +73,19 @@ export function CoursesPage() {
         setList(data);
         setItems(data.items);
       } catch {
+        if (controller.signal.aborted) return;
         setError("No se pudieron cargar los cursos.");
         setList({ items: [], total: 0, page, limit: PAGE_SIZE });
         setItems([]);
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, query]);
+
+    return () => controller.abort();
+  }, [api, page, query, updateParams]);
 
   return (
     <div className="space-y-6">
@@ -72,10 +95,9 @@ export function CoursesPage() {
         right={
           <div className="w-full md:w-80">
             <Input
-              value={search}
+              value={draftSearch}
               onChange={(e) => {
-                const v = e.target.value;
-                updateParams({ search: v, page: 1 });
+                setDraftSearch(e.target.value);
               }}
               placeholder="Buscar por título…"
             />

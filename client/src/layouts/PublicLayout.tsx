@@ -3,6 +3,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { PublicNavbar } from "../components/layout/PublicNavbar";
 import { PublicFooter } from "../components/layout/PublicFooter";
 import { Container } from "../components/ui/Container";
+import "../styles/public-brand.css";
 
 export function PublicLayout() {
   const { pathname, hash } = useLocation();

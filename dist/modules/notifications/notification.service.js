@@ -16,9 +16,17 @@ class NotificationService {
     constructor() {
         this.repo = new notification_repository_1.NotificationRepository();
     }
+    normalizeListQuery(q) {
+        return {
+            ...q,
+            limit: Math.max(1, Math.min(Number(q.limit) || 20, 50)),
+            offset: Math.max(0, Number(q.offset) || 0),
+        };
+    }
     async listMy(requester, q) {
-        const { items, total, unreadCount } = await this.repo.listForUser(requester.userId, q);
-        return { items, total, limit: q.limit, offset: q.offset, unreadCount };
+        const normalized = this.normalizeListQuery(q);
+        const { items, total, unreadCount } = await this.repo.listForUser(requester.userId, normalized);
+        return { items, total, limit: normalized.limit, offset: normalized.offset, unreadCount };
     }
     async markRead(requester, id) {
         const ok = await this.repo.markRead(requester.userId, id);

@@ -31,28 +31,29 @@ export function FeaturedCoursesSection() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    let active = true;
+    const controller = new AbortController();
 
     (async () => {
       try {
         const res = await api.get<ApiResponse<CourseListResponse>>("/courses", {
           params: { page: 1, limit: 4 },
+          signal: controller.signal,
         });
 
-        if (!active) return;
+        if (controller.signal.aborted) return;
         setFeatured(res.data.data.items);
       } catch {
-        if (!active) return;
+        if (controller.signal.aborted) return;
         setFeatured([]);
       } finally {
-        if (active) {
+        if (!controller.signal.aborted) {
           setIsLoading(false);
         }
       }
     })();
 
     return () => {
-      active = false;
+      controller.abort();
     };
   }, [api]);
 

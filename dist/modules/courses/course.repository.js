@@ -3,6 +3,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CourseRepository = void 0;
 const db_1 = require("../../config/db");
 class CourseRepository {
+    pageWindow(pagination) {
+        const limit = Math.max(1, Math.min(pagination.limit, 100));
+        const page = Math.max(1, pagination.page);
+        return { limit, offset: (page - 1) * limit };
+    }
     async categoryIsActive(id) {
         const [rows] = await db_1.pool.query(`SELECT 1 FROM categorias WHERE id = ? AND estado = 'activo' LIMIT 1`, [id]);
         return rows.length > 0;
@@ -55,26 +60,26 @@ class CourseRepository {
             params.push(`%${filters.search}%`);
         }
         const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
-        const [countRows] = await db_1.pool.query(`SELECT COUNT(*) as total
-       FROM cursos c
-       JOIN categorias cat ON cat.id = c.categoria_id
-       JOIN usuarios u ON u.id = c.docente_id
-       ${whereSql}`, params);
+        const { limit, offset } = this.pageWindow(pagination);
+        const [[countRows], [rows]] = await Promise.all([
+            db_1.pool.query(`SELECT COUNT(*) as total
+         FROM cursos c
+         JOIN categorias cat ON cat.id = c.categoria_id
+         ${whereSql}`, params),
+            db_1.pool.query(`SELECT
+          c.id, c.titulo, c.slug, c.descripcion_corta, c.imagen_url, c.tipo_acceso, c.precio, c.nivel,
+          c.estado, c.fecha_publicacion, c.created_at,
+          cat.id as categoria_id, cat.nombre as categoria_nombre, cat.imagen_url as categoria_imagen_url,
+          u.id as docente_id, u.nombres as docente_nombres, u.apellidos as docente_apellidos, u.foto_url as docente_foto_url,
+          u.rol as docente_rol
+         FROM cursos c
+         JOIN categorias cat ON cat.id = c.categoria_id
+         JOIN usuarios u ON u.id = c.docente_id
+         ${whereSql}
+         ORDER BY c.created_at DESC
+         LIMIT ? OFFSET ?`, [...params, limit, offset]),
+        ]);
         const total = countRows[0]?.total ?? 0;
-        const limit = pagination.limit;
-        const offset = (pagination.page - 1) * pagination.limit;
-        const [rows] = await db_1.pool.query(`SELECT
-        c.id, c.titulo, c.slug, c.descripcion_corta, c.imagen_url, c.tipo_acceso, c.precio, c.nivel,
-        c.estado, c.fecha_publicacion, c.created_at,
-        cat.id as categoria_id, cat.nombre as categoria_nombre, cat.imagen_url as categoria_imagen_url,
-        u.id as docente_id, u.nombres as docente_nombres, u.apellidos as docente_apellidos, u.foto_url as docente_foto_url,
-        u.rol as docente_rol
-       FROM cursos c
-       JOIN categorias cat ON cat.id = c.categoria_id
-       JOIN usuarios u ON u.id = c.docente_id
-       ${whereSql}
-       ORDER BY c.created_at DESC
-       LIMIT ? OFFSET ?`, [...params, limit, offset]);
         return { items: rows.map(mapCourseListRow), total };
     }
     async findPublishedDetailById(id) {
@@ -210,26 +215,27 @@ class CourseRepository {
             params.push(like, like, like, like, like);
         }
         const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
-        const [countRows] = await db_1.pool.query(`SELECT COUNT(*) as total
-       FROM cursos c
-       JOIN categorias cat ON cat.id = c.categoria_id
-       JOIN usuarios u ON u.id = c.docente_id
-       ${whereSql}`, params);
+        const { limit, offset } = this.pageWindow(pagination);
+        const [[countRows], [rows]] = await Promise.all([
+            db_1.pool.query(`SELECT COUNT(*) as total
+         FROM cursos c
+         JOIN categorias cat ON cat.id = c.categoria_id
+         JOIN usuarios u ON u.id = c.docente_id
+         ${whereSql}`, params),
+            db_1.pool.query(`SELECT
+          c.id, c.titulo, c.slug, c.descripcion_corta, c.imagen_url, c.tipo_acceso, c.precio, c.nivel,
+          c.estado, c.fecha_publicacion, c.created_at,
+          cat.id as categoria_id, cat.nombre as categoria_nombre, cat.imagen_url as categoria_imagen_url,
+          u.id as docente_id, u.nombres as docente_nombres, u.apellidos as docente_apellidos, u.foto_url as docente_foto_url,
+          u.rol as docente_rol
+         FROM cursos c
+         JOIN categorias cat ON cat.id = c.categoria_id
+         JOIN usuarios u ON u.id = c.docente_id
+         ${whereSql}
+         ORDER BY c.created_at DESC
+         LIMIT ? OFFSET ?`, [...params, limit, offset]),
+        ]);
         const total = countRows[0]?.total ?? 0;
-        const limit = pagination.limit;
-        const offset = (pagination.page - 1) * pagination.limit;
-        const [rows] = await db_1.pool.query(`SELECT
-        c.id, c.titulo, c.slug, c.descripcion_corta, c.imagen_url, c.tipo_acceso, c.precio, c.nivel,
-        c.estado, c.fecha_publicacion, c.created_at,
-        cat.id as categoria_id, cat.nombre as categoria_nombre, cat.imagen_url as categoria_imagen_url,
-        u.id as docente_id, u.nombres as docente_nombres, u.apellidos as docente_apellidos, u.foto_url as docente_foto_url,
-        u.rol as docente_rol
-       FROM cursos c
-       JOIN categorias cat ON cat.id = c.categoria_id
-       JOIN usuarios u ON u.id = c.docente_id
-       ${whereSql}
-       ORDER BY c.created_at DESC
-       LIMIT ? OFFSET ?`, [...params, limit, offset]);
         return {
             items: rows.map((r) => ({ ...mapCourseListRow(r), estado: r.estado })),
             total,

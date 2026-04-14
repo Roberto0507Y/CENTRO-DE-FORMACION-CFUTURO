@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { BookOpen, CalendarDays, Download, Users } from "lucide-react";
 import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
@@ -15,6 +15,7 @@ import type { CourseListItem, CourseStatus } from "../../types/course";
 import { getApiErrorMessage } from "../../utils/apiError";
 import { formatNumber, formatPercent } from "./reports/reportFormat";
 import type { ReportMode, ZoneReportResponse, ZoneReportRow } from "./reports/reportTypes";
+import "../../styles/admin-reports.css";
 
 type CourseOption = CourseListItem & { estado: CourseStatus };
 
@@ -94,14 +95,18 @@ export function AdminReportsPage() {
     return zoneRows.slice(start, start + REPORT_PAGE_SIZE);
   }, [safeZonePage, zoneRows]);
 
-  useEffect(() => {
-    (async () => {
+  const loadCourses = useCallback(
+    async (signal?: AbortSignal) => {
       try {
         setIsLoadingCourses(true);
         setError(null);
         const first = await api.get<
           ApiResponse<{ items: CourseOption[]; total: number; page: number; limit: number }>
-        >("/courses/my/teaching", { params: { page: 1, limit: COURSE_FETCH_LIMIT } });
+        >("/courses/my/teaching", {
+          params: { page: 1, limit: COURSE_FETCH_LIMIT },
+          signal,
+        });
+        if (signal?.aborted) return;
         let nextCourses = first.data.data.items;
         const totalPages = Math.ceil(first.data.data.total / first.data.data.limit);
 
@@ -111,24 +116,34 @@ export function AdminReportsPage() {
             pages.map((nextPage) =>
               api.get<ApiResponse<{ items: CourseOption[] }>>("/courses/my/teaching", {
                 params: { page: nextPage, limit: COURSE_FETCH_LIMIT },
+                signal,
               })
             )
           );
+          if (signal?.aborted) return;
           nextCourses = nextCourses.concat(rest.flatMap((res) => res.data.data.items));
         }
 
         setCourses(nextCourses);
         setSelectedCourseId((current) => current ?? nextCourses[0]?.id ?? null);
       } catch (err) {
+        if ((err as { code?: string }).code === "ERR_CANCELED" || signal?.aborted) return;
         setError(getApiErrorMessage(err, "No se pudieron cargar los cursos."));
       } finally {
-        setIsLoadingCourses(false);
+        if (!signal?.aborted) setIsLoadingCourses(false);
       }
-    })();
-  }, [api]);
+    },
+    [api]
+  );
 
   useEffect(() => {
-    (async () => {
+    const controller = new AbortController();
+    void loadCourses(controller.signal);
+    return () => controller.abort();
+  }, [loadCourses]);
+
+  const loadAttendanceReport = useCallback(
+    async (signal?: AbortSignal) => {
       if (reportMode !== "attendance") return;
       if (!selectedCourseId) {
         setItems([]);
@@ -139,21 +154,30 @@ export function AdminReportsPage() {
         setError(null);
         const res = await api.get<ApiResponse<AttendanceListResponse>>(
           `/courses/${selectedCourseId}/attendance`,
-          { params: { date } }
+          { params: { date }, signal }
         );
+        if (signal?.aborted) return;
         setItems(res.data.data.items);
         setPage(1);
       } catch (err) {
+        if ((err as { code?: string }).code === "ERR_CANCELED" || signal?.aborted) return;
         setItems([]);
         setError(getApiErrorMessage(err, "No se pudo cargar el reporte de asistencia."));
       } finally {
-        setIsLoadingReport(false);
+        if (!signal?.aborted) setIsLoadingReport(false);
       }
-    })();
-  }, [api, date, reportMode, selectedCourseId]);
+    },
+    [api, date, reportMode, selectedCourseId]
+  );
 
   useEffect(() => {
-    (async () => {
+    const controller = new AbortController();
+    void loadAttendanceReport(controller.signal);
+    return () => controller.abort();
+  }, [loadAttendanceReport]);
+
+  const loadZoneReport = useCallback(
+    async (signal?: AbortSignal) => {
       if (reportMode !== "zone") return;
       if (!selectedCourseId) {
         setZoneReport(null);
@@ -164,17 +188,27 @@ export function AdminReportsPage() {
         setError(null);
         const res = await api.get<ApiResponse<ZoneReportResponse>>("/reports/zone", {
           params: { course_id: selectedCourseId },
+          signal,
         });
+        if (signal?.aborted) return;
         setZoneReport(res.data.data);
         setZonePage(1);
       } catch (err) {
+        if ((err as { code?: string }).code === "ERR_CANCELED" || signal?.aborted) return;
         setZoneReport(null);
         setError(getApiErrorMessage(err, "No se pudo cargar el reporte de zona."));
       } finally {
-        setIsLoadingReport(false);
+        if (!signal?.aborted) setIsLoadingReport(false);
       }
-    })();
-  }, [api, reportMode, selectedCourseId]);
+    },
+    [api, reportMode, selectedCourseId]
+  );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadZoneReport(controller.signal);
+    return () => controller.abort();
+  }, [loadZoneReport]);
 
   const canExport =
     !isLoadingReport &&
@@ -242,12 +276,12 @@ export function AdminReportsPage() {
             />
           </div>
         </div>
-        <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-cyan-600 to-slate-950 px-6 py-7 text-white">
-          <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full border border-white/20" />
-          <div className="pointer-events-none absolute right-16 top-10 h-28 w-28 rounded-full bg-white/10 blur-xl" />
+        <div className="cf-admin-reports-hero px-6 py-7 text-white">
+          <div className="cf-admin-reports-hero-ring pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full" />
+          <div className="cf-admin-reports-hero-glow pointer-events-none absolute right-16 top-10 h-28 w-28 rounded-full" />
           <div className="relative flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div>
-              <div className="text-xs font-black uppercase tracking-[0.28em] text-cyan-100">
+              <div className="cf-admin-reports-hero-kicker text-xs font-black uppercase text-cyan-100">
                 {heroCopy.eyebrow}
               </div>
               <h2 className="mt-2 text-3xl font-black tracking-tight">{heroCopy.title}</h2>
@@ -268,11 +302,7 @@ export function AdminReportsPage() {
           </div>
         </div>
 
-        <div
-          className={`grid gap-4 border-b border-slate-200 bg-white/80 p-5 backdrop-blur dark:border-slate-800 dark:bg-slate-950/50 ${
-            reportMode === "attendance" ? "lg:grid-cols-[minmax(0,1fr)_220px]" : "lg:grid-cols-1"
-          }`}
-        >
+        <div className={`cf-admin-reports-filter-grid border-b border-slate-200 bg-white/80 p-5 backdrop-blur dark:border-slate-800 dark:bg-slate-950/50 ${reportMode === "attendance" ? "cf-admin-reports-filter-grid--attendance" : ""}`}>
           <div>
             <label className="text-sm font-extrabold text-slate-800 dark:text-slate-200">Curso</label>
             <select
@@ -328,8 +358,8 @@ export function AdminReportsPage() {
                   description="Selecciona otro curso o fecha para consultar la asistencia."
                 />
               ) : (
-                <div className="overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-                  <div className="hidden grid-cols-[70px_minmax(220px,1.3fr)_minmax(220px,1fr)_160px_minmax(220px,1fr)] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.16em] text-slate-500 xl:grid dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
+                <div className="cf-admin-reports-table-shell overflow-hidden border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+                  <div className="cf-admin-reports-attendance-head cf-admin-reports-head-label hidden gap-4 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase text-slate-500 xl:grid dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
                     <div>#</div>
                     <div>Estudiante</div>
                     <div>Correo</div>
@@ -342,10 +372,7 @@ export function AdminReportsPage() {
                       const rowNumber = (safePage - 1) * REPORT_PAGE_SIZE + index + 1;
                       const fullName = `${item.estudiante.apellidos}, ${item.estudiante.nombres}`.trim();
                       return (
-                        <div
-                          key={item.estudiante.id}
-                          className="grid gap-3 px-5 py-4 xl:grid-cols-[70px_minmax(220px,1.3fr)_minmax(220px,1fr)_160px_minmax(220px,1fr)] xl:items-center"
-                        >
+                        <div key={item.estudiante.id} className="cf-admin-reports-attendance-row grid gap-3 px-5 py-4">
                           <div className="hidden text-sm font-black text-slate-500 xl:block">#{rowNumber}</div>
                           <div className="min-w-0">
                             <div className="text-sm font-black text-slate-950 dark:text-white">{fullName}</div>
@@ -406,9 +433,9 @@ function ModeButton({
     <button
       type="button"
       onClick={onClick}
-      className={`flex min-w-[180px] items-center justify-between rounded-2xl border px-4 py-3 text-left transition ${
+      className={`cf-admin-reports-mode flex items-center justify-between rounded-2xl border px-4 py-3 text-left transition ${
         active
-          ? "border-blue-300 bg-blue-50 text-blue-800 shadow-sm shadow-blue-600/10 dark:border-cyan-400/40 dark:bg-cyan-400/10 dark:text-cyan-100"
+          ? "cf-admin-reports-mode--active border-blue-300 bg-blue-50 text-blue-800 dark:border-cyan-400/40 dark:bg-cyan-400/10 dark:text-cyan-100"
           : "border-slate-200 bg-white text-slate-700 hover:border-blue-200 hover:bg-blue-50/60 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-cyan-400/30 dark:hover:bg-cyan-400/10"
       }`}
     >
@@ -423,7 +450,7 @@ function ModeButton({
 
 function LoadingReport() {
   return (
-    <div className="grid place-items-center rounded-[1.6rem] border border-slate-200 bg-slate-50 py-16 dark:border-slate-800 dark:bg-slate-950/50">
+    <div className="cf-admin-reports-loading-shell grid place-items-center border border-slate-200 bg-slate-50 py-16 dark:border-slate-800 dark:bg-slate-950/50">
       <div className="flex items-center gap-3 text-sm font-semibold text-slate-600 dark:text-slate-300">
         <Spinner />
         Cargando reporte...
@@ -467,8 +494,8 @@ function ZoneReportContent({
             description="Cuando el curso tenga estudiantes inscritos, tareas o quizzes, aparecerá el resumen aquí."
           />
         ) : (
-          <div className="overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-            <div className="hidden grid-cols-[70px_minmax(220px,1.25fr)_minmax(220px,1fr)_minmax(160px,0.8fr)_minmax(160px,0.8fr)_minmax(160px,0.8fr)_120px] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.16em] text-slate-500 2xl:grid dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
+          <div className="cf-admin-reports-table-shell overflow-hidden border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+            <div className="cf-admin-reports-zone-head cf-admin-reports-head-label hidden gap-4 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase text-slate-500 2xl:grid dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
               <div>#</div>
               <div>Estudiante</div>
               <div>Correo</div>
@@ -483,10 +510,7 @@ function ZoneReportContent({
                 const rowNumber = (page - 1) * REPORT_PAGE_SIZE + index + 1;
                 const fullName = `${row.estudiante.apellidos}, ${row.estudiante.nombres}`.trim();
                 return (
-                  <div
-                    key={row.estudiante.id}
-                    className="grid gap-3 px-5 py-4 2xl:grid-cols-[70px_minmax(220px,1.25fr)_minmax(220px,1fr)_minmax(160px,0.8fr)_minmax(160px,0.8fr)_minmax(160px,0.8fr)_120px] 2xl:items-center"
-                  >
+                  <div key={row.estudiante.id} className="cf-admin-reports-zone-row grid gap-3 px-5 py-4">
                     <div className="hidden text-sm font-black text-slate-500 2xl:block">#{rowNumber}</div>
                     <div className="min-w-0">
                       <div className="text-sm font-black text-slate-950 dark:text-white">{fullName}</div>
@@ -552,7 +576,7 @@ function ScoreCell({
 }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-950/70 2xl:border-0 2xl:bg-transparent 2xl:p-0 2xl:dark:bg-transparent">
-      <div className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400 2xl:hidden">
+      <div className="cf-admin-reports-score-label text-slate-500 dark:text-slate-400 2xl:hidden">
         {label}
       </div>
       <div className="mt-1 text-sm font-black text-slate-950 dark:text-white 2xl:mt-0">
@@ -576,19 +600,19 @@ function ReportStat({
 }) {
   const toneClass =
     tone === "green"
-      ? "bg-emerald-50 text-emerald-700 ring-emerald-100 dark:bg-emerald-400/10 dark:text-emerald-200 dark:ring-emerald-400/20"
+      ? "cf-admin-reports-stat--green"
       : tone === "amber"
-        ? "bg-amber-50 text-amber-700 ring-amber-100 dark:bg-amber-400/10 dark:text-amber-200 dark:ring-amber-400/20"
+        ? "cf-admin-reports-stat--amber"
         : tone === "blue"
-          ? "bg-blue-50 text-blue-700 ring-blue-100 dark:bg-cyan-400/10 dark:text-cyan-200 dark:ring-cyan-400/20"
+          ? "cf-admin-reports-stat--blue"
           : tone === "rose"
-            ? "bg-rose-50 text-rose-700 ring-rose-100 dark:bg-rose-400/10 dark:text-rose-200 dark:ring-rose-400/20"
-            : "bg-slate-50 text-slate-700 ring-slate-200 dark:bg-slate-950 dark:text-slate-200 dark:ring-slate-800";
+            ? "cf-admin-reports-stat--rose"
+            : "cf-admin-reports-stat--slate";
 
   return (
-    <div className={`rounded-[1.4rem] p-4 ring-1 ${toneClass}`}>
+    <div className={`cf-admin-reports-stat ${toneClass}`}>
       <div className="flex items-center justify-between gap-3">
-        <div className="text-xs font-black uppercase tracking-[0.16em] opacity-75">{label}</div>
+        <div className="cf-admin-reports-stat-label text-xs font-black uppercase opacity-75">{label}</div>
         <div className="grid h-9 w-9 place-items-center rounded-2xl bg-white/80 text-current shadow-sm shadow-slate-950/5 dark:bg-white/10">
           {icon}
         </div>

@@ -1,0 +1,181 @@
+@media (max-width: 639px) {
+  .cf-admin-dark-scope {
+    word-break: break-word;
+  }
+
+  .cf-admin-dark-scope table {
+    width: max-content;
+    min-width: 100%;
+  }
+}
+
+/* Capa de respaldo para pantallas administrativas heredadas con utilidades claras fijas. */
+.dark .cf-admin-dark-scope .bg-white,
+.dark .cf-admin-dark-scope .bg-white\/90,
+.dark .cf-admin-dark-scope .bg-white\/95 {
+  background-color: rgb(15 23 42 / 0.94);
+}
+
+.dark .cf-admin-dark-scope .bg-slate-50,
+.dark .cf-admin-dark-scope .bg-slate-50\/60,
+.dark .cf-admin-dark-scope .bg-slate-50\/70,
+.dark .cf-admin-dark-scope .bg-slate-50\/95 {
+  background-color: rgb(15 23 42 / 0.72);
+}
+
+.dark .cf-admin-dark-scope .bg-slate-100 {
+  background-color: rgb(30 41 59 / 0.88);
+}
+
+.dark .cf-admin-dark-scope .bg-emerald-50 {
+  background-color: rgb(6 78 59 / 0.28);
+}
+
+.dark .cf-admin-dark-scope .bg-teal-50,
+.dark .cf-admin-dark-scope .bg-cyan-50 {
+  background-color: rgb(8 145 178 / 0.18);
+}
+
+.dark .cf-admin-dark-scope .bg-amber-50,
+.dark .cf-admin-dark-scope .bg-orange-50 {
+  background-color: rgb(120 53 15 / 0.24);
+}
+
+.dark .cf-admin-dark-scope .bg-blue-50,
+.dark .cf-admin-dark-scope .bg-blue-50\/70 {
+  background-color: rgb(8 145 178 / 0.14);
+}
+
+.dark .cf-admin-dark-scope .from-slate-50 {
+  --tw-gradient-from: rgb(15 23 42 / 0.92) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(15 23 42 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.dark .cf-admin-dark-scope .to-white {
+  --tw-gradient-to: rgb(30 41 59 / 0.92) var(--tw-gradient-to-position);
+}
+
+.dark .cf-admin-dark-scope .from-blue-50 {
+  --tw-gradient-from: rgb(14 116 144 / 0.24) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(14 116 144 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.dark .cf-admin-dark-scope .to-cyan-50 {
+  --tw-gradient-to: rgb(8 145 178 / 0.16) var(--tw-gradient-to-position);
+}
+
+.dark .cf-admin-dark-scope .from-emerald-50 {
+  --tw-gradient-from: rgb(6 78 59 / 0.28) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(6 78 59 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.dark .cf-admin-dark-scope .to-teal-50 {
+  --tw-gradient-to: rgb(13 148 136 / 0.16) var(--tw-gradient-to-position);
+}
+
+.dark .cf-admin-dark-scope .from-amber-50 {
+  --tw-gradient-from: rgb(120 53 15 / 0.28) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(120 53 15 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.dark .cf-admin-dark-scope .to-orange-50 {
+  --tw-gradient-to: rgb(154 52 18 / 0.16) var(--tw-gradient-to-position);
+}
+
+.dark .cf-admin-dark-scope .border-slate-200,
+.dark .cf-admin-dark-scope .border-slate-200\/70,
+.dark .cf-admin-dark-scope .border-slate-300 {
+  border-color: rgb(30 41 59 / 0.95);
+}
+
+.dark .cf-admin-dark-scope .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+.dark .cf-admin-dark-scope .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgb(30 41 59 / 0.95);
+}
+
+.dark .cf-admin-dark-scope .ring-slate-200,
+.dark .cf-admin-dark-scope .ring-black\/5 {
+  --tw-ring-color: rgb(51 65 85 / 0.8);
+}
+
+.dark .cf-admin-dark-scope .ring-blue-100 {
+  --tw-ring-color: rgb(34 211 238 / 0.22);
+}
+
+.dark .cf-admin-dark-scope .ring-emerald-100 {
+  --tw-ring-color: rgb(16 185 129 / 0.25);
+}
+
+.dark .cf-admin-dark-scope .ring-amber-100 {
+  --tw-ring-color: rgb(245 158 11 / 0.26);
+}
+
+.dark .cf-admin-dark-scope .text-slate-950,
+.dark .cf-admin-dark-scope .text-slate-900,
+.dark .cf-admin-dark-scope .text-slate-800 {
+  color: rgb(248 250 252);
+}
+
+.dark .cf-admin-dark-scope .text-slate-700,
+.dark .cf-admin-dark-scope .text-blue-700 {
+  color: rgb(203 213 225);
+}
+
+.dark .cf-admin-dark-scope .text-slate-600,
+.dark .cf-admin-dark-scope .text-slate-500 {
+  color: rgb(148 163 184);
+}
+
+.dark .cf-admin-dark-scope .text-emerald-800,
+.dark .cf-admin-dark-scope .text-emerald-700 {
+  color: rgb(167 243 208);
+}
+
+.dark .cf-admin-dark-scope .text-amber-900,
+.dark .cf-admin-dark-scope .text-amber-800 {
+  color: rgb(253 230 138);
+}
+
+.dark .cf-admin-dark-scope .hover\:bg-slate-50:hover,
+.dark .cf-admin-dark-scope .hover\:bg-slate-100:hover,
+.dark .cf-admin-dark-scope .hover\:bg-slate-200:hover {
+  background-color: rgb(30 41 59 / 0.78);
+}
+
+.dark .cf-admin-dark-scope input,
+.dark .cf-admin-dark-scope select,
+.dark .cf-admin-dark-scope textarea {
+  color-scheme: dark;
+}
+
+.dark .cf-admin-dark-scope input::placeholder,
+.dark .cf-admin-dark-scope textarea::placeholder {
+  color: rgb(100 116 139);
+}
+
+.dark .cf-admin-dark-scope input::file-selector-button {
+  background-color: rgb(30 41 59);
+  color: rgb(226 232 240);
+}
+
+.dark .cf-admin-dark-scope button.bg-slate-950,
+.dark .cf-admin-dark-scope a.bg-slate-950,
+.dark .cf-admin-dark-scope button.bg-slate-900,
+.dark .cf-admin-dark-scope a.bg-slate-900 {
+  background-color: rgb(6 182 212);
+  background-image: linear-gradient(135deg, rgb(34 211 238), rgb(37 99 235));
+  color: rgb(248 250 252);
+  box-shadow: 0 16px 38px -24px rgb(34 211 238 / 0.9);
+}
+
+.dark .cf-admin-dark-scope button.bg-slate-950:hover,
+.dark .cf-admin-dark-scope a.bg-slate-950:hover,
+.dark .cf-admin-dark-scope button.bg-slate-900:hover,
+.dark .cf-admin-dark-scope a.bg-slate-900:hover {
+  background-color: rgb(34 211 238);
+  background-image: linear-gradient(135deg, rgb(103 232 249), rgb(59 130 246));
+}

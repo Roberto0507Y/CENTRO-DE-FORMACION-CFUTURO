@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AxiosInstance } from "axios";
 import { clearCachedCsrfToken, createApiClient, hydrateCsrfToken } from "../api/axios";
 import type { ApiResponse } from "../types/api";
@@ -36,12 +36,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const api = useMemo(() => createApiClient(), []);
 
-  const clearAuthState = () => {
+  const clearAuthState = useCallback(() => {
     setToken(null);
     setUser(null);
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     clearAuthState();
     void api
       .post("/auth/logout")
@@ -51,9 +51,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => {
         clearCachedCsrfToken();
       });
-  };
+  }, [api, clearAuthState]);
 
-  const refreshMe = async () => {
+  const refreshMe = useCallback(async () => {
     if (refreshPromiseRef.current) {
       return refreshPromiseRef.current;
     }
@@ -70,17 +70,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     refreshPromiseRef.current = request;
     return request;
-  };
+  }, [api]);
 
-  const login = async (correo: string, password: string): Promise<User> => {
+  const login = useCallback(async (correo: string, password: string): Promise<User> => {
     const res = await api.post<ApiResponse<WebAuthResponse>>("/auth/login", { correo, password });
     setToken(AUTH_SESSION_MARKER);
     hydrateCsrfToken(res.data.data.session.csrfToken);
     setUser(res.data.data.user);
     return res.data.data.user;
-  };
+  }, [api]);
 
-  const register = async (input: {
+  const register = useCallback(async (input: {
     nombres: string;
     apellidos: string;
     correo: string;
@@ -94,7 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     hydrateCsrfToken(res.data.data.session.csrfToken);
     setUser(res.data.data.user);
     return res.data.data.user;
-  };
+  }, [api]);
 
   useEffect(() => {
     const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
@@ -155,16 +155,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const value: AuthContextValue = {
-    token,
-    user,
-    api,
-    isLoading,
-    login,
-    register,
-    logout,
-    refreshMe,
-  };
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      token,
+      user,
+      api,
+      isLoading,
+      login,
+      register,
+      logout,
+      refreshMe,
+    }),
+    [token, user, api, isLoading, login, register, logout, refreshMe],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

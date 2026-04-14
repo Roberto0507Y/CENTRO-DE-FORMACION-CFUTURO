@@ -25,10 +25,19 @@ export class PaymentService {
   private readonly storage = new StorageService();
   private readonly notifications = new NotificationService();
 
+  private normalizeListQuery(q: ListPaymentsQuery): ListPaymentsQuery {
+    return {
+      ...q,
+      limit: Math.max(1, Math.min(Number(q.limit) || 20, 100)),
+      offset: Math.max(0, Number(q.offset) || 0),
+    };
+  }
+
   async list(requester: AuthContext, q: ListPaymentsQuery): Promise<PaymentsListResponse> {
     if (requester.role !== "admin") throw forbidden("Solo admin puede ver pagos");
-    const { items, total } = await this.repo.list(q);
-    return { items, total, limit: q.limit, offset: q.offset };
+    const normalized = this.normalizeListQuery(q);
+    const { items, total } = await this.repo.list(normalized);
+    return { items, total, limit: normalized.limit, offset: normalized.offset };
   }
 
   async getById(requester: AuthContext, id: number) {

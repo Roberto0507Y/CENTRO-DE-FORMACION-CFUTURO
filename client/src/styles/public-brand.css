@@ -1,0 +1,184 @@
+.cf-public-navbar {
+  border-bottom: 1px solid rgb(255 255 255 / 0.1);
+  background: linear-gradient(
+    180deg,
+    rgba(2, 6, 23, 0.88) 0%,
+    rgba(4, 11, 29, 0.82) 56%,
+    rgba(6, 13, 32, 0.74) 100%
+  );
+  box-shadow: 0 14px 34px rgba(2, 6, 23, 0.2);
+  backdrop-filter: blur(24px);
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  .cf-public-navbar {
+    background: linear-gradient(
+      180deg,
+      rgba(2, 6, 23, 0.76) 0%,
+      rgba(4, 11, 29, 0.68) 56%,
+      rgba(6, 13, 32, 0.58) 100%
+    );
+  }
+}
+
+.cf-public-nav-link {
+  position: relative;
+}
+
+.cf-public-nav-link-active::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  height: 3px;
+  width: 2rem;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgb(103 232 249), rgb(34 211 238), rgb(59 130 246));
+  box-shadow: 0 0 16px rgb(34 211 238 / 0.35);
+}
+
+.cf-public-hover-card:hover {
+  box-shadow: 0 14px 24px rgba(2, 6, 23, 0.24);
+}
+
+.cf-public-hover-link:hover {
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+}
+
+.cf-public-primary-btn {
+  box-shadow: 0 18px 50px rgba(34, 211, 238, 0.18);
+}
+
+.cf-public-primary-btn:hover {
+  box-shadow: 0 22px 60px rgba(34, 211, 238, 0.24);
+}
+
+.cf-public-hero {
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
+
+.dark .cf-public-hero {
+  background: linear-gradient(180deg, #020617 0%, #020817 100%);
+}
+
+.cf-public-hero-radiants {
+  background:
+    radial-gradient(820px 360px at 18% 20%, rgba(34, 211, 238, 0.14), transparent 42%),
+    radial-gradient(860px 380px at 82% 22%, rgba(59, 130, 246, 0.08), transparent 44%);
+}
+
+.dark .cf-public-hero-radiants {
+  background:
+    radial-gradient(820px 360px at 18% 20%, rgba(34, 211, 238, 0.12), transparent 42%),
+    radial-gradient(860px 380px at 82% 22%, rgba(59, 130, 246, 0.12), transparent 44%);
+}
+
+.cf-public-hero-card {
+  box-shadow: none;
+}
+
+@media (min-width: 1024px) {
+  .cf-public-hero-card {
+    box-shadow: 0 30px 80px -50px rgba(15, 23, 42, 0.22);
+  }
+
+  .dark .cf-public-hero-card {
+    box-shadow: 0 30px 90px -55px rgba(2, 6, 23, 0.8);
+  }
+}
+
+.cf-public-hero-mobile-overlay {
+  background: linear-gradient(
+    180deg,
+    rgba(4, 18, 40, 0.4) 0%,
+    rgba(4, 18, 40, 0.22) 18%,
+    rgba(4, 18, 40, 0.48) 42%,
+    rgba(2, 6, 23, 0.82) 72%,
+    rgba(2, 6, 23, 0.9) 100%
+  );
+}
+
+.cf-public-hero-mobile-radiants {
+  background:
+    radial-gradient(540px 280px at 18% 18%, rgba(34, 211, 238, 0.18), transparent 42%),
+    radial-gradient(420px 240px at 84% 18%, rgba(59, 130, 246, 0.14), transparent 42%);
+}
+
+.cf-public-hero-copy {
+  background:
+    radial-gradient(circle at 10% 10%, rgba(34, 211, 238, 0.1), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.76));
+}
+
+.dark .cf-public-hero-copy {
+  background:
+    radial-gradient(circle at 10% 10%, rgba(34, 211, 238, 0.08), transparent 28%),
+    linear-gradient(180deg, rgba(2, 6, 23, 0.82), rgba(2, 6, 23, 0.96));
+}
+
+.cf-public-hero-media-fade {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(255, 255, 255, 0.82) 35%,
+    rgba(255, 255, 255, 0.32) 68%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
+.dark .cf-public-hero-media-fade {
+  background: linear-gradient(
+    90deg,
+    rgba(2, 6, 23, 0.96) 0%,
+    rgba(2, 6, 23, 0.72) 35%,
+    rgba(2, 6, 23, 0.24) 68%,
+    rgba(2, 6, 23, 0) 100%
+  );
+}
+
+.cf-public-hero-media-radiants {
+  background:
+    radial-gradient(circle at 78% 18%, rgba(255, 255, 255, 0.35), transparent 30%),
+    radial-gradient(circle at 68% 82%, rgba(59, 130, 246, 0.08), transparent 34%);
+}
+
+.dark .cf-public-hero-media-radiants {
+  background:
+    radial-gradient(circle at 78% 18%, rgba(255, 255, 255, 0.08), transparent 30%),
+    radial-gradient(circle at 68% 82%, rgba(59, 130, 246, 0.12), transparent 34%);
+}
+
+.cf-public-hero-title {
+  letter-spacing: -0.04em;
+  line-height: 0.94;
+  font-size: 2.95rem;
+}
+
+@media (min-width: 640px) {
+  .cf-public-hero-title {
+    font-size: 3rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .cf-public-hero-title {
+    font-size: 4.15rem;
+  }
+}
+
+.cf-public-hero-cta {
+  box-shadow: 0 12px 34px rgba(37, 99, 235, 0.28);
+}
+
+.cf-public-footer {
+  background-color: #020617;
+}
+
+.cf-public-footer-social:hover {
+  box-shadow: 0 12px 24px rgba(34, 211, 238, 0.12);
+}
+
+.cf-public-footer-link:hover {
+  filter: drop-shadow(0 0 12px rgba(34, 211, 238, 0.18));
+}

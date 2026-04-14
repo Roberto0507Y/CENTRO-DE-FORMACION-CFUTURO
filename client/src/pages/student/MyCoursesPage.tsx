@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, BookOpen, CalendarDays, GraduationCap, Sparkles } from "lucide-react";
 import { Badge } from "../../components/ui/Badge";
@@ -77,15 +77,22 @@ export function MyCoursesPage() {
   const [page, setPage] = useState(1);
 
   useEffect(() => {
+    const controller = new AbortController();
     (async () => {
       try {
         setIsLoading(true);
-        const res = await api.get<ApiResponse<MyEnrollmentItem[]>>("/enrollments/my-courses");
+        const res = await api.get<ApiResponse<MyEnrollmentItem[]>>("/enrollments/my-courses", {
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
         setItems(res.data.data);
+      } catch (err) {
+        if ((err as { code?: string }).code === "ERR_CANCELED" || controller.signal.aborted) return;
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) setIsLoading(false);
       }
     })();
+    return () => controller.abort();
   }, [api]);
 
   const sortedCourses = useMemo(
@@ -185,7 +192,7 @@ export function MyCoursesPage() {
   );
 }
 
-function CourseEnrollmentCard({
+const CourseEnrollmentCard = memo(function CourseEnrollmentCard({
   enrollment,
   index,
 }: {
@@ -272,4 +279,4 @@ function CourseEnrollmentCard({
       </article>
     </Link>
   );
-}
+});

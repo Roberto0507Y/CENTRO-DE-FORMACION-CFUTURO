@@ -42,6 +42,10 @@ function buildContentSecurityPolicy(apiOrigin: string | null): string {
   ].join('; ')
 }
 
+function includesAny(value: string, patterns: string[]) {
+  return patterns.some((pattern) => value.includes(pattern))
+}
+
 const securityHeaders = {
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'SAMEORIGIN',
@@ -97,17 +101,53 @@ export default defineConfig(({ mode }) => {
               }
 
               if (
-                normalizedId.includes('/src/pages/auth/') ||
-                normalizedId.includes('/src/pages/public/CoursesPage') ||
-                normalizedId.includes('/src/pages/public/CourseDetailPage') ||
-                normalizedId.includes('/src/pages/public/ContactPage')
+                normalizedId.includes('/src/pages/auth/')
               ) {
-                return 'route-public'
+                return 'route-auth'
+              }
+
+              if (
+                includesAny(normalizedId, [
+                  '/src/pages/public/CoursesPage',
+                  '/src/pages/public/ContactPage',
+                ])
+              ) {
+                return 'route-public-browse'
+              }
+
+              if (normalizedId.includes('/src/pages/public/CourseDetailPage')) {
+                return 'route-public-detail'
+              }
+
+              if (
+                includesAny(normalizedId, [
+                  '/src/pages/student/StudentDashboardPage',
+                  '/src/pages/student/MyCoursesPage',
+                  '/src/pages/student/MyPaymentsPage',
+                  '/src/pages/student/StudentGroupsPage',
+                  '/src/pages/student/StudentHistoryPage',
+                  '/src/pages/student/StudentInboxPage',
+                ]) ||
+                normalizedId.includes('/src/layouts/StudentLayout')
+              ) {
+                return 'route-student-core'
+              }
+
+              if (
+                includesAny(normalizedId, [
+                  '/src/pages/student/CourseHomeStudentPage',
+                  '/src/pages/student/CourseTasksStudentPage',
+                  '/src/pages/student/CourseGradesStudentPage',
+                  '/src/pages/student/CourseQuizzesStudentPage',
+                  '/src/pages/student/CourseForumStudentPage',
+                ])
+              ) {
+                return 'route-student-learning'
               }
 
               if (
                 normalizedId.includes('/src/pages/student/') ||
-                normalizedId.includes('/src/layouts/StudentLayout')
+                normalizedId.includes('/src/pages/student/CoursePlayerPage')
               ) {
                 return 'route-student'
               }
@@ -127,9 +167,46 @@ export default defineConfig(({ mode }) => {
               }
 
               if (
+                includesAny(normalizedId, [
+                  '/src/pages/shared/CourseHomePage',
+                  '/src/pages/shared/CourseAnnouncementsPage',
+                  '/src/pages/shared/CourseMaterialsPage',
+                  '/src/pages/shared/CourseForumPage',
+                ])
+              ) {
+                return 'route-course-manage-content'
+              }
+
+              if (
+                includesAny(normalizedId, [
+                  '/src/pages/shared/CourseTasksPage',
+                  '/src/components/task/',
+                  '/src/components/course/CourseTaskModals',
+                ])
+              ) {
+                return 'route-course-manage-tasks'
+              }
+
+              if (
+                includesAny(normalizedId, [
+                  '/src/pages/shared/CourseQuizzesPage',
+                  '/src/pages/shared/CourseAttendancePage',
+                ])
+              ) {
+                return 'route-course-manage-assessment'
+              }
+
+              if (
+                includesAny(normalizedId, [
+                  '/src/pages/shared/CourseStudentsPage',
+                ])
+              ) {
+                return 'route-course-manage-roster'
+              }
+
+              if (
                 normalizedId.includes('/src/pages/shared/') ||
-                normalizedId.includes('/src/layouts/CourseManageLayout') ||
-                normalizedId.includes('/src/components/task/')
+                normalizedId.includes('/src/layouts/CourseManageLayout')
               ) {
                 return 'route-course-manage'
               }
@@ -138,6 +215,14 @@ export default defineConfig(({ mode }) => {
             }
 
             if (normalizedId.includes('react-router')) return 'router'
+            if (normalizedId.includes('/node_modules/lucide-react/')) return 'icons'
+            if (
+              normalizedId.includes('/node_modules/react/') ||
+              normalizedId.includes('/node_modules/react-dom/') ||
+              normalizedId.includes('/node_modules/scheduler/')
+            ) {
+              return 'react-core'
+            }
             if (
               normalizedId.includes('framer-motion') ||
               normalizedId.includes('motion-dom') ||
@@ -146,7 +231,7 @@ export default defineConfig(({ mode }) => {
               return 'motion'
             }
             if (normalizedId.includes('axios')) return 'http'
-            return 'vendor'
+            return
           },
         },
       },

@@ -1,0 +1,130 @@
+.cf-public-deferred {
+  content-visibility: auto;
+  contain-intrinsic-size: 720px;
+}
+
+.cf-public-placeholder {
+  overflow: hidden;
+  border-radius: 1.5rem;
+  border: 1px solid rgb(226 232 240 / 0.7);
+  background: rgb(255 255 255 / 0.8);
+  padding: 1.5rem;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.05);
+}
+
+.dark .cf-public-placeholder {
+  border-color: rgb(30 41 59 / 0.8);
+  background: rgb(2 6 23 / 0.8);
+}
+
+.cf-public-placeholder--about {
+  min-height: 42rem;
+}
+
+.cf-public-placeholder--featured {
+  min-height: 38rem;
+}
+
+.cf-public-placeholder--why {
+  min-height: 28rem;
+}
+
+.cf-public-placeholder--testimonials {
+  min-height: 32rem;
+}
+
+@media (min-width: 768px) {
+  .cf-public-placeholder--about {
+    min-height: 34rem;
+  }
+
+  .cf-public-placeholder--featured {
+    min-height: 30rem;
+  }
+
+  .cf-public-placeholder--why {
+    min-height: 22rem;
+  }
+
+  .cf-public-placeholder--testimonials {
+    min-height: 24rem;
+  }
+}
+
+.cf-public-placeholder-chip,
+.cf-public-placeholder-title,
+.cf-public-placeholder-line,
+.cf-public-placeholder-card {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.cf-public-placeholder-chip {
+  height: 1rem;
+  width: 8rem;
+  border-radius: 999px;
+  background: rgb(226 232 240 / 0.8);
+}
+
+.cf-public-placeholder-title {
+  margin-top: 1rem;
+  height: 2.25rem;
+  width: 75%;
+  border-radius: 999px;
+  background: rgb(226 232 240 / 0.8);
+}
+
+.cf-public-placeholder-line {
+  height: 1rem;
+  border-radius: 999px;
+  background: rgb(226 232 240 / 0.75);
+}
+
+.cf-public-placeholder-line + .cf-public-placeholder-line {
+  margin-top: 0.5rem;
+}
+
+.cf-public-placeholder-line--full {
+  margin-top: 0.75rem;
+  width: 100%;
+}
+
+.cf-public-placeholder-line--wide {
+  width: 83.333333%;
+}
+
+.cf-public-placeholder-grid {
+  margin-top: 2rem;
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .cf-public-placeholder-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .cf-public-placeholder-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.cf-public-placeholder-card {
+  height: 10rem;
+  border-radius: 1rem;
+  background: rgb(241 245 249 / 0.9);
+}
+
+.dark .cf-public-placeholder-chip,
+.dark .cf-public-placeholder-title {
+  background: rgb(30 41 59 / 0.8);
+}
+
+.dark .cf-public-placeholder-line {
+  background: rgb(30 41 59 / 0.7);
+}
+
+.dark .cf-public-placeholder-card {
+  background: rgb(15 23 42 / 0.8);
+}

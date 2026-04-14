@@ -1,0 +1,97 @@
+.cf-course-detail-paid-steps {
+  background:
+    linear-gradient(135deg, rgb(248 250 252), rgb(255 255 255), rgb(239 246 255));
+}
+
+.dark .cf-course-detail-paid-steps {
+  background:
+    linear-gradient(135deg, rgb(2 6 23), rgb(15 23 42), rgb(2 6 23));
+}
+
+.cf-course-detail-step {
+  border-radius: 1.5rem;
+  border: 1px solid rgb(226 232 240);
+  background: rgb(255 255 255);
+  padding: 1rem;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.06);
+}
+
+.dark .cf-course-detail-step {
+  border-color: rgb(30 41 59);
+  background: rgb(15 23 42 / 0.9);
+}
+
+.cf-course-detail-step-index {
+  display: grid;
+  height: 2.75rem;
+  width: 2.75rem;
+  place-items: center;
+  border-radius: 1rem;
+  font-size: 0.875rem;
+  font-weight: 900;
+}
+
+.cf-course-detail-step-index--blue {
+  background: rgb(239 246 255);
+  color: rgb(29 78 216);
+  box-shadow: 0 0 0 1px rgb(219 234 254);
+}
+
+.cf-course-detail-step-index--amber {
+  background: rgb(255 251 235);
+  color: rgb(180 83 9);
+  box-shadow: 0 0 0 1px rgb(254 243 199);
+}
+
+.cf-course-detail-step-index--green {
+  background: rgb(236 253 245);
+  color: rgb(4 120 87);
+  box-shadow: 0 0 0 1px rgb(209 250 229);
+}
+
+.dark .cf-course-detail-step-index--blue {
+  background: rgb(34 211 238 / 0.1);
+  color: rgb(165 243 252);
+  box-shadow: 0 0 0 1px rgb(103 232 249 / 0.2);
+}
+
+.dark .cf-course-detail-step-index--amber {
+  background: rgb(245 158 11 / 0.15);
+  color: rgb(253 230 138);
+  box-shadow: 0 0 0 1px rgb(251 191 36 / 0.2);
+}
+
+.dark .cf-course-detail-step-index--green {
+  background: rgb(16 185 129 / 0.15);
+  color: rgb(167 243 208);
+  box-shadow: 0 0 0 1px rgb(52 211 153 / 0.2);
+}
+
+.cf-course-detail-free-note {
+  border-radius: 1.5rem;
+  border: 1px solid rgb(187 247 208);
+  background: rgb(236 253 245);
+  padding: 1.25rem;
+  color: rgb(20 83 45);
+}
+
+.dark .cf-course-detail-free-note {
+  border-color: rgb(52 211 153 / 0.25);
+  background: rgb(16 185 129 / 0.1);
+  color: rgb(209 250 229);
+}
+
+.cf-course-detail-login-prompt {
+  border-radius: 1.5rem;
+  border: 1px solid rgb(219 234 254);
+  background:
+    linear-gradient(135deg, rgb(239 246 255), rgb(255 255 255), rgb(236 254 255));
+  padding: 1rem;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.06);
+}
+
+.dark .cf-course-detail-login-prompt {
+  border-color: rgb(34 211 238 / 0.2);
+  background:
+    linear-gradient(135deg, rgb(15 23 42), rgb(2 6 23), rgb(8 47 73 / 0.4));
+}

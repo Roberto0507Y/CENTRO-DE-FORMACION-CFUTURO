@@ -11,6 +11,7 @@ import type { PricingSetting } from "../../types/pricing";
 import { getApiErrorMessage } from "../../utils/apiError";
 import { lazyNamed } from "../../utils/lazyNamed";
 import { normalizePaymentLinkInput } from "../../utils/paymentLink";
+import "../../styles/course-editor.css";
 
 type CategoryItem = { id: number; nombre: string };
 const BiPayEmbed = lazyNamed(() => import("../payment/BiPayEmbed"), "BiPayEmbed");
@@ -479,7 +480,7 @@ export function CourseCreateForm({ api, currentUser, variant, onCreated, hideHea
           {isLoadingMeta ? (
             <div className="text-sm text-slate-600">Cargando datos…</div>
           ) : (
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
+            <div className="cf-course-editor-layout">
               <div className="min-w-0 space-y-6">
                 <Card className="p-6">
                   <SectionTitle
@@ -703,7 +704,7 @@ export function CourseCreateForm({ api, currentUser, variant, onCreated, hideHea
                                 <button
                                   type="button"
                                   onClick={() => setPriceMenuOpen((v) => !v)}
-                                  className={`inline-flex min-w-[220px] items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-black transition ${
+                                  className={`cf-course-editor-price-select inline-flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-black transition ${
                                     priceMenuOpen
                                       ? "border-blue-200 bg-blue-50 text-blue-900 ring-2 ring-blue-100"
                                       : "border-slate-200 bg-slate-50 text-slate-900 hover:bg-slate-100"
@@ -726,7 +727,7 @@ export function CourseCreateForm({ api, currentUser, variant, onCreated, hideHea
                                 </button>
 
                                 {priceMenuOpen ? (
-                                  <div className="absolute right-0 z-20 mt-2 w-full min-w-[260px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10">
+                                  <div className="cf-course-editor-price-menu absolute right-0 z-20 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white">
                                     <div className="max-h-72 overflow-y-auto p-2">
                                       {pricingOptions.map((it) => {
                                         const active =
@@ -753,7 +754,7 @@ export function CourseCreateForm({ api, currentUser, variant, onCreated, hideHea
                                               </div>
                                             </div>
                                             <span
-                                              className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-black ${
+                                              className={`cf-course-editor-note-badge inline-flex items-center rounded-full px-2.5 py-1 font-black ${
                                                 active ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700"
                                               }`}
                                             >
@@ -779,7 +780,7 @@ export function CourseCreateForm({ api, currentUser, variant, onCreated, hideHea
                                       {selectedPricing.nombre}
                                     </div>
                                   </div>
-                                  <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-700 ring-1 ring-emerald-100">
+                                  <span className="cf-course-editor-note-badge inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 font-black text-emerald-700 ring-1 ring-emerald-100">
                                     Q {Number(selectedPricing.precio).toFixed(2)}
                                   </span>
                                 </div>
@@ -855,7 +856,7 @@ export function CourseCreateForm({ api, currentUser, variant, onCreated, hideHea
                       <textarea
                         value={form.descripcion}
                         onChange={(e) => setForm((p) => ({ ...p, descripcion: e.target.value }))}
-                        className="min-h-[140px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-blue-500 focus:ring-2"
+                        className="cf-course-editor-textarea-lg w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-blue-500 focus:ring-2"
                         placeholder="Describe el curso…"
                       />
                     </Field>
@@ -887,10 +888,10 @@ export function CourseCreateForm({ api, currentUser, variant, onCreated, hideHea
                         hint={isUploadingImage ? "Subiendo…" : uploadedImage ? "Subida" : "Opcional"}
                       >
                         <div
-                          className={`rounded-2xl border bg-white p-4 transition ${
+                          className={`cf-course-editor-upload-drop rounded-2xl border bg-white p-4 ${
                             isDragging
-                              ? "border-blue-300 ring-2 ring-blue-200"
-                              : "border-slate-200 hover:border-slate-300"
+                              ? "cf-course-editor-upload-drop--dragging"
+                              : "border-slate-200"
                           }`}
                           onDragEnter={(e) => {
                             e.preventDefault();
@@ -1001,7 +1002,7 @@ export function CourseCreateForm({ api, currentUser, variant, onCreated, hideHea
                       <textarea
                         value={form.requisitos}
                         onChange={(e) => setForm((p) => ({ ...p, requisitos: e.target.value }))}
-                        className="min-h-[110px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-blue-500 focus:ring-2"
+                        className="cf-course-editor-textarea-md w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-blue-500 focus:ring-2"
                         placeholder="Ej: Conocimientos básicos…"
                       />
                     </Field>
@@ -1009,7 +1010,7 @@ export function CourseCreateForm({ api, currentUser, variant, onCreated, hideHea
                       <textarea
                         value={form.objetivos}
                         onChange={(e) => setForm((p) => ({ ...p, objetivos: e.target.value }))}
-                        className="min-h-[110px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-blue-500 focus:ring-2"
+                        className="cf-course-editor-textarea-md w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-blue-500 focus:ring-2"
                         placeholder="Ej: Aprenderás a…"
                       />
                     </Field>
@@ -1017,7 +1018,7 @@ export function CourseCreateForm({ api, currentUser, variant, onCreated, hideHea
                 </Card>
 
                 <div className="sticky bottom-4 z-10">
-                  <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-lg shadow-slate-900/5 backdrop-blur">
+                  <div className="cf-course-editor-sticky-bar rounded-2xl border border-slate-200 bg-white/90 p-4 backdrop-blur">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="text-sm text-slate-600">
                         {submitEnabled ? (
@@ -1063,7 +1064,7 @@ export function CourseCreateForm({ api, currentUser, variant, onCreated, hideHea
                             className="h-40 w-full object-cover"
                           />
                         ) : (
-                          <div className="grid h-40 place-items-center bg-gradient-to-br from-slate-200 to-slate-100 text-xs font-black text-slate-500">
+                          <div className="cf-course-editor-preview-empty grid h-40 place-items-center text-xs font-black text-slate-500">
                             Sin imagen
                           </div>
                         )}
@@ -1151,10 +1152,10 @@ function ChecklistItem({ ok, text }: { ok: boolean; text: string }) {
   return (
     <div className="flex items-center gap-2">
       <span
-        className={`grid h-5 w-5 place-items-center rounded-full border text-[10px] font-black ${
+        className={`cf-course-editor-check grid h-5 w-5 place-items-center rounded-full border font-black ${
           ok
-            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-            : "border-slate-200 bg-slate-50 text-slate-500"
+            ? "cf-course-editor-check--ok"
+            : "cf-course-editor-check--pending"
         }`}
       >
         {ok ? "✓" : "•"}

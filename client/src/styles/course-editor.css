@@ -1,0 +1,70 @@
+.cf-course-editor-layout {
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .cf-course-editor-layout {
+    grid-template-columns: minmax(0, 1fr) 420px;
+  }
+}
+
+.cf-course-editor-price-select {
+  min-width: 220px;
+}
+
+.cf-course-editor-price-menu {
+  min-width: 260px;
+  box-shadow: 0 20px 30px rgb(15 23 42 / 0.1);
+}
+
+.cf-course-editor-note-badge {
+  font-size: 11px;
+}
+
+.cf-course-editor-textarea-lg {
+  min-height: 140px;
+}
+
+.cf-course-editor-textarea-md {
+  min-height: 110px;
+}
+
+.cf-course-editor-upload-drop {
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.cf-course-editor-upload-drop:hover {
+  border-color: rgb(203 213 225);
+}
+
+.cf-course-editor-upload-drop--dragging {
+  border-color: rgb(147 197 253);
+  box-shadow: 0 0 0 2px rgb(191 219 254);
+}
+
+.cf-course-editor-sticky-bar {
+  box-shadow: 0 10px 20px rgb(15 23 42 / 0.05);
+}
+
+.cf-course-editor-preview-empty {
+  background: linear-gradient(135deg, rgb(226 232 240), rgb(241 245 249));
+}
+
+.cf-course-editor-check {
+  font-size: 10px;
+}
+
+.cf-course-editor-check--ok {
+  border-color: rgb(187 247 208);
+  background: rgb(236 253 245);
+  color: rgb(4 120 87);
+}
+
+.cf-course-editor-check--pending {
+  border-color: rgb(226 232 240);
+  background: rgb(248 250 252);
+  color: rgb(100 116 139);
+}

@@ -19,11 +19,19 @@ class PaymentService {
         this.storage = new storage_service_1.StorageService();
         this.notifications = new notification_service_1.NotificationService();
     }
+    normalizeListQuery(q) {
+        return {
+            ...q,
+            limit: Math.max(1, Math.min(Number(q.limit) || 20, 100)),
+            offset: Math.max(0, Number(q.offset) || 0),
+        };
+    }
     async list(requester, q) {
         if (requester.role !== "admin")
             throw (0, httpErrors_1.forbidden)("Solo admin puede ver pagos");
-        const { items, total } = await this.repo.list(q);
-        return { items, total, limit: q.limit, offset: q.offset };
+        const normalized = this.normalizeListQuery(q);
+        const { items, total } = await this.repo.list(normalized);
+        return { items, total, limit: normalized.limit, offset: normalized.offset };
     }
     async getById(requester, id) {
         if (requester.role !== "admin")

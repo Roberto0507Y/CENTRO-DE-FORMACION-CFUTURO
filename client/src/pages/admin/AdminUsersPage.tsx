@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useState } from "react";
 import { Card } from "../../components/ui/Card";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { Input } from "../../components/ui/Input";
@@ -55,39 +55,46 @@ export function AdminUsersPage() {
   const [isSaving, setIsSaving] = useState<Record<number, boolean>>({});
   const [pendingDeleteUser, setPendingDeleteUser] = useState<User | null>(null);
 
-  const load = async (pageToLoad = page) => {
-    try {
-      setIsLoading(true);
-      const res = await api.get<ApiResponse<UserListResponse>>("/users", {
-        params: {
-          limit: PAGE_SIZE,
-          offset: (pageToLoad - 1) * PAGE_SIZE,
-          search: deferredSearch || undefined,
-        },
-      });
-      const data = res.data.data;
-      const totalPages = Math.max(1, Math.ceil(data.total / data.limit));
-      if (data.total > 0 && pageToLoad > totalPages) {
-        setPage(totalPages);
-        return;
+  const load = useCallback(
+    async (pageToLoad = page, signal?: AbortSignal) => {
+      try {
+        setIsLoading(true);
+        const res = await api.get<ApiResponse<UserListResponse>>("/users", {
+          params: {
+            limit: PAGE_SIZE,
+            offset: (pageToLoad - 1) * PAGE_SIZE,
+            search: deferredSearch || undefined,
+          },
+          signal,
+        });
+        if (signal?.aborted) return;
+        const data = res.data.data;
+        const totalPages = Math.max(1, Math.ceil(data.total / data.limit));
+        if (data.total > 0 && pageToLoad > totalPages) {
+          setPage(totalPages);
+          return;
+        }
+        setList(data);
+      } catch (err) {
+        if ((err as { code?: string }).code === "ERR_CANCELED" || signal?.aborted) return;
+        setList({ items: [], total: 0, limit: PAGE_SIZE, offset: (pageToLoad - 1) * PAGE_SIZE });
+        toast.push({
+          kind: "error",
+          title: "No se pudieron cargar los usuarios",
+          description: getApiErrorMessage(err, "Intenta de nuevo."),
+        });
+      } finally {
+        if (!signal?.aborted) setIsLoading(false);
       }
-      setList(data);
-    } catch (err) {
-      setList({ items: [], total: 0, limit: PAGE_SIZE, offset: (pageToLoad - 1) * PAGE_SIZE });
-      toast.push({
-        kind: "error",
-        title: "No se pudieron cargar los usuarios",
-        description: getApiErrorMessage(err, "Intenta de nuevo."),
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+    [api, deferredSearch, page, toast]
+  );
 
   useEffect(() => {
-    void load(page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, deferredSearch, page]);
+    const controller = new AbortController();
+    void load(page, controller.signal);
+    return () => controller.abort();
+  }, [load, page]);
 
   const updateUser = async (id: number, patch: Partial<Pick<User, "rol" | "estado">>) => {
     setIsSaving((p) => ({ ...p, [id]: true }));

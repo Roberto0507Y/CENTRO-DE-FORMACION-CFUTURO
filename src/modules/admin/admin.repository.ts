@@ -73,93 +73,96 @@ type RecentPaymentRow = RowDataPacket & {
 
 export class AdminRepository {
   async metrics(): Promise<AdminMetrics> {
-    const [userRows] = await pool.query<UsersRow[]>(
-      `SELECT
-        COUNT(*) AS total,
-        SUM(estado = 'activo') AS active,
-        SUM(estado = 'inactivo') AS inactive,
-        SUM(estado = 'suspendido') AS suspended,
-        SUM(rol = 'admin') AS admins,
-        SUM(rol = 'docente') AS teachers,
-        SUM(rol = 'estudiante') AS students
-      FROM usuarios`
-    );
-
-    const [courseRows] = await pool.query<CoursesRow[]>(
-      `SELECT
-        COUNT(*) AS total,
-        SUM(estado = 'publicado') AS published,
-        SUM(estado = 'borrador') AS draft,
-        SUM(estado = 'oculto') AS hidden
-      FROM cursos`
-    );
-
-    const [paymentRows] = await pool.query<PaymentsRow[]>(
-      `SELECT
-        COUNT(*) AS total,
-        SUM(estado = 'pendiente') AS pending,
-        SUM(estado = 'pagado') AS paid,
-        SUM(estado = 'reembolsado') AS refunded,
-        COALESCE(SUM(CASE WHEN estado = 'pagado' THEN monto_total ELSE 0 END), 0) AS revenueTotal,
-        COALESCE(SUM(CASE WHEN estado = 'reembolsado' THEN monto_total ELSE 0 END), 0) AS refundsTotal
-      FROM pagos`
-    );
-
-    const [enrollmentRows] = await pool.query<EnrollmentsRow[]>(
-      `SELECT
-        COUNT(*) AS total,
-        SUM(estado = 'activa') AS active,
-        SUM(estado = 'pendiente') AS pending,
-        SUM(estado = 'cancelada') AS cancelled,
-        SUM(estado = 'finalizada') AS finished
-      FROM inscripciones`
-    );
-
-    const [signupRows] = await pool.query<RecentSignupRow[]>(
-      `SELECT id, nombres, apellidos, correo, rol, estado, created_at
-       FROM usuarios
-       ORDER BY created_at DESC
-       LIMIT 5`
-    );
-
-    const [loginRows] = await pool.query<RecentLoginRow[]>(
-      `SELECT id, nombres, apellidos, correo, rol, estado, ultimo_login
-       FROM usuarios
-       WHERE ultimo_login IS NOT NULL
-       ORDER BY ultimo_login DESC
-       LIMIT 5`
-    );
-
-    const [recentPaymentRows] = await pool.query<RecentPaymentRow[]>(
-      `SELECT
-        p.id,
-        p.usuario_id,
-        u.nombres,
-        u.apellidos,
-        u.correo,
-        CAST(p.monto_total AS CHAR) AS monto_total,
-        p.metodo_pago,
-        p.estado,
-        p.created_at,
-        p.fecha_pago,
-        (
-          SELECT c.titulo
+    const [
+      [userRows],
+      [courseRows],
+      [paymentRows],
+      [enrollmentRows],
+      [signupRows],
+      [loginRows],
+      [recentPaymentRows],
+    ] = await Promise.all([
+      pool.query<UsersRow[]>(
+        `SELECT
+          COUNT(*) AS total,
+          SUM(estado = 'activo') AS active,
+          SUM(estado = 'inactivo') AS inactive,
+          SUM(estado = 'suspendido') AS suspended,
+          SUM(rol = 'admin') AS admins,
+          SUM(rol = 'docente') AS teachers,
+          SUM(rol = 'estudiante') AS students
+        FROM usuarios`
+      ),
+      pool.query<CoursesRow[]>(
+        `SELECT
+          COUNT(*) AS total,
+          SUM(estado = 'publicado') AS published,
+          SUM(estado = 'borrador') AS draft,
+          SUM(estado = 'oculto') AS hidden
+        FROM cursos`
+      ),
+      pool.query<PaymentsRow[]>(
+        `SELECT
+          COUNT(*) AS total,
+          SUM(estado = 'pendiente') AS pending,
+          SUM(estado = 'pagado') AS paid,
+          SUM(estado = 'reembolsado') AS refunded,
+          COALESCE(SUM(CASE WHEN estado = 'pagado' THEN monto_total ELSE 0 END), 0) AS revenueTotal,
+          COALESCE(SUM(CASE WHEN estado = 'reembolsado' THEN monto_total ELSE 0 END), 0) AS refundsTotal
+        FROM pagos`
+      ),
+      pool.query<EnrollmentsRow[]>(
+        `SELECT
+          COUNT(*) AS total,
+          SUM(estado = 'activa') AS active,
+          SUM(estado = 'pendiente') AS pending,
+          SUM(estado = 'cancelada') AS cancelled,
+          SUM(estado = 'finalizada') AS finished
+        FROM inscripciones`
+      ),
+      pool.query<RecentSignupRow[]>(
+        `SELECT id, nombres, apellidos, correo, rol, estado, created_at
+         FROM usuarios
+         ORDER BY created_at DESC
+         LIMIT 5`
+      ),
+      pool.query<RecentLoginRow[]>(
+        `SELECT id, nombres, apellidos, correo, rol, estado, ultimo_login
+         FROM usuarios
+         WHERE ultimo_login IS NOT NULL
+         ORDER BY ultimo_login DESC
+         LIMIT 5`
+      ),
+      pool.query<RecentPaymentRow[]>(
+        `SELECT
+          p.id,
+          p.usuario_id,
+          u.nombres,
+          u.apellidos,
+          u.correo,
+          CAST(p.monto_total AS CHAR) AS monto_total,
+          p.metodo_pago,
+          p.estado,
+          p.created_at,
+          p.fecha_pago,
+          c_first.titulo AS curso_titulo,
+          COALESCE(dp_stats.cursos_count, 0) AS cursos_count
+        FROM pagos p
+        JOIN usuarios u ON u.id = p.usuario_id
+        LEFT JOIN (
+          SELECT
+            dp.pago_id,
+            COUNT(*) AS cursos_count,
+            MIN(dp.id) AS first_detail_id
           FROM detalle_pagos dp
-          JOIN cursos c ON c.id = dp.curso_id
-          WHERE dp.pago_id = p.id
-          ORDER BY dp.id ASC
-          LIMIT 1
-        ) AS curso_titulo,
-        (
-          SELECT COUNT(*)
-          FROM detalle_pagos dp
-          WHERE dp.pago_id = p.id
-        ) AS cursos_count
-      FROM pagos p
-      JOIN usuarios u ON u.id = p.usuario_id
-      ORDER BY p.created_at DESC
-      LIMIT 5`
-    );
+          GROUP BY dp.pago_id
+        ) dp_stats ON dp_stats.pago_id = p.id
+        LEFT JOIN detalle_pagos dp_first ON dp_first.id = dp_stats.first_detail_id
+        LEFT JOIN cursos c_first ON c_first.id = dp_first.curso_id
+        ORDER BY p.created_at DESC
+        LIMIT 5`
+      ),
+    ]);
 
     const u = userRows[0];
     const c = courseRows[0];

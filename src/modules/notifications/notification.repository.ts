@@ -11,6 +11,8 @@ export class NotificationRepository {
     userId: number,
     q: { limit: number; offset: number; unread?: boolean }
   ): Promise<{ items: Notification[]; total: number; unreadCount: number }> {
+    const limit = Math.max(1, Math.min(Number(q.limit) || 20, 50));
+    const offset = Math.max(0, Number(q.offset) || 0);
     const where: string[] = ["n.usuario_id = ?"];
     const params: Array<number | string> = [userId];
 
@@ -18,26 +20,21 @@ export class NotificationRepository {
       where.push("n.leida = 0");
     }
 
-    const [countRows] = await pool.query<CountRow[]>(
+    const totalQuery = pool.query<CountRow[]>(
       `SELECT COUNT(*) AS total
        FROM notificaciones n
        WHERE ${where.join(" AND ")}`,
       params
     );
-    const total = Number(countRows[0]?.total ?? 0);
-
-    let unreadCount = total;
-    if (!q.unread) {
-      const [unreadRows] = await pool.query<CountRow[]>(
-        `SELECT COUNT(*) AS total
-         FROM notificaciones n
-         WHERE n.usuario_id = ? AND n.leida = 0`,
-        [userId]
-      );
-      unreadCount = Number(unreadRows[0]?.total ?? 0);
-    }
-
-    const [rows] = await pool.query<NotificationRow[]>(
+    const unreadQuery = q.unread
+      ? null
+      : pool.query<CountRow[]>(
+          `SELECT COUNT(*) AS total
+           FROM notificaciones n
+           WHERE n.usuario_id = ? AND n.leida = 0`,
+          [userId]
+        );
+    const itemsQuery = pool.query<NotificationRow[]>(
       `SELECT
         n.id,
         n.usuario_id,
@@ -52,10 +49,23 @@ export class NotificationRepository {
         n.updated_at
        FROM notificaciones n
        WHERE ${where.join(" AND ")}
-       ORDER BY n.created_at DESC
+       ORDER BY n.created_at DESC, n.id DESC
        LIMIT ? OFFSET ?`,
-      [...params, q.limit, q.offset]
+      [...params, limit, offset]
     );
+
+    const [[countRows], unreadResult, [rows]] = await Promise.all([
+      totalQuery,
+      unreadQuery ?? Promise.resolve<[CountRow[], unknown]>([[{ total: 0 } as CountRow], undefined]),
+      itemsQuery,
+    ]);
+    const total = Number(countRows[0]?.total ?? 0);
+
+    let unreadCount = total;
+    if (!q.unread) {
+      const [unreadRows] = unreadResult;
+      unreadCount = Number(unreadRows[0]?.total ?? 0);
+    }
 
     return { items: rows, total, unreadCount };
   }

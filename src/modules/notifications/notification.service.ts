@@ -14,9 +14,18 @@ function formatPoints(value: number | string | null | undefined): string {
 export class NotificationService {
   private readonly repo = new NotificationRepository();
 
+  private normalizeListQuery(q: ListNotificationsQuery): ListNotificationsQuery {
+    return {
+      ...q,
+      limit: Math.max(1, Math.min(Number(q.limit) || 20, 50)),
+      offset: Math.max(0, Number(q.offset) || 0),
+    };
+  }
+
   async listMy(requester: AuthContext, q: ListNotificationsQuery): Promise<NotificationListResponse> {
-    const { items, total, unreadCount } = await this.repo.listForUser(requester.userId, q);
-    return { items, total, limit: q.limit, offset: q.offset, unreadCount };
+    const normalized = this.normalizeListQuery(q);
+    const { items, total, unreadCount } = await this.repo.listForUser(requester.userId, normalized);
+    return { items, total, limit: normalized.limit, offset: normalized.offset, unreadCount };
   }
 
   async markRead(requester: AuthContext, id: number): Promise<void> {

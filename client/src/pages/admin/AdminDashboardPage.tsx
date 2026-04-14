@@ -1,11 +1,12 @@
 import { Link } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card } from "../../components/ui/Card";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { Button } from "../../components/ui/Button";
 import { Badge } from "../../components/ui/Badge";
 import { Avatar } from "../../components/ui/Avatar";
 import { useAuth } from "../../hooks/useAuth";
+import "../../styles/admin-dashboard.css";
 
 type HealthDbResponse = { ok: true; db: "up" };
 type AdminMetricsResponse = {
@@ -66,29 +67,38 @@ export function AdminDashboardPage() {
   const [healthCheckedAt, setHealthCheckedAt] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<AdminMetricsResponse["data"] | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await api.get<HealthDbResponse>("/health/db");
-        setDbStatus(res.data.db === "up" ? "up" : "down");
-        setHealthCheckedAt(new Date().toISOString());
-      } catch {
-        setDbStatus("down");
-        setHealthCheckedAt(new Date().toISOString());
-      }
-    })();
-  }, [api]);
+  const loadOverview = useCallback(
+    async (signal?: AbortSignal) => {
+      const checkedAt = new Date().toISOString();
+      const [healthResult, metricsResult] = await Promise.allSettled([
+        api.get<HealthDbResponse>("/admin/health/db", { signal }),
+        api.get<AdminMetricsResponse>("/admin/metrics", { signal }),
+      ]);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await api.get<AdminMetricsResponse>("/admin/metrics");
-        setMetrics(res.data.data);
-      } catch {
+      if (signal?.aborted) return;
+
+      if (healthResult.status === "fulfilled") {
+        setDbStatus(healthResult.value.data.db === "up" ? "up" : "down");
+      } else {
+        setDbStatus("down");
+      }
+
+      setHealthCheckedAt(checkedAt);
+
+      if (metricsResult.status === "fulfilled") {
+        setMetrics(metricsResult.value.data.data);
+      } else {
         setMetrics(null);
       }
-    })();
-  }, [api]);
+    },
+    [api],
+  );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadOverview(controller.signal);
+    return () => controller.abort();
+  }, [loadOverview]);
 
   const greeting = useMemo(() => {
     const name = user?.nombres?.trim() || "Admin";
@@ -391,16 +401,16 @@ function MetricCard({
 }) {
   const toneStyles =
     tone === "blue"
-      ? "from-blue-50 to-cyan-50 dark:from-blue-500/15 dark:to-cyan-400/10"
+      ? "cf-admin-metric-surface--blue"
       : tone === "green"
-        ? "from-emerald-50 to-teal-50 dark:from-emerald-500/15 dark:to-teal-400/10"
+        ? "cf-admin-metric-surface--green"
         : tone === "amber"
-          ? "from-amber-50 to-orange-50 dark:from-amber-500/15 dark:to-orange-400/10"
-          : "from-slate-50 to-white dark:from-slate-900 dark:to-slate-800/80";
+          ? "cf-admin-metric-surface--amber"
+          : "cf-admin-metric-surface--slate";
 
   return (
     <Card className="group overflow-hidden">
-      <div className={`h-full bg-gradient-to-br ${toneStyles} p-5 transition group-hover:brightness-[0.99]`}>
+      <div className={`cf-admin-metric-surface ${toneStyles}`}>
         <div className="flex items-start justify-between gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-2xl bg-white text-slate-900 shadow-sm ring-1 ring-black/5 dark:bg-slate-950/90 dark:text-cyan-200 dark:ring-white/10">
             {icon}
@@ -439,7 +449,7 @@ function StatusRow({
         : "border-slate-200 bg-slate-50 text-slate-800 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-100";
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md hover:shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/80 dark:hover:shadow-cyan-950/20">
+    <div className="cf-admin-status-card rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition dark:border-slate-800 dark:bg-slate-900/80">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -470,7 +480,7 @@ function QuickLink({
   return (
     <Link
       to={to}
-      className="group flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 transition hover:-translate-y-[1px] hover:bg-slate-50 hover:shadow-md hover:shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/75 dark:hover:bg-slate-800/90 dark:hover:shadow-cyan-950/20"
+      className="cf-admin-quick-link group flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/75 dark:hover:bg-slate-800/90"
     >
       <div className="flex min-w-0 items-center gap-3">
         <div className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-900 text-white shadow-sm transition group-hover:opacity-95 dark:bg-cyan-500 dark:text-slate-950">

@@ -1,15 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { EmptyState } from "../../components/ui/EmptyState";
+import { PaginationControls } from "../../components/ui/PaginationControls";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { Spinner } from "../../components/ui/Spinner";
 import { useAuth } from "../../hooks/useAuth";
 import type { ApiResponse } from "../../types/api";
 import type { MyPaymentHistoryItem, MyPaymentsCourseItem, PaymentStatus } from "../../types/payment";
 import { formatMoneyGTQ } from "../../utils/format";
+
+const HISTORY_PAGE_SIZE = 8;
 
 function statusBadge(estado: PaymentStatus) {
   if (estado === "pagado") return <Badge variant="green">Aprobado</Badge>;
@@ -43,21 +46,30 @@ export function MyPaymentsPage() {
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
   const [history, setHistory] = useState<MyPaymentHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyPage, setHistoryPage] = useState(1);
 
   useEffect(() => {
+    const controller = new AbortController();
     (async () => {
       try {
         setIsLoading(true);
-        const res = await api.get<ApiResponse<MyPaymentsCourseItem[]>>("/payments/my/courses");
+        const res = await api.get<ApiResponse<MyPaymentsCourseItem[]>>("/payments/my/courses", {
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
         setItems(res.data.data);
         if (res.data.data[0]?.course.id) setSelectedCourseId(res.data.data[0].course.id);
+      } catch (err) {
+        if ((err as { code?: string }).code === "ERR_CANCELED" || controller.signal.aborted) return;
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) setIsLoading(false);
       }
     })();
+    return () => controller.abort();
   }, [api]);
 
   useEffect(() => {
+    const controller = new AbortController();
     (async () => {
       if (!selectedCourseId) {
         setHistory([]);
@@ -67,18 +79,34 @@ export function MyPaymentsPage() {
         setHistoryLoading(true);
         const res = await api.get<ApiResponse<MyPaymentHistoryItem[]>>(
           `/payments/my/course/${selectedCourseId}/history`,
+          { signal: controller.signal }
         );
+        if (controller.signal.aborted) return;
         setHistory(res.data.data);
+        setHistoryPage(1);
+      } catch (err) {
+        if ((err as { code?: string }).code === "ERR_CANCELED" || controller.signal.aborted) return;
+        setHistory([]);
       } finally {
-        setHistoryLoading(false);
+        if (!controller.signal.aborted) setHistoryLoading(false);
       }
     })();
+    return () => controller.abort();
   }, [api, selectedCourseId]);
 
   const selected = useMemo(
     () => items.find((x) => x.course.id === selectedCourseId) ?? null,
     [items, selectedCourseId],
   );
+  const safeHistoryPage = Math.min(historyPage, Math.max(1, Math.ceil(history.length / HISTORY_PAGE_SIZE)));
+  const paginatedHistory = useMemo(
+    () => history.slice((safeHistoryPage - 1) * HISTORY_PAGE_SIZE, safeHistoryPage * HISTORY_PAGE_SIZE),
+    [history, safeHistoryPage],
+  );
+
+  useEffect(() => {
+    if (historyPage > safeHistoryPage) setHistoryPage(safeHistoryPage);
+  }, [historyPage, safeHistoryPage]);
 
   return (
     <div className="cf-payments-scope space-y-6">
@@ -206,7 +234,7 @@ export function MyPaymentsPage() {
               <div className="border-b border-slate-200 bg-white/90 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/90">
                 <div className="text-sm font-extrabold text-slate-900 dark:text-white">Historial</div>
                 <div className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
-                  Últimos movimientos (máximo 50).
+                  Últimos movimientos.
                 </div>
               </div>
 
@@ -218,30 +246,18 @@ export function MyPaymentsPage() {
                 <div className="p-4 text-sm text-slate-600 dark:text-slate-400">Sin pagos para este curso.</div>
               ) : (
                 <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {history.map((p) => (
-                    <div key={p.id} className="px-4 py-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 rounded-[1.15rem] border border-slate-200/80 bg-slate-50/70 px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/55">
-                          <div className="text-sm font-extrabold text-slate-900 dark:text-white">
-                            {formatMoneyGTQ(p.monto_total)}{" "}
-                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">· {p.metodo_pago}</span>
-                          </div>
-                          <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                            Enviado: {formatDateTimeEs(p.created_at)}
-                            {p.fecha_pago ? ` · Pagado: ${formatDateTimeEs(p.fecha_pago)}` : ""}
-                          </div>
-                          {p.observaciones && p.estado === "rechazado" ? (
-                            <div className="mt-2 text-xs font-semibold text-rose-700">
-                              Motivo: {p.observaciones}
-                            </div>
-                          ) : null}
-                        </div>
-                        <div className="shrink-0">{statusBadge(p.estado)}</div>
-                      </div>
-                    </div>
+                  {paginatedHistory.map((p) => (
+                    <PaymentHistoryRow key={p.id} payment={p} />
                   ))}
                 </div>
               )}
+              <PaginationControls
+                page={safeHistoryPage}
+                pageSize={HISTORY_PAGE_SIZE}
+                total={history.length}
+                isLoading={historyLoading}
+                onPageChange={setHistoryPage}
+              />
             </Card>
           </div>
         </div>
@@ -249,3 +265,28 @@ export function MyPaymentsPage() {
     </div>
   );
 }
+
+const PaymentHistoryRow = memo(function PaymentHistoryRow({ payment }: { payment: MyPaymentHistoryItem }) {
+  return (
+    <div className="px-4 py-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 rounded-[1.15rem] border border-slate-200/80 bg-slate-50/70 px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/55">
+          <div className="text-sm font-extrabold text-slate-900 dark:text-white">
+            {formatMoneyGTQ(payment.monto_total)}{" "}
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">· {payment.metodo_pago}</span>
+          </div>
+          <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+            Enviado: {formatDateTimeEs(payment.created_at)}
+            {payment.fecha_pago ? ` · Pagado: ${formatDateTimeEs(payment.fecha_pago)}` : ""}
+          </div>
+          {payment.observaciones && payment.estado === "rechazado" ? (
+            <div className="mt-2 text-xs font-semibold text-rose-700">
+              Motivo: {payment.observaciones}
+            </div>
+          ) : null}
+        </div>
+        <div className="shrink-0">{statusBadge(payment.estado)}</div>
+      </div>
+    </div>
+  );
+});

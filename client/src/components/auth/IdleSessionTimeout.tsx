@@ -4,7 +4,6 @@ import { Button } from "../ui/Button";
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const WARNING_BEFORE_MS = 2 * 60 * 1000;
-const WARNING_AT_MS = IDLE_TIMEOUT_MS - WARNING_BEFORE_MS;
 const LAST_ACTIVITY_KEY = "cfuturo:last-activity-at";
 const IDLE_LOGOUT_KEY = "cfuturo:idle-logout-at";
 const ACTIVITY_THROTTLE_MS = 1000;
@@ -111,15 +110,24 @@ export function IdleSessionTimeout() {
       const last = readLastActivity() ?? lastWriteRef.current;
       const elapsed = Date.now() - last;
       const remaining = IDLE_TIMEOUT_MS - elapsed;
+      const inWarningWindow = remaining <= WARNING_BEFORE_MS;
 
       if (remaining <= 0) {
         expireSession();
         return;
       }
 
-      setSecondsLeft(Math.ceil(remaining / 1000));
+      if (inWarningWindow) {
+        const nextSecondsLeft = Math.ceil(remaining / 1000);
+        setSecondsLeft((prev) => (prev === nextSecondsLeft ? prev : nextSecondsLeft));
+      }
+
       setWarning((prev) => {
-        if (elapsed >= WARNING_AT_MS) return { visible: true, sessionKey: `${user.id}:${token}` };
+        if (inWarningWindow) {
+          const nextSessionKey = `${user.id}:${token}`;
+          if (prev.visible && prev.sessionKey === nextSessionKey) return prev;
+          return { visible: true, sessionKey: nextSessionKey };
+        }
         return prev.visible ? { visible: false, sessionKey: null } : prev;
       });
     }, 1000);

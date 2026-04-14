@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 export function PublicFooter() {
   return (
-    <footer className="relative overflow-hidden border-t border-white/10 bg-[#020617] text-white">
+    <footer className="cf-public-footer relative overflow-hidden border-t border-white/10 text-white">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute left-0 top-0 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
         <div className="absolute right-0 top-10 h-72 w-72 rounded-full bg-blue-600/10 blur-3xl" />
@@ -106,7 +106,7 @@ export function PublicFooter() {
                     href={item.href}
                     target="_blank"
                     rel="noreferrer"
-                    className="group flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-300 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/40 hover:bg-cyan-400/10 hover:text-white hover:shadow-[0_12px_24px_rgba(34,211,238,0.12)]"
+                    className="cf-public-footer-social group flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-300 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/40 hover:bg-cyan-400/10 hover:text-white"
                     aria-label={item.label}
                   >
                     <span className="transition-transform duration-300 group-hover:scale-110">
@@ -134,7 +134,7 @@ export function PublicFooter() {
                 <li key={item.to}>
                   <Link
                     to={item.to}
-                    className="inline-flex text-lg text-slate-200 transition-all duration-200 hover:translate-x-1 hover:text-cyan-300 hover:drop-shadow-[0_0_12px_rgba(34,211,238,0.18)]"
+                    className="cf-public-footer-link inline-flex text-lg text-slate-200 transition-all duration-200 hover:translate-x-1 hover:text-cyan-300"
                   >
                     {item.label}
                   </Link>

@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Hero } from "../../components/landing/Hero";
 import { lazyNamed } from "../../utils/lazyNamed";
+import "../../styles/public-sections.css";
 
 const AboutSection = lazyNamed(() => import("../../components/landing/AboutSection"), "AboutSection");
 const FeaturedCoursesSection = lazyNamed(
@@ -14,24 +15,19 @@ const TestimonialsSection = lazyNamed(
 );
 
 function SectionPlaceholder({
-  minHeightClassName,
+  variant,
 }: {
-  minHeightClassName: string;
+  variant: "about" | "featured" | "why" | "testimonials";
 }) {
   return (
-    <div
-      className={`overflow-hidden rounded-3xl border border-slate-200/70 bg-white/80 p-6 shadow-sm shadow-slate-900/5 dark:border-slate-800/80 dark:bg-slate-950/80 ${minHeightClassName}`}
-    >
-      <div className="h-4 w-32 animate-pulse rounded-full bg-slate-200/80 dark:bg-slate-800/80" />
-      <div className="mt-4 h-9 w-3/4 animate-pulse rounded-full bg-slate-200/80 dark:bg-slate-800/80" />
-      <div className="mt-3 h-4 w-full animate-pulse rounded-full bg-slate-200/70 dark:bg-slate-800/70" />
-      <div className="mt-2 h-4 w-5/6 animate-pulse rounded-full bg-slate-200/70 dark:bg-slate-800/70" />
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className={`cf-public-placeholder cf-public-placeholder--${variant}`}>
+      <div className="cf-public-placeholder-chip" />
+      <div className="cf-public-placeholder-title" />
+      <div className="cf-public-placeholder-line cf-public-placeholder-line--full" />
+      <div className="cf-public-placeholder-line cf-public-placeholder-line--wide" />
+      <div className="cf-public-placeholder-grid">
         {Array.from({ length: 3 }, (_, index) => (
-          <div
-            key={index}
-            className="h-40 animate-pulse rounded-2xl bg-slate-100/90 dark:bg-slate-900/80"
-          />
+          <div key={index} className="cf-public-placeholder-card" />
         ))}
       </div>
     </div>
@@ -40,10 +36,10 @@ function SectionPlaceholder({
 
 function DeferredSection({
   children,
-  minHeightClassName,
+  variant,
 }: {
   children: ReactNode;
-  minHeightClassName: string;
+  variant: "about" | "featured" | "why" | "testimonials";
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [shouldRender, setShouldRender] = useState(false);
@@ -68,13 +64,13 @@ function DeferredSection({
   }, [shouldRender]);
 
   return (
-    <div ref={ref} className="[content-visibility:auto]">
+    <div ref={ref} className="cf-public-deferred">
       {shouldRender ? (
-        <Suspense fallback={<SectionPlaceholder minHeightClassName={minHeightClassName} />}>
+        <Suspense fallback={<SectionPlaceholder variant={variant} />}>
           {children}
         </Suspense>
       ) : (
-        <SectionPlaceholder minHeightClassName={minHeightClassName} />
+        <SectionPlaceholder variant={variant} />
       )}
     </div>
   );
@@ -85,19 +81,19 @@ export function HomePage() {
     <div className="space-y-16">
       <Hero />
 
-      <DeferredSection minHeightClassName="min-h-[42rem] md:min-h-[34rem]">
+      <DeferredSection variant="about">
         <AboutSection />
       </DeferredSection>
 
-      <DeferredSection minHeightClassName="min-h-[38rem] md:min-h-[30rem]">
+      <DeferredSection variant="featured">
         <FeaturedCoursesSection />
       </DeferredSection>
 
-      <DeferredSection minHeightClassName="min-h-[28rem] md:min-h-[22rem]">
+      <DeferredSection variant="why">
         <WhyChoose />
       </DeferredSection>
 
-      <DeferredSection minHeightClassName="min-h-[32rem] md:min-h-[24rem]">
+      <DeferredSection variant="testimonials">
         <TestimonialsSection />
       </DeferredSection>
     </div>
