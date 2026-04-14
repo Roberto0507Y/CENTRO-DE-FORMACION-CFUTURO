@@ -36,7 +36,10 @@ function TestimonialCard({ item }: { item: TestimonialMarqueeItem }) {
           className="h-11 w-11 rounded-full object-cover"
           src={item.image}
           alt={item.name}
+          width="44"
+          height="44"
           loading="lazy"
+          decoding="async"
         />
         <div className="min-w-0">
           <div className="flex items-center gap-1">

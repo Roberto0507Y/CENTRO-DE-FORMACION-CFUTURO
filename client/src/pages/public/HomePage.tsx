@@ -1,91 +1,105 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { AboutSection } from "../../components/landing/AboutSection";
+import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Hero } from "../../components/landing/Hero";
-import { WhyChoose } from "../../components/landing/WhyChoose";
-import { CourseCard } from "../../components/ui/CourseCard";
-import { Reveal } from "../../components/ui/Reveal";
-import { TestimonialsMarquee } from "../../components/ui/TestimonialsMarquee";
-import { useAuth } from "../../hooks/useAuth";
-import type { ApiResponse } from "../../types/api";
-import type { CourseListItem, CourseListResponse } from "../../types/course";
+import { lazyNamed } from "../../utils/lazyNamed";
 
-export function HomePage() {
-  const { api } = useAuth();
-  const [featured, setFeatured] = useState<CourseListItem[]>([]);
+const AboutSection = lazyNamed(() => import("../../components/landing/AboutSection"), "AboutSection");
+const FeaturedCoursesSection = lazyNamed(
+  () => import("../../components/landing/FeaturedCoursesSection"),
+  "FeaturedCoursesSection",
+);
+const WhyChoose = lazyNamed(() => import("../../components/landing/WhyChoose"), "WhyChoose");
+const TestimonialsSection = lazyNamed(
+  () => import("../../components/landing/TestimonialsSection"),
+  "TestimonialsSection",
+);
+
+function SectionPlaceholder({
+  minHeightClassName,
+}: {
+  minHeightClassName: string;
+}) {
+  return (
+    <div
+      className={`overflow-hidden rounded-3xl border border-slate-200/70 bg-white/80 p-6 shadow-sm shadow-slate-900/5 dark:border-slate-800/80 dark:bg-slate-950/80 ${minHeightClassName}`}
+    >
+      <div className="h-4 w-32 animate-pulse rounded-full bg-slate-200/80 dark:bg-slate-800/80" />
+      <div className="mt-4 h-9 w-3/4 animate-pulse rounded-full bg-slate-200/80 dark:bg-slate-800/80" />
+      <div className="mt-3 h-4 w-full animate-pulse rounded-full bg-slate-200/70 dark:bg-slate-800/70" />
+      <div className="mt-2 h-4 w-5/6 animate-pulse rounded-full bg-slate-200/70 dark:bg-slate-800/70" />
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 3 }, (_, index) => (
+          <div
+            key={index}
+            className="h-40 animate-pulse rounded-2xl bg-slate-100/90 dark:bg-slate-900/80"
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DeferredSection({
+  children,
+  minHeightClassName,
+}: {
+  children: ReactNode;
+  minHeightClassName: string;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [shouldRender, setShouldRender] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await api.get<ApiResponse<CourseListResponse>>("/courses", {
-          params: { page: 1, limit: 8 },
-        });
-        setFeatured(res.data.data.items);
-      } catch {
-        setFeatured([]);
-      }
-    })();
-  }, [api]);
+    if (shouldRender) return;
+    const node = ref.current;
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setShouldRender(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "320px 0px" },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [shouldRender]);
 
   return (
+    <div ref={ref} className="[content-visibility:auto]">
+      {shouldRender ? (
+        <Suspense fallback={<SectionPlaceholder minHeightClassName={minHeightClassName} />}>
+          {children}
+        </Suspense>
+      ) : (
+        <SectionPlaceholder minHeightClassName={minHeightClassName} />
+      )}
+    </div>
+  );
+}
+
+export function HomePage() {
+  return (
     <div className="space-y-16">
-      {/* Hero */}
       <Hero />
 
-      {/* About */}
-      <AboutSection />
+      <DeferredSection minHeightClassName="min-h-[42rem] md:min-h-[34rem]">
+        <AboutSection />
+      </DeferredSection>
 
-      {/* Featured courses */}
-      <section className="space-y-5">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Cursos destacados
-            </div>
-            <div className="mt-2 text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-              Empieza hoy
-            </div>
-          </div>
-          <Link
-            to="/courses"
-            className="inline-flex items-center gap-2 text-sm font-bold text-blue-700 transition-colors hover:text-blue-800 dark:text-cyan-300 dark:hover:text-cyan-200"
-          >
-            Ver todos
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </Link>
-        </div>
+      <DeferredSection minHeightClassName="min-h-[38rem] md:min-h-[30rem]">
+        <FeaturedCoursesSection />
+      </DeferredSection>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {featured.map((c) => (
-            <CourseCard key={c.id} course={c} />
-          ))}
-        </div>
-      </section>
+      <DeferredSection minHeightClassName="min-h-[28rem] md:min-h-[22rem]">
+        <WhyChoose />
+      </DeferredSection>
 
-      {/* Why choose */}
-      <WhyChoose />
-
-      {/* Testimonials */}
-      <section className="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white dark:border-slate-800/80 dark:bg-slate-950">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/6 via-transparent to-cyan-400/6 dark:from-cyan-400/10 dark:via-transparent dark:to-blue-500/10" />
-        <div className="relative px-6 py-12 md:px-12">
-          <Reveal>
-            <div className="mt-2 text-3xl font-black tracking-tight text-slate-900 dark:text-white">
-              Testimonios de nuestros estudiantes
-            </div>
-            <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300">
-              Opiniones reales de estudiantes y docentes que usan el campus todos los días.
-            </p>
-          </Reveal>
-
-          <div className="mt-8">
-            <TestimonialsMarquee />
-          </div>
-        </div>
-      </section>
-
+      <DeferredSection minHeightClassName="min-h-[32rem] md:min-h-[24rem]">
+        <TestimonialsSection />
+      </DeferredSection>
     </div>
   );
 }

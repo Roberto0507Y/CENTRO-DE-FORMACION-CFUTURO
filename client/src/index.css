@@ -362,3 +362,10 @@ input::-ms-clear {
 .cf-animate-fade-up {
   animation: cf-fade-up 520ms ease-out both;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .cf-animate-fade-in,
+  .cf-animate-fade-up {
+    animation: none;
+  }
+}

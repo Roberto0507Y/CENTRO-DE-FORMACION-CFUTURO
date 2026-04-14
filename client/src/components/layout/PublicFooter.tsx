@@ -18,12 +18,23 @@ export function PublicFooter() {
               aria-label="Ir al inicio"
               className="group inline-flex items-center"
             >
-              <img
-                src="/logo-horizontal.png"
-                alt="C.FUTURO"
-                className="h-24 w-auto select-none object-contain transition will-change-transform group-hover:drop-shadow-[0_0_18px_rgba(34,211,238,0.55)] md:h-[4.75rem]"
-                draggable={false}
-              />
+              <picture>
+                <source
+                  type="image/webp"
+                  srcSet="/logo-horizontal-660.webp 660w, /logo-horizontal-1320.webp 1320w"
+                  sizes="(max-width: 768px) 220px, 320px"
+                />
+                <img
+                  src="/logo-horizontal.png"
+                  alt="C.FUTURO"
+                  width="1320"
+                  height="400"
+                  decoding="async"
+                  loading="lazy"
+                  className="h-24 w-auto select-none object-contain transition will-change-transform group-hover:drop-shadow-[0_0_18px_rgba(34,211,238,0.55)] md:h-[4.75rem]"
+                  draggable={false}
+                />
+              </picture>
             </Link>
 
             <p className="mt-6 max-w-md text-lg leading-8 text-slate-300">

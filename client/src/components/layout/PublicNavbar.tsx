@@ -72,12 +72,23 @@ export function PublicNavbar() {
             onClick={() => setMobileOpen(false)}
             aria-label="Ir al inicio"
           >
-            <img
-              src="/logo-horizontal.png"
-              alt="C.FUTURO"
-              className="h-11 w-auto max-w-[170px] max-w-full select-none object-contain transition will-change-transform group-hover:drop-shadow-[0_0_18px_rgba(34,211,238,0.55)] sm:h-12 sm:max-w-[280px] lg:h-20 lg:max-w-[640px]"
-              draggable={false}
-            />
+            <picture>
+              <source
+                type="image/webp"
+                srcSet="/logo-horizontal-660.webp 660w, /logo-horizontal-1320.webp 1320w"
+                sizes="(max-width: 640px) 170px, (max-width: 1024px) 280px, 320px"
+              />
+              <img
+                src="/logo-horizontal.png"
+                alt="C.FUTURO"
+                width="1320"
+                height="400"
+                decoding="async"
+                fetchPriority="low"
+                className="h-11 w-auto max-w-[170px] max-w-full select-none object-contain transition will-change-transform group-hover:drop-shadow-[0_0_18px_rgba(34,211,238,0.55)] sm:h-12 sm:max-w-[280px] lg:h-20 lg:max-w-[640px]"
+                draggable={false}
+              />
+            </picture>
           </Link>
 
           {/* Desktop nav */}

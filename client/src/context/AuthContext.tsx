@@ -97,7 +97,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    (async () => {
+    const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
+    const deferBootstrap =
+      pathname === "/" ||
+      pathname === "/contact" ||
+      pathname === "/courses" ||
+      pathname.startsWith("/courses/");
+
+    const run = async () => {
       try {
         await refreshMe();
       } catch {
@@ -105,7 +112,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } finally {
         setIsLoading(false);
       }
-    })();
+    };
+
+    if (!deferBootstrap) {
+      void run();
+      return;
+    }
+
+    setIsLoading(false);
+
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const idleCallback = window.requestIdleCallback?.(
+      () => {
+        void refreshMe().catch(() => {
+          clearAuthState();
+        });
+      },
+      { timeout: 1400 },
+    );
+
+    const timeoutId =
+      idleCallback === undefined
+        ? window.setTimeout(() => {
+            void refreshMe().catch(() => {
+              clearAuthState();
+            });
+          }, 900)
+        : null;
+
+    return () => {
+      if (idleCallback !== undefined && typeof window.cancelIdleCallback === "function") {
+        window.cancelIdleCallback(idleCallback);
+      }
+
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
