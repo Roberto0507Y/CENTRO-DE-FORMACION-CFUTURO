@@ -78,6 +78,8 @@ export function CourseTasksStudentPage() {
   const [showComment, setShowComment] = useState(false);
   const [isReplacingSubmission, setIsReplacingSubmission] = useState(false);
 
+  const selectedTaskId = selected?.id ?? null;
+
   const load = useCallback(async () => {
     try {
       setLoading(true);
@@ -97,9 +99,11 @@ export function CourseTasksStudentPage() {
   const loadTaskDetail = useCallback(async (taskId: number) => {
     try {
       const res = await api.get<ApiResponse<Task>>(`/tasks/${taskId}`);
-      setSelected(res.data.data);
+      setSelected((prev) => (prev?.id === taskId ? res.data.data : prev));
+      return res.data.data;
     } catch {
       // dejamos la tarea actual si falla el refresh puntual
+      return null;
     }
   }, [api]);
 
@@ -123,7 +127,7 @@ export function CourseTasksStudentPage() {
   }, [id, load]);
 
   useEffect(() => {
-    if (!selected) {
+    if (!selectedTaskId) {
       setSubmission(null);
       return;
     }
@@ -134,9 +138,9 @@ export function CourseTasksStudentPage() {
     setSubmissionMethod("file");
     setShowComment(false);
     setIsReplacingSubmission(false);
-    void loadTaskDetail(selected.id);
-    void loadMySubmission(selected.id);
-  }, [loadMySubmission, loadTaskDetail, selected]);
+    void loadTaskDetail(selectedTaskId);
+    void loadMySubmission(selectedTaskId);
+  }, [loadMySubmission, loadTaskDetail, selectedTaskId]);
 
   const fileUploadsUsed = Math.min(
     MAX_STUDENT_FILE_UPLOADS_PER_TASK,
@@ -165,11 +169,12 @@ export function CourseTasksStudentPage() {
     try {
       setSubmitting(true);
       setBanner(null);
+      const latestTask = (await loadTaskDetail(selected.id)) ?? selected;
       const trimmedComment = comment.trim();
       const res =
         submissionMethod === "file"
-          ? await submitFile(selected.id, file, trimmedComment)
-          : await api.post<ApiResponse<TaskSubmission>>(`/tasks/${selected.id}/submissions`, {
+          ? await submitFile(latestTask.id, file, trimmedComment)
+          : await api.post<ApiResponse<TaskSubmission>>(`/tasks/${latestTask.id}/submissions`, {
               enlace_url: link.trim(),
               ...(trimmedComment ? { comentario_estudiante: trimmedComment } : {}),
             });

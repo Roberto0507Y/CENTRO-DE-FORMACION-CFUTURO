@@ -158,6 +158,19 @@ export class TaskService {
       normalizedInput.fecha_cierre = nextEntrega;
     }
 
+    const normalizedCloseValue =
+      normalizedInput.fecha_cierre === undefined ? current.fecha_cierre : normalizedInput.fecha_cierre;
+    const normalizedCloseDate = parseMysqlDatetime(normalizedCloseValue ?? null);
+
+    if (
+      normalizedCloseValue !== null &&
+      nextEntregaDate &&
+      normalizedCloseDate &&
+      normalizedCloseDate.getTime() < nextEntregaDate.getTime()
+    ) {
+      normalizedInput.fecha_cierre = nextEntrega;
+    }
+
     const uploadedUrl = file
       ? await this.uploadTaskFile(requester, file, `tasks/instructions/course-${ctx.curso_id}/task-${id}`, ctx.curso_id, "course")
       : null;

@@ -17,6 +17,22 @@ type CourseNavItem = {
   end?: boolean;
 };
 
+function courseContextTone(estado?: CourseDetail["estado"]) {
+  if (estado === "publicado") {
+    return "border-emerald-200/20 bg-[linear-gradient(135deg,rgba(6,95,70,0.34),rgba(8,47,73,0.26)_58%,rgba(15,23,42,0.42))]";
+  }
+  if (estado === "oculto") {
+    return "border-white/10 bg-[linear-gradient(135deg,rgba(51,65,85,0.34),rgba(15,23,42,0.28)_58%,rgba(2,6,23,0.46))]";
+  }
+  return "border-cyan-200/15 bg-[linear-gradient(135deg,rgba(8,145,178,0.22),rgba(30,41,59,0.2)_55%,rgba(15,23,42,0.46))]";
+}
+
+function courseStateLabel(estado?: CourseDetail["estado"]) {
+  if (estado === "publicado") return "Publicado";
+  if (estado === "oculto") return "Oculto";
+  return null;
+}
+
 function NavItem({
   to,
   label,
@@ -119,24 +135,28 @@ function CourseMobileDrawer({
         </div>
 
         <div className="px-4 pt-4">
-          <Card className="overflow-hidden border-white/10 bg-white/5 p-0 text-white">
+          <Card className={`overflow-hidden p-0 text-white ${courseContextTone(course?.estado)}`}>
             <div className="relative p-4">
               <div className="cf-course-shell-context-glow pointer-events-none absolute inset-0" />
               <div className="relative flex items-start gap-3">
-                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/10 text-sm font-black text-cyan-100 ring-1 ring-white/10">
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/12 text-sm font-black text-cyan-50 ring-1 ring-white/15 shadow-lg shadow-cyan-950/20">
                   {(course?.titulo?.trim()?.[0] ?? "C").toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-100/70">
-                    Curso
-                  </div>
-                  <div className="mt-1 line-clamp-2 text-base font-black leading-snug text-white">
+                  <div className="line-clamp-2 text-base font-black leading-snug tracking-tight text-white">
                     {course?.titulo ?? `Curso #${courseId}`}
                   </div>
                   {course ? (
-                    <div className="mt-2 line-clamp-1 text-xs font-semibold text-white/65">
-                      {course.docente.nombres} {course.docente.apellidos}
-                    </div>
+                    <>
+                      <div className="mt-1 line-clamp-1 text-xs font-semibold text-white/72">
+                        {course.docente.nombres} {course.docente.apellidos}
+                      </div>
+                      {courseStateLabel(course.estado) ? (
+                        <div className="mt-2 inline-flex items-center rounded-full border border-white/12 bg-white/8 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/78">
+                          {courseStateLabel(course.estado)}
+                        </div>
+                      ) : null}
+                    </>
                   ) : null}
                 </div>
               </div>
@@ -349,7 +369,7 @@ export function CourseManageLayout({ base }: { base: "admin" | "teacher" | "stud
 
         {/* Contexto del curso */}
         <div className="px-6 pt-5">
-          <Card className="cf-course-shell-context-card overflow-hidden border-white/10 bg-white/5 p-0 text-white">
+          <Card className={`cf-course-shell-context-card overflow-hidden p-0 text-white ${courseContextTone(course?.estado)}`}>
             {isLoading ? (
               <div className="flex items-center gap-3 p-4 text-sm text-white/80">
                 <Spinner />
@@ -359,23 +379,24 @@ export function CourseManageLayout({ base }: { base: "admin" | "teacher" | "stud
               <div className="relative p-4">
                 <div className="cf-course-shell-context-glow pointer-events-none absolute inset-0" />
                 <div className="relative flex items-start gap-3">
-                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/10 text-sm font-black text-cyan-100 ring-1 ring-white/10 shadow-lg shadow-black/20">
+                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/12 text-sm font-black text-cyan-50 ring-1 ring-white/15 shadow-lg shadow-cyan-950/20">
                     {(course?.titulo?.trim()?.[0] ?? "C").toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <div className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-100/70">
-                      Curso
-                    </div>
-                    <div className="mt-1 line-clamp-2 text-base font-black leading-snug text-white">
+                    <div className="line-clamp-2 text-base font-black leading-snug tracking-tight text-white">
                       {course?.titulo ?? `Curso #${id}`}
                     </div>
                     {course ? (
-                      <div className="mt-2 line-clamp-1 text-xs font-semibold text-white/65">
-                        Docente:{" "}
-                        <span className="text-white/85">
+                      <>
+                        <div className="mt-1 line-clamp-1 text-xs font-semibold text-white/72">
                           {course.docente.nombres} {course.docente.apellidos}
-                        </span>
-                      </div>
+                        </div>
+                        {courseStateLabel(course.estado) ? (
+                          <div className="mt-2 inline-flex items-center rounded-full border border-white/12 bg-white/8 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/78">
+                            {courseStateLabel(course.estado)}
+                          </div>
+                        ) : null}
+                      </>
                     ) : null}
                   </div>
                 </div>
