@@ -54,6 +54,12 @@ class TaskController {
             const submission = await this.service.gradeSubmission(req.auth, taskId, submissionId, req.body);
             res.status(200).json({ ok: true, data: submission });
         };
+        this.gradeStudentWithoutSubmission = async (req, res) => {
+            const taskId = Number(req.params.taskId);
+            const studentId = Number(req.params.studentId);
+            const submission = await this.service.gradeStudentWithoutSubmission(req.auth, taskId, studentId, req.body);
+            res.status(200).json({ ok: true, data: submission });
+        };
     }
 }
 exports.TaskController = TaskController;

@@ -44,6 +44,110 @@ function formatDateTime(value: string | null) {
   return d.toLocaleString("es-GT", { dateStyle: "medium", timeStyle: "short" });
 }
 
+function UserCard({
+  user,
+  currentUserId,
+  busy,
+  onRoleChange,
+  onStatusChange,
+  onActivate,
+  onSuspend,
+  onDisable,
+  onDelete,
+}: {
+  user: User;
+  currentUserId?: number;
+  busy: boolean;
+  onRoleChange: (role: UserRole) => void;
+  onStatusChange: (estado: UserEstado) => void;
+  onActivate: () => void;
+  onSuspend: () => void;
+  onDisable: () => void;
+  onDelete: () => void;
+}) {
+  const role = roleBadge(user.rol);
+  const estado = estadoBadge(user.estado);
+  const isSelf = currentUserId === user.id;
+
+  return (
+    <Card className="rounded-[1.75rem] p-4 md:hidden">
+      <div className="flex items-start gap-3">
+        <Avatar name={`${user.nombres} ${user.apellidos}`} src={user.foto_url} size={48} />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-black text-slate-900">
+            {user.nombres} {user.apellidos} <span className="text-xs font-bold text-slate-500">#{user.id}</span>
+          </div>
+          <div className="truncate text-sm text-slate-600">{user.correo}</div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Badge variant={role.variant}>{role.label}</Badge>
+            <Badge variant={estado.variant}>{estado.label}</Badge>
+            {isSelf ? <span className="text-xs font-bold text-slate-500">Tú</span> : null}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3">
+        <div>
+          <div className="mb-2 text-[11px] font-black uppercase tracking-wider text-slate-500">Rol</div>
+          <select
+            value={user.rol}
+            disabled={busy || isSelf}
+            onChange={(e) => onRoleChange(e.target.value as UserRole)}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none ring-blue-500 focus:ring-2 disabled:opacity-60"
+          >
+            <option value="estudiante">Estudiante</option>
+            <option value="docente">Docente</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+
+        <div>
+          <div className="mb-2 text-[11px] font-black uppercase tracking-wider text-slate-500">Estado</div>
+          <select
+            value={user.estado}
+            disabled={busy || isSelf}
+            onChange={(e) => onStatusChange(e.target.value as UserEstado)}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none ring-blue-500 focus:ring-2 disabled:opacity-60"
+          >
+            <option value="activo">Activo</option>
+            <option value="inactivo">Inactivo</option>
+            <option value="suspendido">Suspendido</option>
+          </select>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
+          <div>
+            Último login: <span className="font-semibold text-slate-800">{formatDateTime(user.ultimo_login)}</span>
+          </div>
+          <div className="mt-1">
+            Creado: <span className="font-semibold text-slate-800">{formatDateTime(user.created_at)}</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="ghost" size="sm" disabled={busy || isSelf} onClick={onActivate}>
+            Activar
+          </Button>
+          <Button variant="ghost" size="sm" disabled={busy || isSelf} onClick={onSuspend}>
+            Suspender
+          </Button>
+          <Button variant="ghost" size="sm" disabled={busy || isSelf} onClick={onDisable}>
+            Desactivar
+          </Button>
+          <Button variant="danger" size="sm" disabled={busy || isSelf} onClick={onDelete}>
+            Eliminar
+          </Button>
+        </div>
+
+        {isSelf ? (
+          <div className="text-xs text-slate-500">No puedes cambiar tu propio rol ni desactivar tu cuenta aquí.</div>
+        ) : null}
+        {busy ? <div className="text-xs text-slate-500">Guardando…</div> : null}
+      </div>
+    </Card>
+  );
+}
+
 export function AdminUsersPage() {
   const { api, user: me, refreshMe } = useAuth();
   const toast = useToast();
@@ -210,7 +314,28 @@ export function AdminUsersPage() {
               onSecondaryAction={deferredSearch ? undefined : () => (window.location.href = "/admin")}
             />
           ) : (
-            <div className="overflow-hidden rounded-[28px] border border-slate-200">
+            <div className="space-y-3">
+              <div className="grid gap-3 md:hidden">
+                {list.items.map((u) => {
+                  const busy = Boolean(isSaving[u.id]);
+                  return (
+                    <UserCard
+                      key={u.id}
+                      user={u}
+                      currentUserId={me?.id}
+                      busy={busy}
+                      onRoleChange={(rol) => void updateUser(u.id, { rol })}
+                      onStatusChange={(estado) => void updateUser(u.id, { estado })}
+                      onActivate={() => void activateUser(u.id)}
+                      onSuspend={() => void suspendUser(u.id)}
+                      onDisable={() => void disableUser(u.id)}
+                      onDelete={() => setPendingDeleteUser(u)}
+                    />
+                  );
+                })}
+              </div>
+
+              <div className="hidden overflow-hidden rounded-[28px] border border-slate-200 md:block">
               <table className="w-full min-w-[900px] border-separate border-spacing-0 bg-white">
                 <thead>
                   <tr className="text-left text-[11px] font-black uppercase tracking-wider text-slate-500">
@@ -328,6 +453,7 @@ export function AdminUsersPage() {
                   })}
                 </tbody>
               </table>
+              </div>
 
               <PaginationControls
                 page={page}

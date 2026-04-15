@@ -8,6 +8,7 @@ type QuizRow = RowDataPacket & Quiz;
 type QuestionRow = RowDataPacket & QuizQuestion;
 type AttemptRow = RowDataPacket & Attempt;
 type EnrollmentRow = RowDataPacket & { id: number };
+type AggregateRow = RowDataPacket & { total: string | number | null };
 
 type AnswerCheckRow = RowDataPacket & {
   pregunta_id: number;
@@ -162,11 +163,50 @@ export class QuizRepository {
     return rows;
   }
 
+  async sumActiveQuestionPoints(quizId: number, excludeQuestionId?: number): Promise<number> {
+    const excludeSql = excludeQuestionId ? "AND id <> ?" : "";
+    const params: Array<number> = excludeQuestionId ? [quizId, excludeQuestionId] : [quizId];
+    const [rows] = await pool.query<AggregateRow[]>(
+      `SELECT COALESCE(SUM(puntos), 0) AS total
+       FROM preguntas_quiz
+       WHERE quiz_id = ? AND estado = 'activo'
+       ${excludeSql}`,
+      params
+    );
+    return Number(rows[0]?.total ?? 0);
+  }
+
+  async findQuestionById(quizId: number, questionId: number): Promise<QuizQuestion | null> {
+    const [rows] = await pool.query<QuestionRow[]>(
+      `SELECT
+        id, quiz_id, enunciado, tipo, opcion_a, opcion_b, opcion_c, opcion_d,
+        respuesta_correcta, explicacion, puntos, orden, estado, created_at, updated_at
+       FROM preguntas_quiz
+       WHERE quiz_id = ? AND id = ?
+       LIMIT 1`,
+      [quizId, questionId]
+    );
+    return rows[0] ?? null;
+  }
+
   async listActiveQuestions(quizId: number): Promise<QuizQuestion[]> {
     const [rows] = await pool.query<QuestionRow[]>(
       `SELECT
         id, quiz_id, enunciado, tipo, opcion_a, opcion_b, opcion_c, opcion_d,
         respuesta_correcta, explicacion, puntos, orden, estado, created_at, updated_at
+       FROM preguntas_quiz
+       WHERE quiz_id = ? AND estado = 'activo'
+       ORDER BY orden ASC, id ASC`,
+      [quizId]
+    );
+    return rows;
+  }
+
+  async listActiveQuestionsPublic(quizId: number): Promise<Array<Omit<QuizQuestion, "respuesta_correcta">>> {
+    const [rows] = await pool.query<(RowDataPacket & Omit<QuizQuestion, "respuesta_correcta">)[]>(
+      `SELECT
+        id, quiz_id, enunciado, tipo, opcion_a, opcion_b, opcion_c, opcion_d,
+        explicacion, puntos, orden, estado, created_at, updated_at
        FROM preguntas_quiz
        WHERE quiz_id = ? AND estado = 'activo'
        ORDER BY orden ASC, id ASC`,
@@ -312,6 +352,44 @@ export class QuizRepository {
          puntos_obtenidos = VALUES(puntos_obtenidos),
          updated_at = NOW()`,
       [attemptId, questionId, respuestaUsuario, esCorrecta, puntosObtenidos]
+    );
+  }
+
+  async upsertAttemptAnswers(
+    conn: PoolConnection,
+    rows: Array<{
+      attemptId: number;
+      questionId: number;
+      respuestaUsuario: string | null;
+      esCorrecta: 0 | 1;
+      puntosObtenidos: number;
+    }>
+  ): Promise<void> {
+    if (rows.length === 0) return;
+
+    const values: Array<string | number | null> = [];
+    const tuples = rows.map((row) => {
+      values.push(
+        row.attemptId,
+        row.questionId,
+        row.respuestaUsuario,
+        row.esCorrecta,
+        row.puntosObtenidos
+      );
+      return "(?, ?, ?, ?, ?, NOW(), NOW())";
+    });
+
+    await conn.execute<ResultSetHeader>(
+      `INSERT INTO respuestas_intento_quiz
+        (intento_id, pregunta_id, respuesta_usuario, es_correcta, puntos_obtenidos, created_at, updated_at)
+       VALUES
+        ${tuples.join(", ")}
+       ON DUPLICATE KEY UPDATE
+         respuesta_usuario = VALUES(respuesta_usuario),
+         es_correcta = VALUES(es_correcta),
+         puntos_obtenidos = VALUES(puntos_obtenidos),
+         updated_at = NOW()`,
+      values
     );
   }
 

@@ -201,7 +201,11 @@ export function CourseGradesStudentPage() {
                 Actualizar
               </Button>
             </div>
-            <div className={`min-w-[220px] rounded-[1.75rem] bg-gradient-to-br ${metricTone(resumen.promedio_porcentaje)} p-5 text-white shadow-2xl shadow-slate-950/20`}>
+            <div
+              className={`w-full rounded-[1.75rem] bg-gradient-to-br ${metricTone(
+                resumen.promedio_porcentaje,
+              )} p-5 text-white shadow-2xl shadow-slate-950/20 sm:w-auto sm:min-w-[220px]`}
+            >
               <div className="text-xs font-black uppercase tracking-[0.22em] opacity-80">Promedio</div>
               <div className="mt-3 text-4xl font-black tracking-tight">{formatPercent(resumen.promedio_porcentaje)}</div>
               <div className="mt-2 text-xs font-bold opacity-80">

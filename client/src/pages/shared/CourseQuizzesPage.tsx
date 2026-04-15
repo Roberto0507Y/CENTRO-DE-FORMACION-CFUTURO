@@ -36,6 +36,23 @@ function toMysqlDatetime(local: string) {
   return v.length === 16 ? `${v}:00` : v;
 }
 
+function sortQuestions(items: QuizQuestion[]) {
+  return [...items].sort((a, b) => {
+    const orderDiff = Number(a.orden ?? 0) - Number(b.orden ?? 0);
+    if (orderDiff !== 0) return orderDiff;
+    return a.id - b.id;
+  });
+}
+
+function roundPoints(value: number) {
+  return Math.round((value + Number.EPSILON) * 1000) / 1000;
+}
+
+function formatPoints(value: number) {
+  const rounded = roundPoints(value);
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(3).replace(/\.?0+$/, "");
+}
+
 type QuizForm = {
   titulo: string;
   descripcion: string;
@@ -211,6 +228,26 @@ export function CourseQuizzesPage() {
     setBanner(null);
   };
 
+  const configuredTotalPoints = useMemo(() => {
+    const total = Number((selected?.puntaje_total ?? form.puntaje_total) || "0");
+    return Number.isFinite(total) && total > 0 ? roundPoints(total) : 0;
+  }, [form.puntaje_total, selected]);
+
+  const questionStats = useMemo(() => {
+    const active = questions.filter((q) => q.estado === "activo");
+    const total = questions.length;
+    const activeCount = active.length;
+    const pointsSum = roundPoints(active.reduce((acc, q) => acc + (Number(q.puntos) || 0), 0));
+    const byType = active.reduce(
+      (acc, q) => {
+        acc[q.tipo] += 1;
+        return acc;
+      },
+      { opcion_unica: 0, verdadero_falso: 0, respuesta_corta: 0 } as Record<QuestionType, number>
+    );
+    return { total, activeCount, pointsSum, byType };
+  }, [questions]);
+
   const questionValidation = useMemo(() => {
     const errors: Record<string, string> = {};
 
@@ -250,8 +287,33 @@ export function CourseQuizzesPage() {
       errors.respuesta_correcta = "La respuesta correcta es obligatoria.";
     }
 
-    return { ok: Object.keys(errors).length === 0, errors };
-  }, [qForm]);
+    const editingContribution =
+      qEditing && qEditing.estado === "activo" ? Number(qEditing.puntos || "0") : 0;
+    const activePointsWithoutCurrent = roundPoints(Math.max(questionStats.pointsSum - editingContribution, 0));
+    const nextContribution = qForm.estado === "activo" && Number.isFinite(points) && points > 0 ? points : 0;
+    const projectedPoints = roundPoints(activePointsWithoutCurrent + nextContribution);
+    const availablePoints = roundPoints(Math.max(configuredTotalPoints - activePointsWithoutCurrent, 0));
+
+    if (
+      qForm.estado === "activo" &&
+      Number.isFinite(points) &&
+      points > 0 &&
+      configuredTotalPoints > 0 &&
+      projectedPoints - configuredTotalPoints > 1e-9
+    ) {
+      errors.puntos_budget = `Esta pregunta supera el puntaje total del quiz. Disponible: ${formatPoints(
+        availablePoints
+      )} pts de ${formatPoints(configuredTotalPoints)}.`;
+    }
+
+    return {
+      ok: Object.keys(errors).length === 0,
+      errors,
+      activePointsWithoutCurrent,
+      availablePoints,
+      projectedPoints,
+    };
+  }, [configuredTotalPoints, qEditing, qForm, questionStats.pointsSum]);
 
   const saveQuiz = async () => {
     try {
@@ -352,15 +414,24 @@ export function CourseQuizzesPage() {
       };
 
       if (!qEditing) {
-        await api.post(`/courses/${ctx.courseId}/quizzes/${selected.id}/questions`, payload);
+        const res = await api.post<ApiResponse<QuizQuestion>>(
+          `/courses/${ctx.courseId}/quizzes/${selected.id}/questions`,
+          payload
+        );
+        setQuestions((prev) => sortQuestions([...prev, res.data.data]));
         setBanner({ tone: "success", text: "Pregunta creada." });
       } else {
-        await api.put(`/courses/${ctx.courseId}/quizzes/${selected.id}/questions/${qEditing.id}`, payload);
+        const res = await api.put<ApiResponse<QuizQuestion>>(
+          `/courses/${ctx.courseId}/quizzes/${selected.id}/questions/${qEditing.id}`,
+          payload
+        );
+        setQuestions((prev) =>
+          sortQuestions(prev.map((item) => (item.id === qEditing.id ? res.data.data : item)))
+        );
         setBanner({ tone: "success", text: "Pregunta actualizada." });
       }
       setQModal(false);
       setQEditing(null);
-      await loadQuestions(selected.id);
     } catch (err) {
       setBanner({ tone: "error", text: getApiErrorMessage(err, "No se pudo guardar la pregunta.") });
     } finally {
@@ -374,8 +445,8 @@ export function CourseQuizzesPage() {
       setSaving(true);
       setBanner(null);
       await api.delete(`/courses/${ctx.courseId}/quizzes/${selected.id}/questions/${q.id}`);
+      setQuestions((prev) => prev.filter((item) => item.id !== q.id));
       setBanner({ tone: "success", text: "Pregunta eliminada." });
-      await loadQuestions(selected.id);
     } catch (err) {
       setBanner({ tone: "error", text: getApiErrorMessage(err, "No se pudo eliminar la pregunta.") });
     } finally {
@@ -385,21 +456,7 @@ export function CourseQuizzesPage() {
   };
 
   const quizTitle = selected?.titulo ?? (form.titulo.trim() ? form.titulo.trim() : "Nuevo quiz");
-
-  const questionStats = useMemo(() => {
-    const active = questions.filter((q) => q.estado === "activo");
-    const total = questions.length;
-    const activeCount = active.length;
-    const pointsSum = active.reduce((acc, q) => acc + (Number(q.puntos) || 0), 0);
-    const byType = active.reduce(
-      (acc, q) => {
-        acc[q.tipo] += 1;
-        return acc;
-      },
-      { opcion_unica: 0, verdadero_falso: 0, respuesta_corta: 0 } as Record<QuestionType, number>
-    );
-    return { total, activeCount, pointsSum, byType };
-  }, [questions]);
+  const remainingPoints = roundPoints(Math.max(configuredTotalPoints - questionStats.pointsSum, 0));
 
   const hasItems = items.length > 0;
   const showForm = Boolean(selected) || creating;
@@ -692,6 +749,13 @@ export function CourseQuizzesPage() {
                 <div>
                   <div className="text-sm font-black text-slate-900">Preguntas</div>
                   <div className="mt-1 text-sm text-slate-600">Agrega preguntas y define respuesta correcta.</div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-bold">
+                    <Badge variant="slate">Total quiz: {formatPoints(configuredTotalPoints)} pts</Badge>
+                    <Badge variant="blue">Asignado: {formatPoints(questionStats.pointsSum)} pts</Badge>
+                    <Badge variant={remainingPoints === 0 ? "green" : "amber"}>
+                      Disponible: {formatPoints(remainingPoints)} pts
+                    </Badge>
+                  </div>
                 </div>
                 <Button size="sm" onClick={openCreateQuestion} disabled={!selected}>
                   + Agregar pregunta
@@ -756,7 +820,7 @@ export function CourseQuizzesPage() {
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                 <div className="text-sm font-black text-slate-900">Resultados</div>
                 <div className="mt-1 text-sm text-slate-600">
-                  Resumen del quiz y consistencia de puntajes (no requiere cambios de backend).
+                  Resumen del quiz y control del puntaje total configurado.
                 </div>
               </div>
 
@@ -768,9 +832,9 @@ export function CourseQuizzesPage() {
                 </Card>
                 <Card className="p-5">
                   <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Puntos (activos)</div>
-                  <div className="mt-2 text-2xl font-black text-slate-900">{questionStats.pointsSum}</div>
+                  <div className="mt-2 text-2xl font-black text-slate-900">{formatPoints(questionStats.pointsSum)}</div>
                   <div className="mt-1 text-xs text-slate-500">
-                    Puntaje total configurado: {Number(form.puntaje_total || "0")}
+                    Puntaje total configurado: {formatPoints(configuredTotalPoints)}
                   </div>
                 </Card>
               </div>
@@ -785,9 +849,9 @@ export function CourseQuizzesPage() {
                 <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
                   {questionStats.activeCount === 0
                     ? "No hay preguntas activas. Publicar no tendrá efecto hasta que agregues preguntas."
-                    : questionStats.pointsSum === Number(form.puntaje_total || "0")
+                    : questionStats.pointsSum === configuredTotalPoints
                       ? "Los puntos de las preguntas activas coinciden con el puntaje total."
-                      : "Sugerencia: ajusta el puntaje total o los puntos por pregunta para que coincidan (opcional)."}
+                      : `Aún faltan ${formatPoints(remainingPoints)} pts para completar el puntaje total del quiz.`}
                 </div>
               </Card>
             </div>
@@ -802,6 +866,12 @@ export function CourseQuizzesPage() {
           saving={saving}
           value={qForm}
           errors={questionValidation.errors}
+          budget={{
+            configuredTotal: configuredTotalPoints,
+            usedWithoutCurrent: questionValidation.activePointsWithoutCurrent,
+            available: questionValidation.availablePoints,
+            projectedTotal: questionValidation.projectedPoints,
+          }}
           onChange={setQForm}
           onClose={() => {
             setQModal(false);
@@ -831,6 +901,7 @@ function QuestionModal({
   saving,
   value,
   errors,
+  budget,
   onChange,
   onClose,
   onSave,
@@ -839,12 +910,19 @@ function QuestionModal({
   saving: boolean;
   value: QuestionForm;
   errors: Record<string, string>;
+  budget: {
+    configuredTotal: number;
+    usedWithoutCurrent: number;
+    available: number;
+    projectedTotal: number;
+  };
   onChange: (v: QuestionForm) => void;
   onClose: () => void;
   onSave: () => void;
 }) {
   const showOptions = value.tipo === "opcion_unica";
   const showTF = value.tipo === "verdadero_falso";
+  const canSave = !saving && Object.keys(errors).length === 0;
   const optionChoices = [
     { value: "a", label: value.opcion_a.trim() ? `A · ${value.opcion_a.trim()}` : "A", enabled: value.opcion_a.trim().length > 0 },
     { value: "b", label: value.opcion_b.trim() ? `B · ${value.opcion_b.trim()}` : "B", enabled: value.opcion_b.trim().length > 0 },
@@ -868,6 +946,20 @@ function QuestionModal({
         </div>
 
         <div className="max-h-[70vh] overflow-y-auto bg-white p-6 space-y-4">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="font-extrabold text-slate-900">Control de puntaje</div>
+            <div className="mt-1">
+              Total del quiz: <span className="font-bold">{formatPoints(budget.configuredTotal)} pts</span>
+              {" · "}
+              Asignado: <span className="font-bold">{formatPoints(budget.usedWithoutCurrent)} pts</span>
+              {" · "}
+              Disponible para esta pregunta: <span className="font-bold">{formatPoints(budget.available)} pts</span>
+            </div>
+            <div className="mt-1 text-xs text-slate-500">
+              Si esta pregunta queda activa, el quiz proyectado quedará en {formatPoints(budget.projectedTotal)} pts.
+            </div>
+          </div>
+
           <div>
             <div className="text-xs font-extrabold text-slate-700">Enunciado</div>
             <textarea
@@ -979,6 +1071,9 @@ function QuestionModal({
                 <div className="text-xs font-extrabold text-slate-700">Puntos</div>
                 <Input inputMode="numeric" value={value.puntos} onChange={(e) => onChange({ ...value, puntos: e.target.value })} />
                 {errors.puntos ? <div className="mt-2 text-xs font-bold text-rose-700">{errors.puntos}</div> : null}
+                {errors.puntos_budget ? (
+                  <div className="mt-2 text-xs font-bold text-rose-700">{errors.puntos_budget}</div>
+                ) : null}
               </div>
               <div>
                 <div className="text-xs font-extrabold text-slate-700">Orden</div>
@@ -1004,7 +1099,7 @@ function QuestionModal({
             <Button variant="ghost" onClick={onClose} disabled={saving}>
               Cancelar
             </Button>
-            <Button onClick={onSave} disabled={saving}>
+            <Button onClick={onSave} disabled={!canSave}>
               {saving ? "Guardando…" : "Guardar"}
             </Button>
           </div>

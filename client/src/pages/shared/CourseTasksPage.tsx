@@ -13,6 +13,8 @@ import type {
   CreateTaskInput,
   GradeSubmissionInput,
   Task,
+  TaskSubmissionFilter,
+  TaskSubmissionList,
   TaskStatus,
   TaskSubmissionWithStudent,
   UpdateTaskInput,
@@ -24,11 +26,16 @@ import type { CourseManageOutletContext } from "./courseManage.types";
 
 type Banner = { tone: "success" | "error"; text: string } | null;
 
+function submissionRowKey(item: TaskSubmissionWithStudent) {
+  return item.id > 0 ? `submission:${item.id}` : `student:${item.estudiante.id}`;
+}
+
 const TaskModal = lazyNamed(() => import("../../components/course/CourseTaskModals"), "TaskModal");
 const SubmissionsModal = lazyNamed(
   () => import("../../components/course/CourseTaskModals"),
   "SubmissionsModal"
 );
+const SUBMISSIONS_PAGE_SIZE = 8;
 
 function statusBadge(estado: TaskStatus) {
   if (estado === "publicada") return <Badge variant="green">Publicada</Badge>;
@@ -60,10 +67,12 @@ type FormState = {
   enlace_url: string;
   puntos: string;
   fecha_entrega: string;
+  fecha_cierre: string;
+  permite_entrega_tardia: boolean;
   estado: TaskStatus;
 };
 
-function buildTaskFormData(payload: Record<string, string | number | null | undefined>, file: File) {
+function buildTaskFormData(payload: Record<string, string | number | boolean | null | undefined>, file: File) {
   const fd = new FormData();
   Object.entries(payload).forEach(([key, value]) => {
     if (value === undefined) return;
@@ -124,14 +133,24 @@ export function CourseTasksPage() {
     enlace_url: "",
     puntos: "100",
     fecha_entrega: "",
+    fecha_cierre: "",
+    permite_entrega_tardia: false,
     estado: "borrador",
   });
 
   const [submissionsOpen, setSubmissionsOpen] = useState(false);
   const [submissionsTask, setSubmissionsTask] = useState<Task | null>(null);
   const [submissionsLoading, setSubmissionsLoading] = useState(false);
-  const [submissions, setSubmissions] = useState<TaskSubmissionWithStudent[]>([]);
+  const [submissions, setSubmissions] = useState<TaskSubmissionList>({
+    items: [],
+    total: 0,
+    limit: SUBMISSIONS_PAGE_SIZE,
+    offset: 0,
+    filter: "todos",
+  });
   const [submissionsError, setSubmissionsError] = useState<string | null>(null);
+  const [submissionsPage, setSubmissionsPage] = useState(1);
+  const [submissionsFilter, setSubmissionsFilter] = useState<TaskSubmissionFilter>("todos");
   const submissionsRequestRef = useRef<AbortController | null>(null);
 
   const loadTasks = useCallback(
@@ -192,6 +211,8 @@ export function CourseTasksPage() {
       enlace_url: "",
       puntos: "100",
       fecha_entrega: "",
+      fecha_cierre: "",
+      permite_entrega_tardia: false,
       estado: "borrador",
     });
   };
@@ -214,6 +235,8 @@ export function CourseTasksPage() {
       enlace_url: t.enlace_url ?? "",
       puntos: String(t.puntos ?? "100"),
       fecha_entrega: toLocalInputValue(t.fecha_entrega),
+      fecha_cierre: toLocalInputValue(t.fecha_cierre),
+      permite_entrega_tardia: t.permite_entrega_tardia === 1,
       estado: t.estado,
     });
     setModalOpen(true);
@@ -224,6 +247,15 @@ export function CourseTasksPage() {
     const errors: Record<string, string> = {};
     if (!form.titulo.trim()) errors.titulo = "Título requerido";
     if (!form.fecha_entrega) errors.fecha_entrega = "Fecha de entrega requerida";
+    if (form.fecha_cierre) {
+      const due = new Date(form.fecha_entrega).getTime();
+      const close = new Date(form.fecha_cierre).getTime();
+      if (!Number.isFinite(close)) {
+        errors.fecha_cierre = "Fecha de cierre inválida";
+      } else if (form.fecha_entrega && Number.isFinite(due) && close < due) {
+        errors.fecha_cierre = "La fecha de cierre no puede ser anterior a la fecha de entrega.";
+      }
+    }
     const pts = Number(form.puntos);
     if (!Number.isFinite(pts) || pts < 0) errors.puntos = "Puntos inválidos";
     if (form.enlace_url.trim()) {
@@ -252,6 +284,8 @@ export function CourseTasksPage() {
         enlace_url: form.enlace_url ? form.enlace_url : null,
         puntos: Number(form.puntos || "100"),
         fecha_entrega: toMysqlDatetime(form.fecha_entrega),
+        fecha_cierre: form.fecha_cierre ? toMysqlDatetime(form.fecha_cierre) : null,
+        permite_entrega_tardia: form.permite_entrega_tardia,
         estado: form.estado,
       };
 
@@ -300,44 +334,84 @@ export function CourseTasksPage() {
     }
   };
 
-  const openSubmissions = async (t: Task) => {
+  const loadSubmissions = useCallback(
+    async (task: Task, page: number, filter: TaskSubmissionFilter) => {
+      submissionsRequestRef.current?.abort();
+      const controller = new AbortController();
+      submissionsRequestRef.current = controller;
+      try {
+        setSubmissionsLoading(true);
+        setSubmissionsError(null);
+        const limit = SUBMISSIONS_PAGE_SIZE;
+        const offset = (page - 1) * limit;
+        const res = await api.get<ApiResponse<TaskSubmissionList>>(`/tasks/${task.id}/submissions`, {
+          params: { limit, offset, filter },
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
+        setSubmissions(res.data.data);
+      } catch (err) {
+        if ((err as { code?: string }).code === "ERR_CANCELED" || controller.signal.aborted) return;
+        const message = getApiErrorMessage(err, "No se pudieron cargar las entregas.");
+        setSubmissionsError(message);
+        setBanner({ tone: "error", text: message });
+        setSubmissions((prev) => ({
+          ...prev,
+          items: [],
+          total: 0,
+          limit: SUBMISSIONS_PAGE_SIZE,
+          offset: (page - 1) * SUBMISSIONS_PAGE_SIZE,
+          filter,
+        }));
+      } finally {
+        if (!controller.signal.aborted) setSubmissionsLoading(false);
+      }
+    },
+    [api]
+  );
+
+  const openSubmissions = (t: Task) => {
     submissionsRequestRef.current?.abort();
-    const controller = new AbortController();
-    submissionsRequestRef.current = controller;
     setSubmissionsTask(t);
-    setSubmissions([]);
+    setSubmissions({
+      items: [],
+      total: 0,
+      limit: SUBMISSIONS_PAGE_SIZE,
+      offset: 0,
+      filter: "todos",
+    });
+    setSubmissionsPage(1);
+    setSubmissionsFilter("todos");
     setSubmissionsError(null);
     setSubmissionsOpen(true);
-    try {
-      setSubmissionsLoading(true);
-      const res = await api.get<ApiResponse<TaskSubmissionWithStudent[]>>(`/tasks/${t.id}/submissions`, {
-        params: { limit: 50, offset: 0 },
-        signal: controller.signal,
-      });
-      if (controller.signal.aborted) return;
-      setSubmissions(res.data.data);
-    } catch (err) {
-      if ((err as { code?: string }).code === "ERR_CANCELED" || controller.signal.aborted) return;
-      const message = getApiErrorMessage(err, "No se pudieron cargar las entregas.");
-      setSubmissionsError(message);
-      setBanner({ tone: "error", text: message });
-      setSubmissions([]);
-    } finally {
-      if (!controller.signal.aborted) setSubmissionsLoading(false);
-    }
   };
+
+  useEffect(() => {
+    if (!submissionsOpen || !submissionsTask) return;
+    void loadSubmissions(submissionsTask, submissionsPage, submissionsFilter);
+  }, [loadSubmissions, submissionsFilter, submissionsOpen, submissionsPage, submissionsTask]);
 
   useEffect(() => {
     return () => submissionsRequestRef.current?.abort();
   }, []);
 
-  const gradeSubmission = async (submissionId: number, input: GradeSubmissionInput) => {
+  const gradeSubmission = async (submission: TaskSubmissionWithStudent, input: GradeSubmissionInput) => {
     if (!submissionsTask) return;
-    const res = await api.put<ApiResponse<TaskSubmissionWithStudent>>(
-      `/tasks/${submissionsTask.id}/submissions/${submissionId}/grade`,
-      input
-    );
-    setSubmissions((prev) => prev.map((item) => (item.id === submissionId ? res.data.data : item)));
+    const res =
+      submission.has_submission && submission.id > 0
+        ? await api.put<ApiResponse<TaskSubmissionWithStudent>>(
+            `/tasks/${submissionsTask.id}/submissions/${submission.id}/grade`,
+            input
+          )
+        : await api.put<ApiResponse<TaskSubmissionWithStudent>>(
+            `/tasks/${submissionsTask.id}/students/${submission.estudiante.id}/grade`,
+            input
+          );
+    const targetKey = submissionRowKey(submission);
+    setSubmissions((prev) => ({
+      ...prev,
+      items: prev.items.map((item) => (submissionRowKey(item) === targetKey ? res.data.data : item)),
+    }));
     setBanner({ tone: "success", text: "Entrega calificada." });
   };
 
@@ -626,16 +700,35 @@ export function CourseTasksPage() {
             taskTitle={submissionsTask.titulo}
             maxPoints={Number(submissionsTask.puntos)}
             loading={submissionsLoading}
-            items={submissions}
+            items={submissions.items}
+            filter={submissionsFilter}
+            page={submissionsPage}
+            pageSize={submissions.limit}
+            total={submissions.total}
             errorMessage={submissionsError}
             onOpenFileUrl={(url: string, filename: string) => void downloadFileUrl(api, url, filename)}
-            onGrade={(submissionId: number, input: GradeSubmissionInput) => gradeSubmission(submissionId, input)}
-            onRetry={() => void openSubmissions(submissionsTask)}
+            onGrade={(submission: TaskSubmissionWithStudent, input: GradeSubmissionInput) =>
+              gradeSubmission(submission, input)
+            }
+            onFilterChange={(nextFilter: TaskSubmissionFilter) => {
+              setSubmissionsFilter(nextFilter);
+              setSubmissionsPage(1);
+            }}
+            onPageChange={setSubmissionsPage}
+            onRetry={() => void loadSubmissions(submissionsTask, submissionsPage, submissionsFilter)}
             onClose={() => {
               submissionsRequestRef.current?.abort();
               setSubmissionsOpen(false);
               setSubmissionsTask(null);
-              setSubmissions([]);
+              setSubmissions({
+                items: [],
+                total: 0,
+                limit: SUBMISSIONS_PAGE_SIZE,
+                offset: 0,
+                filter: "todos",
+              });
+              setSubmissionsPage(1);
+              setSubmissionsFilter("todos");
               setSubmissionsError(null);
             }}
           />

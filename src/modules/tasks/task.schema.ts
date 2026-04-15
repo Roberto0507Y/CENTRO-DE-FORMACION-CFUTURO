@@ -82,6 +82,7 @@ export const listSubmissionsQuerySchema = z
   .object({
     limit: z.preprocess((v) => (v === undefined ? 50 : Number(v)), z.number().int().min(1).max(50)),
     offset: z.preprocess((v) => (v === undefined ? 0 : Number(v)), z.number().int().min(0)),
+    filter: z.enum(["todos", "no_entregados"]).default("todos"),
   })
   .strict();
 
@@ -89,6 +90,13 @@ export const gradeSubmissionParamsSchema = z
   .object({
     taskId: z.preprocess((v) => Number(v), z.number().int().positive()),
     submissionId: z.preprocess((v) => Number(v), z.number().int().positive()),
+  })
+  .strict();
+
+export const gradeStudentParamsSchema = z
+  .object({
+    taskId: z.preprocess((v) => Number(v), z.number().int().positive()),
+    studentId: z.preprocess((v) => Number(v), z.number().int().positive()),
   })
   .strict();
 
@@ -104,6 +112,6 @@ export const gradeSubmissionBodySchema = z
   .object({
     calificacion: numberFromBody("calificación").pipe(z.number().min(0).max(1000)),
     comentario_docente: z.string().max(2000).nullable().optional(),
-    estado: z.enum(["revisada", "devuelta"]).optional(),
+    estado: z.enum(["revisada", "devuelta", "no_entregada"]).optional(),
   })
   .strict();

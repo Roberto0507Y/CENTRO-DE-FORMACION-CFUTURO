@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.gradeSubmissionBodySchema = exports.createSubmissionBodySchema = exports.gradeSubmissionParamsSchema = exports.listSubmissionsQuerySchema = exports.submissionTaskIdParamsSchema = exports.updateTaskBodySchema = exports.createTaskBodySchema = exports.taskIdParamsSchema = exports.courseIdParamsSchema = void 0;
+exports.gradeSubmissionBodySchema = exports.createSubmissionBodySchema = exports.gradeStudentParamsSchema = exports.gradeSubmissionParamsSchema = exports.listSubmissionsQuerySchema = exports.submissionTaskIdParamsSchema = exports.updateTaskBodySchema = exports.createTaskBodySchema = exports.taskIdParamsSchema = exports.courseIdParamsSchema = void 0;
 const zod_1 = require("zod");
 const url_schema_1 = require("../../common/validation/url.schema");
 const mysqlDatetime = zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?$/, "Formato DATETIME inválido");
@@ -78,12 +78,19 @@ exports.listSubmissionsQuerySchema = zod_1.z
     .object({
     limit: zod_1.z.preprocess((v) => (v === undefined ? 50 : Number(v)), zod_1.z.number().int().min(1).max(50)),
     offset: zod_1.z.preprocess((v) => (v === undefined ? 0 : Number(v)), zod_1.z.number().int().min(0)),
+    filter: zod_1.z.enum(["todos", "no_entregados"]).default("todos"),
 })
     .strict();
 exports.gradeSubmissionParamsSchema = zod_1.z
     .object({
     taskId: zod_1.z.preprocess((v) => Number(v), zod_1.z.number().int().positive()),
     submissionId: zod_1.z.preprocess((v) => Number(v), zod_1.z.number().int().positive()),
+})
+    .strict();
+exports.gradeStudentParamsSchema = zod_1.z
+    .object({
+    taskId: zod_1.z.preprocess((v) => Number(v), zod_1.z.number().int().positive()),
+    studentId: zod_1.z.preprocess((v) => Number(v), zod_1.z.number().int().positive()),
 })
     .strict();
 exports.createSubmissionBodySchema = zod_1.z
@@ -97,6 +104,6 @@ exports.gradeSubmissionBodySchema = zod_1.z
     .object({
     calificacion: numberFromBody("calificación").pipe(zod_1.z.number().min(0).max(1000)),
     comentario_docente: zod_1.z.string().max(2000).nullable().optional(),
-    estado: zod_1.z.enum(["revisada", "devuelta"]).optional(),
+    estado: zod_1.z.enum(["revisada", "devuelta", "no_entregada"]).optional(),
 })
     .strict();

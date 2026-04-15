@@ -8,7 +8,9 @@ import type {
   CreateTaskInput,
   Task,
   TaskSubmission,
+  TaskSubmissionList,
   TaskSubmissionWithStudent,
+  TaskSubmissionFilter,
   UpdateTaskInput,
   GradeSubmissionInput,
   ListSubmissionsQuery,
@@ -21,6 +23,13 @@ function parseMysqlDatetime(dt: string | null): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+function getEffectiveTaskClose(entrega: Date | null, cierre: Date | null): Date | null {
+  if (!cierre) return null;
+  if (!entrega) return cierre;
+  // Evita que un cierre viejo deje bloqueada la tarea si la entrega fue extendida después.
+  return cierre.getTime() < entrega.getTime() ? entrega : cierre;
+}
+
 const MAX_STUDENT_FILE_UPLOADS_PER_TASK = 3;
 const DEFAULT_SUBMISSIONS_LIMIT = 50;
 const MAX_SUBMISSIONS_LIMIT = 50;
@@ -28,6 +37,7 @@ const MAX_SUBMISSIONS_LIMIT = 50;
 function normalizeSubmissionsPagination(query: Partial<ListSubmissionsQuery> | null | undefined): ListSubmissionsQuery {
   const rawLimit = Number(query?.limit);
   const rawOffset = Number(query?.offset);
+  const filter: TaskSubmissionFilter = query?.filter === "no_entregados" ? "no_entregados" : "todos";
 
   const limit =
     Number.isInteger(rawLimit) && rawLimit > 0
@@ -35,7 +45,7 @@ function normalizeSubmissionsPagination(query: Partial<ListSubmissionsQuery> | n
       : DEFAULT_SUBMISSIONS_LIMIT;
   const offset = Number.isInteger(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
 
-  return { limit, offset };
+  return { limit, offset, filter };
 }
 
 export class TaskService {
@@ -133,6 +143,21 @@ export class TaskService {
     if (!current) throw notFound("Tarea no encontrada");
     if (input.archivo_url && !file) throw badRequest("No puedes asignar archivo_url manualmente. Sube un archivo.");
 
+    const nextEntrega = input.fecha_entrega ?? current.fecha_entrega;
+    const nextEntregaDate = parseMysqlDatetime(nextEntrega);
+    const currentCloseDate = parseMysqlDatetime(current.fecha_cierre);
+    const normalizedInput: UpdateTaskInput = { ...input };
+
+    if (
+      input.fecha_entrega !== undefined &&
+      input.fecha_cierre === undefined &&
+      currentCloseDate &&
+      nextEntregaDate &&
+      currentCloseDate.getTime() < nextEntregaDate.getTime()
+    ) {
+      normalizedInput.fecha_cierre = nextEntrega;
+    }
+
     const uploadedUrl = file
       ? await this.uploadTaskFile(requester, file, `tasks/instructions/course-${ctx.curso_id}/task-${id}`, ctx.curso_id, "course")
       : null;
@@ -140,8 +165,8 @@ export class TaskService {
 
     try {
       await this.repo.updateById(id, {
-        ...input,
-        titulo: input.titulo?.trim(),
+        ...normalizedInput,
+        titulo: normalizedInput.titulo?.trim(),
         archivo_url: uploadedUrl ?? (shouldClearFile ? null : undefined),
       });
     } catch (err) {
@@ -185,7 +210,7 @@ export class TaskService {
     const now = new Date();
     const apertura = parseMysqlDatetime(ctx.fecha_apertura);
     const entrega = parseMysqlDatetime(ctx.fecha_entrega);
-    const cierre = parseMysqlDatetime(ctx.fecha_cierre);
+    const cierre = getEffectiveTaskClose(entrega, parseMysqlDatetime(ctx.fecha_cierre));
 
     if (apertura && now.getTime() < apertura.getTime()) {
       throw forbidden("La tarea aún no está disponible");
@@ -278,11 +303,13 @@ export class TaskService {
     requester: AuthContext,
     taskId: number,
     query: ListSubmissionsQuery
-  ): Promise<TaskSubmissionWithStudent[]> {
+  ): Promise<TaskSubmissionList> {
     const ctx = await this.repo.getTaskContext(taskId);
     if (!ctx) throw notFound("Tarea no encontrada");
     this.assertCanManage(requester, ctx.docente_id);
-    return this.repo.listSubmissionsForTask(taskId, normalizeSubmissionsPagination(query));
+    const normalized = normalizeSubmissionsPagination(query);
+    const result = await this.repo.listSubmissionsForTask(taskId, normalized);
+    return { ...result, ...normalized };
   }
 
   async gradeSubmission(
@@ -307,10 +334,13 @@ export class TaskService {
       throw badRequest(`La calificación no puede ser mayor a ${ctx.puntos} puntos`);
     }
 
+    const current = await this.repo.findSubmissionWithStudentById(submissionId);
+    if (!current) throw notFound("Entrega no encontrada");
+
     const ok = await this.repo.gradeSubmission(submissionId, {
       ...input,
       comentario_docente: input.comentario_docente?.toString().trim() || null,
-      estado: input.estado ?? "revisada",
+      estado: input.estado ?? (current.has_submission ? "revisada" : "no_entregada"),
     });
     if (!ok) throw notFound("Entrega no encontrada");
 
@@ -324,6 +354,62 @@ export class TaskService {
       score: updated.calificacion ?? input.calificacion,
       maxPoints: ctx.puntos,
     });
+    return updated;
+  }
+
+  async gradeStudentWithoutSubmission(
+    requester: AuthContext,
+    taskId: number,
+    studentId: number,
+    input: GradeSubmissionInput
+  ): Promise<TaskSubmissionWithStudent> {
+    const gradingReady = await this.repo.supportsSubmissionGrading();
+    if (!gradingReady) {
+      throw serviceUnavailable(
+        "Calificación de entregas no disponible: ejecuta db/alter_entregas_tareas_add_calificacion.sql."
+      );
+    }
+
+    const ctx = await this.repo.getTaskGradingContext(taskId);
+    if (!ctx) throw notFound("Tarea no encontrada");
+    this.assertCanManage(requester, ctx.docente_id);
+
+    const enrolled = await this.repo.userIsEnrolledActive(studentId, ctx.curso_id);
+    if (!enrolled) throw notFound("Estudiante no inscrito en este curso");
+
+    const taskPoints = Number(ctx.puntos);
+    if (Number.isFinite(taskPoints) && input.calificacion > taskPoints) {
+      throw badRequest(`La calificación no puede ser mayor a ${ctx.puntos} puntos`);
+    }
+
+    const existing = await this.repo.findMySubmission(taskId, studentId);
+    if (existing) {
+      return this.gradeSubmission(requester, taskId, existing.id, {
+        ...input,
+        estado: input.estado ?? (existing.estado === "no_entregada" ? "no_entregada" : "revisada"),
+      });
+    }
+
+    const submissionId = await this.repo.createOrGradeMissingSubmission(taskId, studentId, {
+      ...input,
+      comentario_docente: input.comentario_docente?.toString().trim() || null,
+      estado: input.estado ?? "no_entregada",
+    });
+
+    if (!submissionId) throw new Error("No se pudo crear la calificación para el estudiante");
+
+    const updated = await this.repo.findSubmissionWithStudentById(submissionId);
+    if (!updated) throw notFound("Entrega no encontrada");
+
+    void this.notifications.notifyStudentTaskGraded({
+      studentId,
+      courseId: ctx.curso_id,
+      taskTitle: ctx.tarea_titulo,
+      courseTitle: ctx.curso_titulo,
+      score: updated.calificacion ?? input.calificacion,
+      maxPoints: ctx.puntos,
+    });
+
     return updated;
   }
 

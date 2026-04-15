@@ -110,7 +110,12 @@ export function CourseStudentsPage() {
         </Card>
       ) : (
         <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="space-y-3 p-4 md:hidden">
+            {paginated.map((s) => (
+              <StudentCard key={s.usuario_id} student={s} />
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
             <table className="min-w-full text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-xs font-black uppercase tracking-wider text-slate-500">
                 <tr>
@@ -171,5 +176,51 @@ const StudentRow = memo(function StudentRow({ student }: { student: CourseStuden
       </td>
       <td className="px-6 py-4 text-slate-700">{student.fecha_inscripcion}</td>
     </tr>
+  );
+});
+
+const StudentCard = memo(function StudentCard({ student }: { student: CourseStudentItem }) {
+  return (
+    <div className="space-y-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
+      <div className="flex items-center gap-3">
+        <div className="grid h-12 w-12 place-items-center overflow-hidden rounded-2xl bg-slate-100 ring-1 ring-slate-200">
+          {student.foto_url ? (
+            <img src={student.foto_url} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <span className="text-xs font-black text-slate-600">
+              {(student.nombres?.[0] ?? "E").toUpperCase()}
+              {(student.apellidos?.[0] ?? "S").toUpperCase()}
+            </span>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-black text-slate-900 dark:text-slate-100">
+            {student.apellidos}, {student.nombres}
+          </div>
+          <div className="truncate text-xs text-slate-500 dark:text-slate-400">{student.correo}</div>
+        </div>
+      </div>
+
+      <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/70">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <div className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Progreso</div>
+            <div className="mt-1 text-sm font-black text-slate-900 dark:text-slate-100">{student.progreso}%</div>
+          </div>
+          <div>
+            <div className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Tipo</div>
+            <div className="mt-1">
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:ring-slate-700">
+                {student.tipo_inscripcion}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Fecha</div>
+          <div className="mt-1 text-sm text-slate-700 dark:text-slate-200">{student.fecha_inscripcion}</div>
+        </div>
+      </div>
+    </div>
   );
 });

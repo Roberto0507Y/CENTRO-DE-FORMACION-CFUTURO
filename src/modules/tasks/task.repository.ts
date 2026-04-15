@@ -7,6 +7,7 @@ import type {
   UpdateTaskInput,
   TaskSubmission,
   TaskSubmissionWithStudent,
+  TaskSubmissionFilter,
   UpsertSubmissionInput,
   GradeSubmissionInput,
 } from "./task.types";
@@ -37,10 +38,19 @@ type SubmissionContextRow = RowDataPacket & {
   curso_titulo: string;
   puntos: string;
 };
+type TaskGradingContextRow = RowDataPacket & {
+  id: number;
+  curso_id: number;
+  docente_id: number;
+  tarea_titulo: string;
+  curso_titulo: string;
+  puntos: string;
+};
 
 type EnrollmentRow = RowDataPacket & { id: number };
 type SubmissionRow = RowDataPacket & TaskSubmission;
 type SubmissionWithStudentRow = RowDataPacket & TaskSubmission & {
+  has_submission: 0 | 1;
   nombres: string;
   apellidos: string;
   correo: string;
@@ -48,6 +58,7 @@ type SubmissionWithStudentRow = RowDataPacket & TaskSubmission & {
 };
 
 type ColumnExistsRow = RowDataPacket & { cnt: number };
+type CountRow = RowDataPacket & { total: number };
 
 export class TaskRepository {
   private static columnCache = new Map<string, boolean>();
@@ -378,8 +389,8 @@ export class TaskRepository {
 
   async listSubmissionsForTask(
     taskId: number,
-    pagination: { limit: number; offset: number }
-  ): Promise<TaskSubmissionWithStudent[]> {
+    pagination: { limit: number; offset: number; filter: TaskSubmissionFilter }
+  ): Promise<{ items: TaskSubmissionWithStudent[]; total: number }> {
     const safeLimit =
       Number.isInteger(pagination.limit) && pagination.limit > 0
         ? Math.min(pagination.limit, 50)
@@ -389,26 +400,58 @@ export class TaskRepository {
     const hasLink = await TaskRepository.hasColumn("entregas_tareas", "enlace_url");
     const hasUploadCount = await this.supportsSubmissionUploadLimit();
     const hasGrading = await this.supportsSubmissionGrading();
-    const [rows] = await pool.query<SubmissionWithStudentRow[]>(
-      `SELECT
-        e.id, e.tarea_id, e.estudiante_id, e.archivo_url,
-        ${hasUploadCount ? "e.subidas_archivo" : "0 AS subidas_archivo"},
+    const hasSubmissionSql = `CASE
+          WHEN e.id IS NULL THEN 0
+          WHEN e.estado = 'no_entregada'
+            AND e.archivo_url IS NULL
+            ${hasLink ? "AND e.enlace_url IS NULL" : ""}
+            AND e.comentario_estudiante IS NULL
+          THEN 0
+          ELSE 1
+        END`;
+    const filterSql =
+      pagination.filter === "no_entregados"
+        ? ` AND (${hasSubmissionSql}) = 0`
+        : "";
+
+    const [countRows, rows] = await Promise.all([
+      pool.query<CountRow[]>(
+        `SELECT COUNT(*) AS total
+         FROM tareas t
+         JOIN inscripciones i ON i.curso_id = t.curso_id AND i.estado = 'activa'
+         LEFT JOIN entregas_tareas e ON e.tarea_id = t.id AND e.estudiante_id = i.usuario_id
+         WHERE t.id = ?${filterSql}`,
+        [taskId]
+      ),
+      pool.query<SubmissionWithStudentRow[]>(
+        `SELECT
+        COALESCE(e.id, 0) AS id,
+        t.id AS tarea_id,
+        u.id AS estudiante_id,
+        e.archivo_url,
+        ${hasUploadCount ? "COALESCE(e.subidas_archivo, 0) AS subidas_archivo" : "0 AS subidas_archivo"},
         ${hasLink ? "e.enlace_url" : "NULL AS enlace_url"}, e.comentario_estudiante,
-        e.fecha_entrega, e.estado,
+        COALESCE(e.fecha_entrega, t.fecha_entrega) AS fecha_entrega,
+        CASE WHEN e.id IS NULL THEN 'no_entregada' ELSE e.estado END AS estado,
         ${hasGrading ? "e.calificacion" : "NULL AS calificacion"},
         ${hasGrading ? "e.comentario_docente" : "NULL AS comentario_docente"},
         ${hasGrading ? "e.fecha_calificacion" : "NULL AS fecha_calificacion"},
-        e.created_at, e.updated_at,
+        COALESCE(e.created_at, t.created_at) AS created_at,
+        COALESCE(e.updated_at, t.updated_at) AS updated_at,
+        ${hasSubmissionSql} AS has_submission,
         u.nombres, u.apellidos, u.correo, u.foto_url
-       FROM entregas_tareas e
-       JOIN usuarios u ON u.id = e.estudiante_id
-       WHERE e.tarea_id = ?
-       ORDER BY e.fecha_entrega DESC, e.id DESC
+       FROM tareas t
+       JOIN inscripciones i ON i.curso_id = t.curso_id AND i.estado = 'activa'
+       JOIN usuarios u ON u.id = i.usuario_id
+       LEFT JOIN entregas_tareas e ON e.tarea_id = t.id AND e.estudiante_id = u.id
+       WHERE t.id = ?${filterSql}
+       ORDER BY u.apellidos ASC, u.nombres ASC, u.id ASC
        LIMIT ? OFFSET ?`,
-      [taskId, safeLimit, safeOffset]
-    );
+        [taskId, safeLimit, safeOffset]
+      ),
+    ]);
 
-    return rows.map((r) => ({
+    const items = rows[0].map((r) => ({
       id: r.id,
       tarea_id: r.tarea_id,
       estudiante_id: r.estudiante_id,
@@ -423,6 +466,7 @@ export class TaskRepository {
       fecha_calificacion: r.fecha_calificacion,
       created_at: r.created_at,
       updated_at: r.updated_at,
+      has_submission: Boolean(r.has_submission),
       estudiante: {
         id: r.estudiante_id,
         nombres: r.nombres,
@@ -431,6 +475,8 @@ export class TaskRepository {
         foto_url: r.foto_url,
       },
     }));
+    const total = Number(countRows[0][0]?.total ?? 0);
+    return { items, total };
   }
 
   async getSubmissionContext(
@@ -483,6 +529,78 @@ export class TaskRepository {
     return res.affectedRows > 0;
   }
 
+  async getTaskGradingContext(taskId: number): Promise<TaskGradingContextRow | null> {
+    const [rows] = await pool.query<TaskGradingContextRow[]>(
+      `SELECT
+        t.id,
+        t.curso_id,
+        c.docente_id,
+        t.titulo AS tarea_titulo,
+        c.titulo AS curso_titulo,
+        t.puntos
+       FROM tareas t
+       JOIN cursos c ON c.id = t.curso_id
+       WHERE t.id = ?
+       LIMIT 1`,
+      [taskId]
+    );
+    return rows[0] ?? null;
+  }
+
+  async createOrGradeMissingSubmission(
+    taskId: number,
+    studentId: number,
+    input: GradeSubmissionInput
+  ): Promise<number> {
+    const hasLink = await TaskRepository.hasColumn("entregas_tareas", "enlace_url");
+    const hasUploadCount = await this.supportsSubmissionUploadLimit();
+
+    const columns = ["tarea_id", "estudiante_id", "archivo_url"];
+    const placeholders = ["?", "?", "NULL"];
+    const values: Array<string | number | null> = [taskId, studentId];
+
+    if (hasUploadCount) {
+      columns.push("subidas_archivo");
+      placeholders.push("0");
+    }
+
+    if (hasLink) {
+      columns.push("enlace_url");
+      placeholders.push("NULL");
+    }
+
+    columns.push(
+      "comentario_estudiante",
+      "fecha_entrega",
+      "estado",
+      "calificacion",
+      "comentario_docente",
+      "fecha_calificacion",
+      "created_at",
+      "updated_at"
+    );
+    placeholders.push("NULL", "NOW()", "?", "?", "?", "NOW()", "NOW()", "NOW()");
+    values.push(input.estado ?? "no_entregada", input.calificacion, input.comentario_docente?.toString().trim() || null);
+
+    const [res] = await pool.execute<ResultSetHeader>(
+      `INSERT INTO entregas_tareas
+        (${columns.join(", ")})
+       VALUES
+        (${placeholders.join(", ")})
+       ON DUPLICATE KEY UPDATE
+         estado = VALUES(estado),
+         calificacion = VALUES(calificacion),
+         comentario_docente = VALUES(comentario_docente),
+         fecha_calificacion = NOW(),
+         updated_at = NOW()`,
+      values
+    );
+
+    if (res.insertId) return res.insertId;
+    const existing = await this.findMySubmission(taskId, studentId);
+    return existing?.id ?? 0;
+  }
+
   async findSubmissionWithStudentById(submissionId: number): Promise<TaskSubmissionWithStudent | null> {
     const hasLink = await TaskRepository.hasColumn("entregas_tareas", "enlace_url");
     const hasUploadCount = await this.supportsSubmissionUploadLimit();
@@ -497,6 +615,14 @@ export class TaskRepository {
         ${hasGrading ? "e.comentario_docente" : "NULL AS comentario_docente"},
         ${hasGrading ? "e.fecha_calificacion" : "NULL AS fecha_calificacion"},
         e.created_at, e.updated_at,
+        CASE
+          WHEN e.estado = 'no_entregada'
+            AND e.archivo_url IS NULL
+            ${hasLink ? "AND e.enlace_url IS NULL" : ""}
+            AND e.comentario_estudiante IS NULL
+          THEN 0
+          ELSE 1
+        END AS has_submission,
         u.nombres, u.apellidos, u.correo, u.foto_url
        FROM entregas_tareas e
        JOIN usuarios u ON u.id = e.estudiante_id
@@ -522,6 +648,7 @@ export class TaskRepository {
       fecha_calificacion: r.fecha_calificacion,
       created_at: r.created_at,
       updated_at: r.updated_at,
+      has_submission: Boolean(r.has_submission),
       estudiante: {
         id: r.estudiante_id,
         nombres: r.nombres,

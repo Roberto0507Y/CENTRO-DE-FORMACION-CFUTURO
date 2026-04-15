@@ -94,6 +94,15 @@ export function CourseTasksStudentPage() {
     }
   }, [api, id]);
 
+  const loadTaskDetail = useCallback(async (taskId: number) => {
+    try {
+      const res = await api.get<ApiResponse<Task>>(`/tasks/${taskId}`);
+      setSelected(res.data.data);
+    } catch {
+      // dejamos la tarea actual si falla el refresh puntual
+    }
+  }, [api]);
+
   const loadMySubmission = useCallback(async (taskId: number) => {
     try {
       const res = await api.get<ApiResponse<TaskSubmission | null>>(`/tasks/${taskId}/submissions/my`);
@@ -125,8 +134,9 @@ export function CourseTasksStudentPage() {
     setSubmissionMethod("file");
     setShowComment(false);
     setIsReplacingSubmission(false);
+    void loadTaskDetail(selected.id);
     void loadMySubmission(selected.id);
-  }, [loadMySubmission, selected]);
+  }, [loadMySubmission, loadTaskDetail, selected]);
 
   const fileUploadsUsed = Math.min(
     MAX_STUDENT_FILE_UPLOADS_PER_TASK,
@@ -468,15 +478,15 @@ export function CourseTasksStudentPage() {
 
           {selected.archivo_url || selected.enlace_url ? (
             <section className="border-b border-slate-200 py-7">
-              <div className="overflow-hidden bg-slate-50">
-                <div className="grid grid-cols-[minmax(0,1fr)_180px] border-b border-slate-300 px-5 py-3 text-sm font-black text-slate-800">
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                <div className="hidden border-b border-slate-300 px-5 py-3 text-sm font-black text-slate-800 md:grid md:grid-cols-[minmax(0,1fr)_180px]">
                   <div>Nombre del recurso</div>
                   <div>Acción</div>
                 </div>
 
                 {selected.archivo_url ? (
                   <button
-                    className="grid grid-cols-[minmax(0,1fr)_180px] items-center border-b border-slate-200 bg-white px-5 py-4 text-sm text-slate-700 hover:bg-slate-50"
+                    className="flex flex-col items-start gap-3 border-b border-slate-200 bg-white px-5 py-4 text-left text-sm text-slate-700 hover:bg-slate-50 md:grid md:grid-cols-[minmax(0,1fr)_180px] md:items-center"
                     type="button"
                     onClick={() => void downloadFileUrl(api, selected.archivo_url!, selected.titulo)}
                   >
@@ -487,13 +497,15 @@ export function CourseTasksStudentPage() {
                       </svg>
                       <span className="truncate font-semibold">Archivo adjunto del docente</span>
                     </span>
-                    <span className="font-semibold text-blue-700">Abrir</span>
+                    <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 md:justify-self-start md:rounded-none md:bg-transparent md:px-0 md:py-0 md:text-sm">
+                      Abrir
+                    </span>
                   </button>
                 ) : null}
 
                 {selected.enlace_url ? (
                   <button
-                    className="grid grid-cols-[minmax(0,1fr)_180px] items-center border-b border-slate-200 bg-white px-5 py-4 text-sm text-slate-700 hover:bg-slate-50"
+                    className="flex flex-col items-start gap-3 border-b border-slate-200 bg-white px-5 py-4 text-left text-sm text-slate-700 hover:bg-slate-50 md:grid md:grid-cols-[minmax(0,1fr)_180px] md:items-center"
                     type="button"
                     onClick={() => void downloadFileUrl(api, selected.enlace_url!, selected.titulo)}
                   >
@@ -504,7 +516,9 @@ export function CourseTasksStudentPage() {
                       </svg>
                       <span className="truncate font-semibold">Enlace de apoyo</span>
                     </span>
-                    <span className="font-semibold text-blue-700">Abrir</span>
+                    <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 md:justify-self-start md:rounded-none md:bg-transparent md:px-0 md:py-0 md:text-sm">
+                      Abrir
+                    </span>
                   </button>
                 ) : null}
               </div>
@@ -589,7 +603,14 @@ export function CourseTasksStudentPage() {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="ghost" onClick={() => void loadMySubmission(selected.id)} disabled={submitting}>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      void loadTaskDetail(selected.id);
+                      void loadMySubmission(selected.id);
+                    }}
+                    disabled={submitting}
+                  >
                     Recargar
                   </Button>
                   <Button
@@ -702,7 +723,14 @@ export function CourseTasksStudentPage() {
                       Cancelar
                     </Button>
                   ) : null}
-                  <Button variant="ghost" onClick={() => void loadMySubmission(selected.id)} disabled={submitting}>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      void loadTaskDetail(selected.id);
+                      void loadMySubmission(selected.id);
+                    }}
+                    disabled={submitting}
+                  >
                     Recargar entrega
                   </Button>
                   <Button onClick={() => void submit()} disabled={submitting || !canSubmit}>

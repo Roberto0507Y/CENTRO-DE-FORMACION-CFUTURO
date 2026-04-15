@@ -88,6 +88,7 @@ export type TaskSubmission = {
 };
 
 export type TaskSubmissionWithStudent = TaskSubmission & {
+  has_submission: boolean;
   estudiante: {
     id: number;
     nombres: string;
@@ -107,10 +108,21 @@ export type UpsertSubmissionInput = {
 export type GradeSubmissionInput = {
   calificacion: number;
   comentario_docente?: string | null;
-  estado?: Extract<TaskSubmissionStatus, "revisada" | "devuelta">;
+  estado?: Extract<TaskSubmissionStatus, "revisada" | "devuelta" | "no_entregada">;
 };
+
+export type TaskSubmissionFilter = "todos" | "no_entregados";
 
 export type ListSubmissionsQuery = {
   limit: number;
   offset: number;
+  filter: TaskSubmissionFilter;
+};
+
+export type TaskSubmissionList = {
+  items: TaskSubmissionWithStudent[];
+  total: number;
+  limit: number;
+  offset: number;
+  filter: TaskSubmissionFilter;
 };

@@ -212,60 +212,112 @@ export function AdminCategoriesPage() {
               onAction={openCreate}
             />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px] border-separate border-spacing-0">
-                <thead>
-                  <tr className="text-left text-[11px] font-black uppercase tracking-wider text-slate-500">
-                    <th className="pb-3 pr-4">Categoría</th>
-                    <th className="pb-3 pr-4">Descripción</th>
-                    <th className="pb-3 pr-4">Cursos</th>
-                    <th className="pb-3 pr-4">Estado</th>
-                    <th className="pb-3 pr-4">Actualización</th>
-                    <th className="pb-3 pr-4">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((c) => (
-                    <tr key={c.id} className="border-t">
-                      <td className="py-3 pr-4 align-top">
-                        <div className="flex items-center gap-3">
-                          <div className="h-12 w-16 overflow-hidden rounded-xl bg-slate-100 ring-1 ring-black/5">
-                            {c.imagen_url ? (
-                              <img src={c.imagen_url} alt="" className="h-full w-full object-cover" loading="lazy" />
-                            ) : (
-                              <div className="h-full w-full bg-gradient-to-br from-blue-600/15 via-slate-100 to-white" />
-                            )}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-sm font-black text-slate-900">{c.nombre}</div>
-                            <div className="mt-1 text-xs font-bold text-slate-500">ID: {c.id}</div>
-                          </div>
+            <div className="space-y-4">
+              <div className="space-y-3 md:hidden">
+                {items.map((c) => (
+                  <div
+                    key={c.id}
+                    className="space-y-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/70"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="h-14 w-16 shrink-0 overflow-hidden rounded-2xl bg-slate-100 ring-1 ring-black/5">
+                        {c.imagen_url ? (
+                          <img src={c.imagen_url} alt="" className="h-full w-full object-cover" loading="lazy" />
+                        ) : (
+                          <div className="h-full w-full bg-gradient-to-br from-blue-600/15 via-slate-100 to-white" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-black text-slate-900">{c.nombre}</div>
+                        <div className="mt-1 text-xs font-bold text-slate-500">ID: {c.id}</div>
+                        <div className="mt-2">{statusBadge(c.estado)}</div>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/70">
+                      <div>
+                        <div className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Descripción</div>
+                        <div className="mt-1 text-sm text-slate-700 dark:text-slate-200">{c.descripcion || "—"}</div>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <div className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Cursos</div>
+                          <div className="mt-1 text-sm font-black text-slate-900 dark:text-slate-100">{c.cursos_count}</div>
                         </div>
-                      </td>
-                      <td className="py-3 pr-4 align-top">
-                        <div className="text-sm text-slate-700 line-clamp-2">{c.descripcion || "—"}</div>
-                      </td>
-                      <td className="py-3 pr-4 align-top">
-                        <div className="text-sm font-black text-slate-900">{c.cursos_count}</div>
-                      </td>
-                      <td className="py-3 pr-4 align-top">{statusBadge(c.estado)}</td>
-                      <td className="py-3 pr-4 align-top">
-                        <div className="text-sm text-slate-700">{new Date(c.updated_at).toLocaleString("es-GT")}</div>
-                      </td>
-                      <td className="py-3 pr-4 align-top">
-                        <div className="flex flex-wrap gap-2">
-                          <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>
-                            Editar
-                          </Button>
-                          <Button size="sm" variant="secondary" onClick={() => void toggleStatus(c)}>
-                            {c.estado === "activo" ? "Inactivar" : "Activar"}
-                          </Button>
+                        <div>
+                          <div className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Actualización</div>
+                          <div className="mt-1 text-sm text-slate-700 dark:text-slate-200">{new Date(c.updated_at).toLocaleString("es-GT")}</div>
                         </div>
-                      </td>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>
+                        Editar
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={() => void toggleStatus(c)}>
+                        {c.estado === "activo" ? "Inactivar" : "Activar"}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[980px] border-separate border-spacing-0">
+                  <thead>
+                    <tr className="text-left text-[11px] font-black uppercase tracking-wider text-slate-500">
+                      <th className="pb-3 pr-4">Categoría</th>
+                      <th className="pb-3 pr-4">Descripción</th>
+                      <th className="pb-3 pr-4">Cursos</th>
+                      <th className="pb-3 pr-4">Estado</th>
+                      <th className="pb-3 pr-4">Actualización</th>
+                      <th className="pb-3 pr-4">Acciones</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {items.map((c) => (
+                      <tr key={c.id} className="border-t">
+                        <td className="py-3 pr-4 align-top">
+                          <div className="flex items-center gap-3">
+                            <div className="h-12 w-16 overflow-hidden rounded-xl bg-slate-100 ring-1 ring-black/5">
+                              {c.imagen_url ? (
+                                <img src={c.imagen_url} alt="" className="h-full w-full object-cover" loading="lazy" />
+                              ) : (
+                                <div className="h-full w-full bg-gradient-to-br from-blue-600/15 via-slate-100 to-white" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-sm font-black text-slate-900">{c.nombre}</div>
+                              <div className="mt-1 text-xs font-bold text-slate-500">ID: {c.id}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 pr-4 align-top">
+                          <div className="text-sm text-slate-700 line-clamp-2">{c.descripcion || "—"}</div>
+                        </td>
+                        <td className="py-3 pr-4 align-top">
+                          <div className="text-sm font-black text-slate-900">{c.cursos_count}</div>
+                        </td>
+                        <td className="py-3 pr-4 align-top">{statusBadge(c.estado)}</td>
+                        <td className="py-3 pr-4 align-top">
+                          <div className="text-sm text-slate-700">{new Date(c.updated_at).toLocaleString("es-GT")}</div>
+                        </td>
+                        <td className="py-3 pr-4 align-top">
+                          <div className="flex flex-wrap gap-2">
+                            <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>
+                              Editar
+                            </Button>
+                            <Button size="sm" variant="secondary" onClick={() => void toggleStatus(c)}>
+                              {c.estado === "activo" ? "Inactivar" : "Activar"}
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

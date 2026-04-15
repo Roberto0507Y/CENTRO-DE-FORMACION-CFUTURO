@@ -30,4 +30,5 @@ router.get("/:taskId/submissions/my", (0, role_middleware_1.requireRole)("estudi
 // Entregas (docente/admin)
 router.get("/:taskId/submissions", (0, role_middleware_1.requireRole)("admin", "docente"), (0, validate_middleware_1.validate)({ params: task_schema_1.submissionTaskIdParamsSchema, query: task_schema_1.listSubmissionsQuerySchema }), (0, asyncHandler_1.asyncHandler)(controller.listSubmissions));
 router.put("/:taskId/submissions/:submissionId/grade", (0, role_middleware_1.requireRole)("admin", "docente"), (0, validate_middleware_1.validate)({ params: task_schema_1.gradeSubmissionParamsSchema, body: task_schema_1.gradeSubmissionBodySchema }), (0, asyncHandler_1.asyncHandler)(controller.gradeSubmission));
+router.put("/:taskId/students/:studentId/grade", (0, role_middleware_1.requireRole)("admin", "docente"), (0, validate_middleware_1.validate)({ params: task_schema_1.gradeStudentParamsSchema, body: task_schema_1.gradeSubmissionBodySchema }), (0, asyncHandler_1.asyncHandler)(controller.gradeStudentWithoutSubmission));
 exports.default = router;

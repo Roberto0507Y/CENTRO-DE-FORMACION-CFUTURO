@@ -4,6 +4,17 @@ exports.QuizService = void 0;
 const httpErrors_1 = require("../../common/errors/httpErrors");
 const db_1 = require("../../config/db");
 const quiz_repository_1 = require("./quiz.repository");
+const POINT_EPSILON = 1e-9;
+function roundPoints(value) {
+    return Math.round((value + Number.EPSILON) * 1000) / 1000;
+}
+function formatPoints(value) {
+    const rounded = roundPoints(value);
+    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(3).replace(/\.?0+$/, "");
+}
+function exceedsPointBudget(total, limit) {
+    return total - limit > POINT_EPSILON;
+}
 function parseMysqlDatetime(dt) {
     if (!dt)
         return null;
@@ -113,6 +124,12 @@ class QuizService {
         if (!course)
             throw (0, httpErrors_1.notFound)("Curso no encontrado");
         this.assertCanManage(requester, course.docente_id);
+        if (input.puntaje_total !== undefined) {
+            const activePoints = await this.repo.sumActiveQuestionPoints(quizId);
+            if (exceedsPointBudget(activePoints, input.puntaje_total)) {
+                throw (0, httpErrors_1.badRequest)(`El puntaje total no puede ser menor que la suma de preguntas activas (${formatPoints(activePoints)} pts).`);
+            }
+        }
         await (0, db_1.withTransaction)(async (conn) => {
             const affected = await this.repo.updateQuiz(conn, courseId, quizId, {
                 ...input,
@@ -151,14 +168,17 @@ class QuizService {
         return this.repo.listQuestions(quiz.id);
     }
     async createQuestion(requester, courseId, quizId, input) {
-        const course = await this.repo.findCourse(courseId);
+        const [course, quiz] = await Promise.all([
+            this.repo.findCourse(courseId),
+            this.repo.findQuizById(courseId, quizId),
+        ]);
         if (!course)
             throw (0, httpErrors_1.notFound)("Curso no encontrado");
         this.assertCanManage(requester, course.docente_id);
-        const quiz = await this.repo.findQuizById(courseId, quizId);
         if (!quiz)
             throw (0, httpErrors_1.notFound)("Quiz no encontrado");
         this.validateQuestion(input);
+        await this.assertQuestionFitsBudget(quiz, quizId, input.estado ?? "activo", input.puntos ?? 1);
         const id = await (0, db_1.withTransaction)(async (conn) => {
             return this.repo.createQuestion(conn, quizId, {
                 quiz_id: quizId,
@@ -178,39 +198,39 @@ class QuizService {
                 id: 0,
             });
         });
-        const questions = await this.repo.listQuestions(quizId);
-        const created = questions.find((q) => q.id === id);
+        const created = await this.repo.findQuestionById(quizId, id);
         if (!created)
             throw new Error("No se pudo crear la pregunta");
         return created;
     }
     async updateQuestion(requester, courseId, quizId, questionId, input) {
-        const course = await this.repo.findCourse(courseId);
+        const [course, quiz, current] = await Promise.all([
+            this.repo.findCourse(courseId),
+            this.repo.findQuizById(courseId, quizId),
+            this.repo.findQuestionById(quizId, questionId),
+        ]);
         if (!course)
             throw (0, httpErrors_1.notFound)("Curso no encontrado");
         this.assertCanManage(requester, course.docente_id);
-        const quiz = await this.repo.findQuizById(courseId, quizId);
         if (!quiz)
             throw (0, httpErrors_1.notFound)("Quiz no encontrado");
-        if (input.tipo || input.respuesta_correcta || input.opcion_a || input.opcion_b || input.opcion_c || input.opcion_d) {
-            // validación con el estado final parcial (best-effort)
-            const current = (await this.repo.listQuestions(quizId)).find((q) => q.id === questionId);
-            if (!current)
-                throw (0, httpErrors_1.notFound)("Pregunta no encontrada");
-            this.validateQuestion({
-                enunciado: input.enunciado ?? current.enunciado,
-                tipo: input.tipo ?? current.tipo,
-                opcion_a: input.opcion_a ?? current.opcion_a,
-                opcion_b: input.opcion_b ?? current.opcion_b,
-                opcion_c: input.opcion_c ?? current.opcion_c,
-                opcion_d: input.opcion_d ?? current.opcion_d,
-                respuesta_correcta: input.respuesta_correcta ?? current.respuesta_correcta,
-                explicacion: input.explicacion ?? current.explicacion,
-                puntos: input.puntos ?? Number(current.puntos),
-                orden: input.orden ?? current.orden,
-                estado: input.estado ?? current.estado,
-            });
-        }
+        if (!current)
+            throw (0, httpErrors_1.notFound)("Pregunta no encontrada");
+        const nextQuestion = {
+            enunciado: input.enunciado ?? current.enunciado,
+            tipo: input.tipo ?? current.tipo,
+            opcion_a: input.opcion_a ?? current.opcion_a,
+            opcion_b: input.opcion_b ?? current.opcion_b,
+            opcion_c: input.opcion_c ?? current.opcion_c,
+            opcion_d: input.opcion_d ?? current.opcion_d,
+            respuesta_correcta: input.respuesta_correcta ?? current.respuesta_correcta,
+            explicacion: input.explicacion ?? current.explicacion,
+            puntos: input.puntos ?? Number(current.puntos),
+            orden: input.orden ?? current.orden,
+            estado: input.estado ?? current.estado,
+        };
+        this.validateQuestion(nextQuestion);
+        await this.assertQuestionFitsBudget(quiz, quizId, nextQuestion.estado ?? "activo", nextQuestion.puntos ?? 1, current.id);
         await (0, db_1.withTransaction)(async (conn) => {
             const affected = await this.repo.updateQuestion(conn, quizId, questionId, {
                 ...input,
@@ -221,8 +241,7 @@ class QuizService {
             if (affected === 0)
                 throw (0, httpErrors_1.notFound)("Pregunta no encontrada");
         });
-        const questions = await this.repo.listQuestions(quizId);
-        const updated = questions.find((q) => q.id === questionId);
+        const updated = await this.repo.findQuestionById(quizId, questionId);
         if (!updated)
             throw (0, httpErrors_1.notFound)("Pregunta no encontrada");
         return updated;
@@ -259,7 +278,7 @@ class QuizService {
         const window = nowIsWithinWindow(quiz);
         if (!window.ok)
             throw (0, httpErrors_1.forbidden)(window.message ?? "No disponible");
-        const preguntas = await this.repo.listActiveQuestions(quizId);
+        const preguntas = await this.repo.listActiveQuestionsPublic(quizId);
         if (preguntas.length === 0)
             throw (0, httpErrors_1.badRequest)("Este quiz no tiene preguntas activas");
         const { intentoId, numeroIntento } = await (0, db_1.withTransaction)(async (conn) => {
@@ -270,8 +289,7 @@ class QuizService {
             const id = await this.repo.createAttempt(conn, quizId, requester.userId, numero);
             return { intentoId: id, numeroIntento: numero };
         });
-        const preguntasPublic = preguntas.map(({ respuesta_correcta, ...rest }) => rest);
-        return { intento_id: intentoId, quiz, preguntas: preguntasPublic, numero_intento: numeroIntento };
+        return { intento_id: intentoId, quiz, preguntas: preguntas, numero_intento: numeroIntento };
     }
     async submitQuiz(requester, courseId, quizId, attemptId, input) {
         if (requester.role !== "estudiante")
@@ -311,6 +329,7 @@ class QuizService {
             });
             let score = 0;
             const detalle = [];
+            const answerRows = [];
             for (const c of checks) {
                 const user = answersByQuestion.get(c.pregunta_id) ?? null;
                 const answerKey = resolvedCorrectAnswer(c);
@@ -318,7 +337,13 @@ class QuizService {
                 const puntosPregunta = Number(c.puntos);
                 const puntosObtenidos = correct ? puntosPregunta : 0;
                 score += puntosObtenidos;
-                await this.repo.upsertAttemptAnswer(conn, attemptId, c.pregunta_id, user, correct ? 1 : 0, puntosObtenidos);
+                answerRows.push({
+                    attemptId,
+                    questionId: c.pregunta_id,
+                    respuestaUsuario: user,
+                    esCorrecta: correct ? 1 : 0,
+                    puntosObtenidos,
+                });
                 detalle.push({
                     pregunta_id: c.pregunta_id,
                     respuesta_usuario: user,
@@ -328,6 +353,7 @@ class QuizService {
                     explicacion: quiz.mostrar_resultado_inmediato ? c.explicacion : undefined,
                 });
             }
+            await this.repo.upsertAttemptAnswers(conn, answerRows);
             await this.repo.completeAttempt(conn, attemptId, score);
             const updatedAttempt = await this.repo.findAttemptById(conn, attemptId);
             if (!updatedAttempt)
@@ -364,6 +390,21 @@ class QuizService {
         if (input.tipo === "respuesta_corta") {
             if (input.respuesta_correcta.trim().length === 0)
                 throw (0, httpErrors_1.badRequest)("respuesta_correcta es requerida");
+        }
+    }
+    async assertQuestionFitsBudget(quiz, quizId, status, points, excludeQuestionId) {
+        if (status !== "activo")
+            return;
+        const configuredTotal = Number(quiz.puntaje_total);
+        const nextPoints = Number(points ?? 0);
+        const usedPoints = await this.repo.sumActiveQuestionPoints(quizId, excludeQuestionId);
+        const projectedTotal = usedPoints + nextPoints;
+        if (!Number.isFinite(configuredTotal) || configuredTotal <= 0) {
+            throw (0, httpErrors_1.badRequest)("Configura primero un puntaje total válido en el quiz.");
+        }
+        if (exceedsPointBudget(projectedTotal, configuredTotal)) {
+            const availablePoints = Math.max(configuredTotal - usedPoints, 0);
+            throw (0, httpErrors_1.badRequest)(`Esta pregunta excede el puntaje total del quiz. Disponible: ${formatPoints(availablePoints)} pts de ${formatPoints(configuredTotal)}.`);
         }
     }
     assertCanManage(requester, docenteId) {

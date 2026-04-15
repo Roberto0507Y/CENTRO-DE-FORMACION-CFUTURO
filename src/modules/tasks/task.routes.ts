@@ -13,6 +13,7 @@ import {
   gradeSubmissionBodySchema,
   gradeSubmissionParamsSchema,
   createTaskBodySchema,
+  gradeStudentParamsSchema,
   listSubmissionsQuerySchema,
   submissionTaskIdParamsSchema,
   taskIdParamsSchema,
@@ -91,6 +92,12 @@ router.put(
   requireRole("admin", "docente"),
   validate({ params: gradeSubmissionParamsSchema, body: gradeSubmissionBodySchema }),
   asyncHandler(controller.gradeSubmission)
+);
+router.put(
+  "/:taskId/students/:studentId/grade",
+  requireRole("admin", "docente"),
+  validate({ params: gradeStudentParamsSchema, body: gradeSubmissionBodySchema }),
+  asyncHandler(controller.gradeStudentWithoutSubmission)
 );
 
 export default router;

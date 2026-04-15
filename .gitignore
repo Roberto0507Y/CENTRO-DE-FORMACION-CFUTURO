@@ -12,3 +12,7 @@ node_modules/
 
 # Logs
 *.log
+
+# Local database / dumps
+DB/
+db/

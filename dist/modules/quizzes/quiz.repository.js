@@ -109,10 +109,37 @@ class QuizRepository {
        ORDER BY orden ASC, id ASC`, [quizId]);
         return rows;
     }
+    async sumActiveQuestionPoints(quizId, excludeQuestionId) {
+        const excludeSql = excludeQuestionId ? "AND id <> ?" : "";
+        const params = excludeQuestionId ? [quizId, excludeQuestionId] : [quizId];
+        const [rows] = await db_1.pool.query(`SELECT COALESCE(SUM(puntos), 0) AS total
+       FROM preguntas_quiz
+       WHERE quiz_id = ? AND estado = 'activo'
+       ${excludeSql}`, params);
+        return Number(rows[0]?.total ?? 0);
+    }
+    async findQuestionById(quizId, questionId) {
+        const [rows] = await db_1.pool.query(`SELECT
+        id, quiz_id, enunciado, tipo, opcion_a, opcion_b, opcion_c, opcion_d,
+        respuesta_correcta, explicacion, puntos, orden, estado, created_at, updated_at
+       FROM preguntas_quiz
+       WHERE quiz_id = ? AND id = ?
+       LIMIT 1`, [quizId, questionId]);
+        return rows[0] ?? null;
+    }
     async listActiveQuestions(quizId) {
         const [rows] = await db_1.pool.query(`SELECT
         id, quiz_id, enunciado, tipo, opcion_a, opcion_b, opcion_c, opcion_d,
         respuesta_correcta, explicacion, puntos, orden, estado, created_at, updated_at
+       FROM preguntas_quiz
+       WHERE quiz_id = ? AND estado = 'activo'
+       ORDER BY orden ASC, id ASC`, [quizId]);
+        return rows;
+    }
+    async listActiveQuestionsPublic(quizId) {
+        const [rows] = await db_1.pool.query(`SELECT
+        id, quiz_id, enunciado, tipo, opcion_a, opcion_b, opcion_c, opcion_d,
+        explicacion, puntos, orden, estado, created_at, updated_at
        FROM preguntas_quiz
        WHERE quiz_id = ? AND estado = 'activo'
        ORDER BY orden ASC, id ASC`, [quizId]);
@@ -216,6 +243,24 @@ class QuizRepository {
          es_correcta = VALUES(es_correcta),
          puntos_obtenidos = VALUES(puntos_obtenidos),
          updated_at = NOW()`, [attemptId, questionId, respuestaUsuario, esCorrecta, puntosObtenidos]);
+    }
+    async upsertAttemptAnswers(conn, rows) {
+        if (rows.length === 0)
+            return;
+        const values = [];
+        const tuples = rows.map((row) => {
+            values.push(row.attemptId, row.questionId, row.respuestaUsuario, row.esCorrecta, row.puntosObtenidos);
+            return "(?, ?, ?, ?, ?, NOW(), NOW())";
+        });
+        await conn.execute(`INSERT INTO respuestas_intento_quiz
+        (intento_id, pregunta_id, respuesta_usuario, es_correcta, puntos_obtenidos, created_at, updated_at)
+       VALUES
+        ${tuples.join(", ")}
+       ON DUPLICATE KEY UPDATE
+         respuesta_usuario = VALUES(respuesta_usuario),
+         es_correcta = VALUES(es_correcta),
+         puntos_obtenidos = VALUES(puntos_obtenidos),
+         updated_at = NOW()`, values);
     }
     async completeAttempt(conn, attemptId, score) {
         const [res] = await conn.execute(`UPDATE intentos_quiz

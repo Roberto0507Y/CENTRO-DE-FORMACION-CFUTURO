@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -7,10 +7,13 @@ import { FilePicker } from "../ui/FilePicker";
 import { Input } from "../ui/Input";
 import { PaginationControls } from "../ui/PaginationControls";
 import { Spinner } from "../ui/Spinner";
-import type { GradeSubmissionInput, TaskStatus, TaskSubmissionWithStudent } from "../../types/task";
+import type {
+  GradeSubmissionInput,
+  TaskStatus,
+  TaskSubmissionFilter,
+  TaskSubmissionWithStudent,
+} from "../../types/task";
 import { getApiErrorMessage } from "../../utils/apiError";
-
-const SUBMISSIONS_PAGE_SIZE = 8;
 
 type FormState = {
   titulo: string;
@@ -19,6 +22,8 @@ type FormState = {
   enlace_url: string;
   puntos: string;
   fecha_entrega: string;
+  fecha_cierre: string;
+  permite_entrega_tardia: boolean;
   estado: TaskStatus;
 };
 
@@ -31,6 +36,10 @@ function statusBadge(estado: TaskStatus) {
 function toDraftText(value: unknown) {
   if (value === null || value === undefined) return "";
   return String(value);
+}
+
+function submissionRowKey(submission: TaskSubmissionWithStudent) {
+  return submission.id > 0 ? `submission:${submission.id}` : `student:${submission.estudiante.id}`;
 }
 
 export function TaskModal({
@@ -140,22 +149,58 @@ export function TaskModal({
               </div>
               <div>
                 <div className="text-sm font-black text-slate-900">Entrega</div>
-                <div className="text-xs text-slate-600">Fecha y hora límite.</div>
+                <div className="text-xs text-slate-600">Fecha límite, cierre y entregas tardías.</div>
               </div>
             </div>
 
-            <div className="mt-4">
-              <div className="text-xs font-extrabold text-slate-700">Fecha de entrega</div>
-              <div className="mt-2">
-                <Input
-                  type="datetime-local"
-                  value={value.fecha_entrega}
-                  onChange={(e) => onChange({ ...value, fecha_entrega: e.target.value })}
-                />
-                {errors.fecha_entrega ? (
-                  <div className="mt-2 text-xs font-bold text-rose-700">{errors.fecha_entrega}</div>
-                ) : null}
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div>
+                <div className="text-xs font-extrabold text-slate-700">Fecha de entrega</div>
+                <div className="mt-2">
+                  <Input
+                    type="datetime-local"
+                    value={value.fecha_entrega}
+                    onChange={(e) => onChange({ ...value, fecha_entrega: e.target.value })}
+                  />
+                  {errors.fecha_entrega ? (
+                    <div className="mt-2 text-xs font-bold text-rose-700">{errors.fecha_entrega}</div>
+                  ) : null}
+                </div>
               </div>
+
+              <div>
+                <div className="text-xs font-extrabold text-slate-700">Fecha de cierre (opcional)</div>
+                <div className="mt-2">
+                  <Input
+                    type="datetime-local"
+                    value={value.fecha_cierre}
+                    onChange={(e) => onChange({ ...value, fecha_cierre: e.target.value })}
+                  />
+                  <div className="mt-2 text-xs text-slate-500">
+                    Si la dejas vacía, la tarea se controla con la fecha de entrega.
+                  </div>
+                  {errors.fecha_cierre ? (
+                    <div className="mt-2 text-xs font-bold text-rose-700">{errors.fecha_cierre}</div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <label className="inline-flex items-start gap-3 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={value.permite_entrega_tardia}
+                  onChange={(e) => onChange({ ...value, permite_entrega_tardia: e.target.checked })}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span>
+                  <span className="block font-black text-slate-900">Permitir entrega tardía</span>
+                  <span className="mt-1 block text-xs text-slate-500">
+                    Si se activa, el estudiante podrá entregar después de la fecha de entrega hasta la fecha de cierre.
+                  </span>
+                </span>
+              </label>
             </div>
           </div>
 
@@ -269,9 +314,15 @@ export function SubmissionsModal({
   maxPoints,
   loading,
   items,
+  filter,
+  page,
+  pageSize,
+  total,
   errorMessage,
   onOpenFileUrl,
   onGrade,
+  onFilterChange,
+  onPageChange,
   onRetry,
   onClose,
 }: {
@@ -279,22 +330,27 @@ export function SubmissionsModal({
   maxPoints: number;
   loading: boolean;
   items: TaskSubmissionWithStudent[];
+  filter: TaskSubmissionFilter;
+  page: number;
+  pageSize: number;
+  total: number;
   errorMessage: string | null;
   onOpenFileUrl: (url: string, filename: string) => void;
-  onGrade: (submissionId: number, input: GradeSubmissionInput) => Promise<void>;
+  onGrade: (submission: TaskSubmissionWithStudent, input: GradeSubmissionInput) => Promise<void>;
+  onFilterChange: (filter: TaskSubmissionFilter) => void;
+  onPageChange: (page: number) => void;
   onRetry: () => void;
   onClose: () => void;
 }) {
-  const [drafts, setDrafts] = useState<Record<number, { calificacion: string; comentario_docente: string }>>({});
+  const [drafts, setDrafts] = useState<Record<string, { calificacion: string; comentario_docente: string }>>({});
   const [savingId, setSavingId] = useState<number | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
 
   useEffect(() => {
     setDrafts(
       Object.fromEntries(
         items.map((item) => [
-          item.id,
+          submissionRowKey(item),
           {
             calificacion: toDraftText(item.calificacion),
             comentario_docente: toDraftText(item.comentario_docente),
@@ -302,18 +358,18 @@ export function SubmissionsModal({
         ])
       )
     );
-    setPage(1);
   }, [items]);
 
   const maxLabel = Number.isFinite(maxPoints) ? maxPoints : 1000;
-  const safePage = Math.min(page, Math.max(1, Math.ceil(items.length / SUBMISSIONS_PAGE_SIZE)));
-  const paginatedItems = useMemo(() => {
-    const start = (safePage - 1) * SUBMISSIONS_PAGE_SIZE;
-    return items.slice(start, start + SUBMISSIONS_PAGE_SIZE);
-  }, [items, safePage]);
+  const activeFilterLabel = filter === "no_entregados" ? "No entregados" : "Todos";
+  const filterDescription =
+    filter === "no_entregados"
+      ? "Solo se muestran los estudiantes inscritos que aún no han entregado la tarea."
+      : "Se muestran entregados y no entregados, según la página actual.";
 
   const saveGrade = async (submission: TaskSubmissionWithStudent) => {
-    const draft = drafts[submission.id] ?? { calificacion: "", comentario_docente: "" };
+    const rowKey = submissionRowKey(submission);
+    const draft = drafts[rowKey] ?? { calificacion: "", comentario_docente: "" };
     const score = Number(toDraftText(draft.calificacion).replace(",", "."));
 
     if (!Number.isFinite(score) || score < 0) {
@@ -326,12 +382,12 @@ export function SubmissionsModal({
     }
 
     try {
-      setSavingId(submission.id);
+      setSavingId(submission.id || -submission.estudiante.id);
       setLocalError(null);
-      await onGrade(submission.id, {
+      await onGrade(submission, {
         calificacion: score,
         comentario_docente: draft.comentario_docente.trim() || null,
-        estado: "revisada",
+        estado: submission.has_submission ? "revisada" : "no_entregada",
       });
     } catch (err) {
       setLocalError(getApiErrorMessage(err, "No se pudo guardar la calificación."));
@@ -359,6 +415,33 @@ export function SubmissionsModal({
               {localError}
             </div>
           ) : null}
+          <div className="mb-4 flex flex-col gap-3 rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4 md:flex-row md:items-center md:justify-between dark:border-slate-800 dark:bg-slate-900/60">
+            <div>
+              <div className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Filtro actual
+              </div>
+              <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{activeFilterLabel}</div>
+              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{filterDescription}</div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant={filter === "todos" ? "secondary" : "ghost"}
+                disabled={loading}
+                onClick={() => onFilterChange("todos")}
+              >
+                Todos
+              </Button>
+              <Button
+                size="sm"
+                variant={filter === "no_entregados" ? "secondary" : "ghost"}
+                disabled={loading}
+                onClick={() => onFilterChange("no_entregados")}
+              >
+                No entregados
+              </Button>
+            </div>
+          </div>
 
           {loading ? (
             <div className="grid place-items-center py-10">
@@ -375,22 +458,181 @@ export function SubmissionsModal({
               </div>
             </div>
           ) : items.length === 0 ? (
-            <EmptyState title="Sin entregas todavía" description="Aún no hay estudiantes que hayan entregado esta tarea." />
+            <EmptyState
+              title={filter === "no_entregados" ? "Sin pendientes por revisar" : "Sin entregas todavía"}
+              description={
+                filter === "no_entregados"
+                  ? "Todos los estudiantes de esta página ya entregaron la tarea."
+                  : "Aún no hay entregas ni estudiantes pendientes en esta página."
+              }
+            />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1320px] text-left text-sm">
-                <thead className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  <tr className="[&>th]:pb-3">
-                    <th>Estudiante</th>
-                    <th>Estado</th>
-                    <th>Fecha</th>
-                    <th>Entrega</th>
-                    <th>Calificación</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                  {paginatedItems.map((submission) => {
-                    const draft = drafts[submission.id] ?? {
+            <div className="space-y-4">
+              <div className="space-y-3 md:hidden">
+                {items.map((submission) => {
+                  const rowKey = submissionRowKey(submission);
+                  const savingKey = submission.id || -submission.estudiante.id;
+                  const draft = drafts[rowKey] ?? {
+                    calificacion: toDraftText(submission.calificacion),
+                    comentario_docente: toDraftText(submission.comentario_docente),
+                  };
+                  const badgeVariant =
+                    submission.estado === "revisada"
+                      ? "blue"
+                      : submission.estado === "devuelta"
+                        ? "rose"
+                        : submission.estado === "atrasada"
+                          ? "amber"
+                          : submission.estado === "no_entregada"
+                            ? "slate"
+                            : "green";
+
+                  return (
+                    <div
+                      key={rowKey}
+                      className="space-y-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/70"
+                    >
+                      <div className="space-y-2">
+                        <div className="font-black text-slate-900 dark:text-slate-100">
+                          {submission.estudiante.nombres} {submission.estudiante.apellidos}
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">{submission.estudiante.correo}</div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant={badgeVariant}>{submission.estado}</Badge>
+                          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            {submission.has_submission
+                              ? new Date(submission.fecha_entrega).toLocaleString("es-GT")
+                              : "Sin entrega"}
+                          </span>
+                        </div>
+                        {submission.fecha_calificacion ? (
+                          <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                            Revisada: {new Date(submission.fecha_calificacion).toLocaleString("es-GT")}
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/70">
+                        <div className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          Entrega
+                        </div>
+                        <div className="mt-2 space-y-2">
+                          {submission.archivo_url ? (
+                            <button
+                              className="block font-semibold text-blue-600 hover:underline dark:text-cyan-300"
+                              type="button"
+                              onClick={() =>
+                                onOpenFileUrl(
+                                  submission.archivo_url!,
+                                  `${submission.estudiante.nombres}-${submission.estudiante.apellidos}`
+                                )
+                              }
+                            >
+                              Ver archivo
+                            </button>
+                          ) : null}
+                          {submission.enlace_url ? (
+                            <button
+                              className="block font-semibold text-blue-600 hover:underline dark:text-cyan-300"
+                              type="button"
+                              onClick={() =>
+                                onOpenFileUrl(
+                                  submission.enlace_url!,
+                                  `${submission.estudiante.nombres}-${submission.estudiante.apellidos}`
+                                )
+                              }
+                            >
+                              Ver enlace
+                            </button>
+                          ) : null}
+                          {submission.comentario_estudiante ? (
+                            <div className="text-xs text-slate-600 dark:text-slate-400">{submission.comentario_estudiante}</div>
+                          ) : !submission.has_submission ? (
+                            <div className="text-xs font-semibold text-slate-400 dark:text-slate-500">
+                              El estudiante no ha entregado archivo, enlace ni comentario.
+                            </div>
+                          ) : (
+                            <div className="text-xs text-slate-400 dark:text-slate-500">Sin comentario</div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/70">
+                        <div className="space-y-3">
+                          <div>
+                            <div className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                              Puntos
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Input
+                                value={draft.calificacion}
+                                onChange={(event) =>
+                                  setDrafts((prev) => ({
+                                    ...prev,
+                                    [rowKey]: { ...draft, calificacion: event.target.value },
+                                  }))
+                                }
+                                inputMode="decimal"
+                                placeholder={`0 - ${maxLabel}`}
+                                className="h-10"
+                              />
+                              <span className="shrink-0 text-xs font-black text-slate-500 dark:text-slate-400">
+                                / {maxLabel}
+                              </span>
+                            </div>
+                            <div className="mt-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                              {toDraftText(submission.calificacion) ? `Nota actual: ${submission.calificacion}` : "Sin nota"}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                              Comentario del docente
+                            </div>
+                            <textarea
+                              value={draft.comentario_docente}
+                              onChange={(event) =>
+                                setDrafts((prev) => ({
+                                  ...prev,
+                                  [rowKey]: { ...draft, comentario_docente: event.target.value },
+                                }))
+                              }
+                              rows={3}
+                              className="w-full resize-none rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 outline-none ring-blue-500 transition placeholder:text-slate-400 focus:ring-2 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
+                              placeholder="Retroalimentación para el estudiante..."
+                            />
+                          </div>
+                          <div className="flex justify-end">
+                            <Button
+                              size="sm"
+                              onClick={() => void saveGrade(submission)}
+                              disabled={savingId === savingKey || !toDraftText(draft.calificacion).trim()}
+                            >
+                              {savingId === savingKey ? "Guardando..." : "Guardar nota"}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[1320px] text-left text-sm">
+                  <thead className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    <tr className="[&>th]:pb-3">
+                      <th>Estudiante</th>
+                      <th>Estado</th>
+                      <th>Fecha</th>
+                      <th>Entrega</th>
+                      <th>Calificación</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                  {items.map((submission) => {
+                    const rowKey = submissionRowKey(submission);
+                    const savingKey = submission.id || -submission.estudiante.id;
+                    const draft = drafts[rowKey] ?? {
                       calificacion: toDraftText(submission.calificacion),
                       comentario_docente: toDraftText(submission.comentario_docente),
                     };
@@ -401,10 +643,12 @@ export function SubmissionsModal({
                           ? "rose"
                           : submission.estado === "atrasada"
                             ? "amber"
-                            : "green";
+                            : submission.estado === "no_entregada"
+                              ? "slate"
+                              : "green";
 
                     return (
-                      <tr key={submission.id} className="[&>td]:py-3 [&>td]:align-top">
+                      <tr key={rowKey} className="[&>td]:py-3 [&>td]:align-top">
                         <td className="font-semibold text-slate-900 dark:text-slate-100">
                           {submission.estudiante.nombres} {submission.estudiante.apellidos}
                           <div className="text-xs font-normal text-slate-500 dark:text-slate-400">
@@ -420,7 +664,9 @@ export function SubmissionsModal({
                           ) : null}
                         </td>
                         <td className="text-slate-600 dark:text-slate-300">
-                          {new Date(submission.fecha_entrega).toLocaleString("es-GT")}
+                          {submission.has_submission
+                            ? new Date(submission.fecha_entrega).toLocaleString("es-GT")
+                            : "Sin entrega"}
                         </td>
                         <td className="max-w-[260px] space-y-1">
                           {submission.archivo_url ? (
@@ -455,6 +701,10 @@ export function SubmissionsModal({
                             <div className="line-clamp-3 text-xs text-slate-600 dark:text-slate-400">
                               {submission.comentario_estudiante}
                             </div>
+                          ) : !submission.has_submission ? (
+                            <div className="text-xs font-semibold text-slate-400 dark:text-slate-500">
+                              El estudiante no ha entregado archivo, enlace ni comentario.
+                            </div>
                           ) : (
                             <div className="text-xs text-slate-400 dark:text-slate-500">Sin comentario</div>
                           )}
@@ -472,7 +722,7 @@ export function SubmissionsModal({
                                     onChange={(event) =>
                                       setDrafts((prev) => ({
                                         ...prev,
-                                        [submission.id]: { ...draft, calificacion: event.target.value },
+                                        [rowKey]: { ...draft, calificacion: event.target.value },
                                       }))
                                     }
                                     inputMode="decimal"
@@ -493,12 +743,12 @@ export function SubmissionsModal({
                                 </div>
                                 <textarea
                                   value={draft.comentario_docente}
-                                  onChange={(event) =>
-                                    setDrafts((prev) => ({
-                                      ...prev,
-                                      [submission.id]: { ...draft, comentario_docente: event.target.value },
-                                    }))
-                                  }
+                                    onChange={(event) =>
+                                      setDrafts((prev) => ({
+                                        ...prev,
+                                        [rowKey]: { ...draft, comentario_docente: event.target.value },
+                                      }))
+                                    }
                                   rows={3}
                                   className="w-full resize-none rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 outline-none ring-blue-500 transition placeholder:text-slate-400 focus:ring-2 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
                                   placeholder="Retroalimentación para el estudiante..."
@@ -509,9 +759,9 @@ export function SubmissionsModal({
                               <Button
                                 size="sm"
                                 onClick={() => void saveGrade(submission)}
-                                disabled={savingId === submission.id || !toDraftText(draft.calificacion).trim()}
+                                disabled={savingId === savingKey || !toDraftText(draft.calificacion).trim()}
                               >
-                                {savingId === submission.id ? "Guardando..." : "Guardar nota"}
+                                {savingId === savingKey ? "Guardando..." : "Guardar nota"}
                               </Button>
                             </div>
                           </div>
@@ -519,14 +769,15 @@ export function SubmissionsModal({
                       </tr>
                     );
                   })}
-                </tbody>
-              </table>
+                  </tbody>
+                </table>
+              </div>
               <PaginationControls
-                page={safePage}
-                pageSize={SUBMISSIONS_PAGE_SIZE}
-                total={items.length}
+                page={page}
+                pageSize={pageSize}
+                total={total}
                 isLoading={loading}
-                onPageChange={setPage}
+                onPageChange={onPageChange}
               />
             </div>
           )}
