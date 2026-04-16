@@ -13,6 +13,7 @@ type AuthContextValue = {
   register: (input: {
     nombres: string;
     apellidos: string;
+    dpi: string;
     correo: string;
     password: string;
     telefono?: string | null;
@@ -83,6 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = useCallback(async (input: {
     nombres: string;
     apellidos: string;
+    dpi: string;
     correo: string;
     password: string;
     telefono?: string | null;

@@ -24,6 +24,20 @@ export function FilePicker({
       ? `${Math.max(1, Math.round(value.size / 1024))} KB`
       : null;
 
+  const clearInput = () => {
+    if (inputRef.current) inputRef.current.value = "";
+  };
+
+  const openPicker = () => {
+    clearInput();
+    inputRef.current?.click();
+  };
+
+  const clearSelection = () => {
+    clearInput();
+    onChange(null);
+  };
+
   return (
     <div className="rounded-[1.5rem] border border-slate-200/80 bg-white/90 p-4 shadow-sm ring-1 ring-white/70 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90 dark:ring-white/5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -50,7 +64,7 @@ export function FilePicker({
             variant={value ? "secondary" : "primary"}
             className="cursor-pointer"
             disabled={disabled}
-            onClick={() => inputRef.current?.click()}
+            onClick={openPicker}
             aria-controls={id}
           >
             <span className="inline-flex items-center gap-2">
@@ -77,7 +91,7 @@ export function FilePicker({
               size="sm"
               variant="ghost"
               disabled={disabled}
-              onClick={() => onChange(null)}
+              onClick={clearSelection}
             >
               Quitar
             </Button>

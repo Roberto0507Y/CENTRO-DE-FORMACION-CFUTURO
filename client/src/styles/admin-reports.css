@@ -57,28 +57,28 @@
   }
 }
 
-@media (min-width: 1536px) {
+@media (min-width: 1280px) {
   .cf-admin-reports-zone-head {
     display: grid;
     grid-template-columns:
       70px
-      minmax(220px, 1.25fr)
+      minmax(240px, 1.35fr)
       minmax(220px, 1fr)
-      minmax(160px, 0.8fr)
-      minmax(160px, 0.8fr)
-      minmax(160px, 0.8fr)
-      120px;
+      minmax(165px, 0.78fr)
+      minmax(165px, 0.78fr)
+      minmax(165px, 0.78fr)
+      110px;
   }
 
   .cf-admin-reports-zone-row {
     grid-template-columns:
       70px
-      minmax(220px, 1.25fr)
+      minmax(240px, 1.35fr)
       minmax(220px, 1fr)
-      minmax(160px, 0.8fr)
-      minmax(160px, 0.8fr)
-      minmax(160px, 0.8fr)
-      120px;
+      minmax(165px, 0.78fr)
+      minmax(165px, 0.78fr)
+      minmax(165px, 0.78fr)
+      110px;
     align-items: center;
   }
 }
@@ -157,4 +157,15 @@
 
 .cf-admin-reports-stat-label {
   letter-spacing: 0.16em;
+}
+
+@media (min-width: 1280px) {
+  .cf-admin-reports-zone-table {
+    overflow-x: auto;
+  }
+
+  .cf-admin-reports-zone-head,
+  .cf-admin-reports-zone-row {
+    min-width: 1180px;
+  }
 }

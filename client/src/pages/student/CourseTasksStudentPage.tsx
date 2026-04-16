@@ -58,6 +58,13 @@ function submissionBadge(submission: TaskSubmission | null) {
   return { label: "Entregada", variant: "green" as const };
 }
 
+function sanitizeDeliveryLink(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
 export function CourseTasksStudentPage() {
   const { api } = useAuth();
   const { courseId } = useParams();
@@ -175,7 +182,7 @@ export function CourseTasksStudentPage() {
         submissionMethod === "file"
           ? await submitFile(latestTask.id, file, trimmedComment)
           : await api.post<ApiResponse<TaskSubmission>>(`/tasks/${latestTask.id}/submissions`, {
-              enlace_url: link.trim(),
+              enlace_url: sanitizeDeliveryLink(link),
               ...(trimmedComment ? { comentario_estudiante: trimmedComment } : {}),
             });
       const saved = res.data.data;
@@ -654,6 +661,7 @@ export function CourseTasksStudentPage() {
                       onClick={() => {
                         setSubmissionMethod("file");
                         setLink("");
+                        setBanner(null);
                       }}
                       aria-pressed={submissionMethod === "file"}
                       disabled={!canUploadFile}
@@ -672,6 +680,7 @@ export function CourseTasksStudentPage() {
                       onClick={() => {
                         setSubmissionMethod("link");
                         setFile(null);
+                        setBanner(null);
                       }}
                       aria-pressed={submissionMethod === "link"}
                     >
@@ -687,6 +696,7 @@ export function CourseTasksStudentPage() {
                 <div className="mt-4">
                   {submissionMethod === "file" ? (
                     <FilePicker
+                      key={`task-file-${selected.id}-${isReplacingSubmission ? "replace" : "base"}`}
                       label="Archivo"
                       helperText={
                         isReplacingSubmission
@@ -705,7 +715,16 @@ export function CourseTasksStudentPage() {
                         Pega una URL pública para compartir tu trabajo.
                       </div>
                       <div className="mt-3">
-                        <Input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://..." />
+                        <Input
+                          type="url"
+                          inputMode="url"
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                          spellCheck={false}
+                          value={link}
+                          onChange={(e) => setLink(e.target.value)}
+                          placeholder="https://..."
+                        />
                       </div>
                     </div>
                   )}

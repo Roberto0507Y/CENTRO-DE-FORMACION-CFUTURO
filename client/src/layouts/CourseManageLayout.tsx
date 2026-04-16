@@ -19,12 +19,12 @@ type CourseNavItem = {
 
 function courseContextTone(estado?: CourseDetail["estado"]) {
   if (estado === "publicado") {
-    return "border-emerald-200/20 bg-[linear-gradient(135deg,rgba(6,95,70,0.34),rgba(8,47,73,0.26)_58%,rgba(15,23,42,0.42))]";
+    return "border-emerald-200/20 bg-[linear-gradient(135deg,rgba(6,95,70,0.42),rgba(8,47,73,0.28)_58%,rgba(15,23,42,0.46))] shadow-[0_30px_90px_-60px_rgba(5,150,105,0.45)]";
   }
   if (estado === "oculto") {
-    return "border-white/10 bg-[linear-gradient(135deg,rgba(51,65,85,0.34),rgba(15,23,42,0.28)_58%,rgba(2,6,23,0.46))]";
+    return "border-white/10 bg-[linear-gradient(135deg,rgba(51,65,85,0.4),rgba(15,23,42,0.3)_58%,rgba(2,6,23,0.5))] shadow-[0_30px_90px_-60px_rgba(30,41,59,0.48)]";
   }
-  return "border-cyan-200/15 bg-[linear-gradient(135deg,rgba(8,145,178,0.22),rgba(30,41,59,0.2)_55%,rgba(15,23,42,0.46))]";
+  return "border-cyan-200/15 bg-[linear-gradient(135deg,rgba(8,145,178,0.3),rgba(30,41,59,0.22)_55%,rgba(15,23,42,0.5))] shadow-[0_30px_90px_-60px_rgba(8,145,178,0.4)]";
 }
 
 function courseStateLabel(estado?: CourseDetail["estado"]) {
@@ -143,6 +143,11 @@ function CourseMobileDrawer({
                   {(course?.titulo?.trim()?.[0] ?? "C").toUpperCase()}
                 </div>
                 <div className="min-w-0">
+                  {course?.categoria?.nombre ? (
+                    <div className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-100/60">
+                      {course.categoria.nombre}
+                    </div>
+                  ) : null}
                   <div className="line-clamp-2 text-base font-black leading-snug tracking-tight text-white">
                     {course?.titulo ?? `Curso #${courseId}`}
                   </div>
@@ -383,6 +388,11 @@ export function CourseManageLayout({ base }: { base: "admin" | "teacher" | "stud
                     {(course?.titulo?.trim()?.[0] ?? "C").toUpperCase()}
                   </div>
                   <div className="min-w-0">
+                    {course?.categoria?.nombre ? (
+                      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-100/60">
+                        {course.categoria.nombre}
+                      </div>
+                    ) : null}
                     <div className="line-clamp-2 text-base font-black leading-snug tracking-tight text-white">
                       {course?.titulo ?? `Curso #${id}`}
                     </div>

@@ -4,6 +4,7 @@ export type User = {
   id: number;
   nombres: string;
   apellidos: string;
+  dpi: string | null;
   correo: string;
   telefono: string | null;
   foto_url: string | null;

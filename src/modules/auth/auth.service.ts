@@ -33,6 +33,7 @@ export class AuthService {
     const userId = await this.repo.createUser({
       nombres: input.nombres.trim(),
       apellidos: input.apellidos.trim(),
+      dpi: input.dpi.trim(),
       correo,
       passwordHash,
       telefono: input.telefono ?? null,

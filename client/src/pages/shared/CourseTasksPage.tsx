@@ -51,12 +51,22 @@ function courseStatusBadge(estado?: CourseStatus) {
 
 function courseQuickCardTone(estado?: CourseStatus) {
   if (estado === "publicado") {
-    return "border-emerald-200/80 bg-gradient-to-br from-emerald-50 via-white to-cyan-50";
+    return "border-emerald-200/80 bg-gradient-to-br from-emerald-50 via-white to-cyan-50 shadow-[0_28px_70px_-52px_rgba(5,150,105,0.45)]";
   }
   if (estado === "oculto") {
-    return "border-slate-200 bg-gradient-to-br from-slate-100 via-white to-slate-50";
+    return "border-slate-200 bg-gradient-to-br from-slate-100 via-white to-slate-50 shadow-[0_28px_70px_-52px_rgba(51,65,85,0.42)]";
   }
-  return "border-blue-100/80 bg-gradient-to-br from-sky-50 via-white to-indigo-50";
+  return "border-cyan-100/80 bg-gradient-to-br from-cyan-50 via-white to-blue-50 shadow-[0_28px_70px_-52px_rgba(14,116,144,0.35)]";
+}
+
+function courseQuickCardAccent(estado?: CourseStatus) {
+  if (estado === "publicado") return "from-emerald-600 to-cyan-500 text-white";
+  if (estado === "oculto") return "from-slate-700 to-slate-500 text-white";
+  return "from-sky-600 to-cyan-500 text-white";
+}
+
+function courseInitial(title?: string) {
+  return (title?.trim()?.[0] ?? "C").toUpperCase();
 }
 
 function toLocalInputValue(mysqlDatetime: string | null) {
@@ -636,10 +646,7 @@ export function CourseTasksPage() {
 
       {/* Derecha: panel lateral */}
       <aside className="min-w-0 space-y-4">
-        <Card className="p-5">
-          <div className="text-sm font-black text-slate-900">Curso</div>
-          <div className="mt-1 text-sm text-slate-600">Información rápida</div>
-
+        <Card className="border-white/80 bg-white/92 p-5 shadow-[0_28px_80px_-56px_rgba(15,23,42,0.18)]">
           <div className={`mt-4 rounded-3xl border p-4 shadow-sm shadow-slate-900/5 ${courseQuickCardTone(course?.estado)}`}>
             {courseLoading ? (
               <div className="flex items-center gap-3 text-sm text-slate-600">
@@ -647,24 +654,31 @@ export function CourseTasksPage() {
                 Cargando…
               </div>
             ) : (
-              <div className="space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-base font-black tracking-tight text-slate-950 line-clamp-2">
-                      {course?.titulo ?? ctx.courseTitle}
-                    </div>
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`grid h-14 w-14 shrink-0 place-items-center rounded-[1.4rem] bg-gradient-to-br text-lg font-black ring-1 ring-white/70 shadow-lg shadow-slate-900/10 ${courseQuickCardAccent(course?.estado)}`}
+                  >
+                    {courseInitial(course?.titulo ?? ctx.courseTitle)}
+                  </div>
+                  <div className="min-w-0 flex-1">
                     {course?.categoria?.nombre ? (
-                      <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
                         {course.categoria.nombre}
                       </div>
                     ) : null}
+                    <div className="mt-1 text-lg font-black tracking-tight text-slate-950 line-clamp-2">
+                      {course?.titulo ?? ctx.courseTitle}
+                    </div>
+                    {course?.estado && course.estado !== "borrador" ? (
+                      <div className="mt-2">{courseStatusBadge(course.estado)}</div>
+                    ) : null}
                   </div>
-                  <div className="shrink-0">{course?.estado && course.estado !== "borrador" ? courseStatusBadge(course.estado) : null}</div>
                 </div>
                 {course ? (
-                  <div className="rounded-2xl border border-white/70 bg-white/70 px-3 py-2 text-xs text-slate-600 backdrop-blur-sm">
-                    <span className="font-bold uppercase tracking-[0.16em] text-slate-500">Docente</span>
-                    <div className="mt-1 text-sm font-black text-slate-900">
+                  <div className="rounded-[1.35rem] border border-white/75 bg-white/75 px-3.5 py-3 text-xs text-slate-600 backdrop-blur-sm">
+                    <span className="font-bold uppercase tracking-[0.18em] text-slate-400">Docente</span>
+                    <div className="mt-1 text-[15px] font-black text-slate-900">
                       {course.docente.nombres} {course.docente.apellidos}
                     </div>
                   </div>
@@ -674,7 +688,7 @@ export function CourseTasksPage() {
           </div>
 
           <div className="mt-4 grid gap-2">
-            <Button variant="ghost" onClick={() => void loadTasks()}>
+            <Button variant="ghost" className="bg-slate-50/90 hover:bg-slate-100" onClick={() => void loadTasks()}>
               Actualizar
             </Button>
           </div>

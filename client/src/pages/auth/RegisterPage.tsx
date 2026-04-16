@@ -62,6 +62,7 @@ export function RegisterPage() {
 
   const [nombres, setNombres] = useState("");
   const [apellidos, setApellidos] = useState("");
+  const [dpi, setDpi] = useState("");
   const [telefono, setTelefono] = useState("");
   const [fechaNacimiento, setFechaNacimiento] = useState("");
   const [direccion, setDireccion] = useState("");
@@ -85,6 +86,7 @@ export function RegisterPage() {
       const u = await register({
         nombres: nombres.trim(),
         apellidos: apellidos.trim(),
+        dpi: dpi.trim(),
         correo: correo.trim(),
         password,
         telefono: telefono.trim(),
@@ -146,7 +148,19 @@ export function RegisterPage() {
               </div>
             </div>
 
-            <div className="mt-5 grid gap-5 md:grid-cols-2">
+            <div className="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              <div>
+                <FieldLabel label="DPI" helper="Ingresa tu documento personal de identificación para validar tu perfil." />
+                <Input
+                  value={dpi}
+                  onChange={(e) => setDpi(e.target.value)}
+                  placeholder="1234567890101"
+                  inputMode="numeric"
+                  required
+                  maxLength={20}
+                  className="mt-2 rounded-xl border-slate-200/90 bg-white shadow-[0_16px_34px_-28px_rgba(15,23,42,0.35)] transition-all duration-300 hover:border-blue-200 focus:border-blue-400 focus:ring-blue-500/20 dark:border-slate-800 dark:bg-slate-900/90 dark:hover:border-cyan-400/30 dark:focus:border-cyan-400/50 dark:focus:ring-cyan-400/20"
+                />
+              </div>
               <div>
                 <FieldLabel label="Teléfono" helper="Incluye un número activo para facilitar contacto o soporte." />
                 <Input

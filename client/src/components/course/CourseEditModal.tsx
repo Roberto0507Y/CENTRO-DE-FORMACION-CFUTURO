@@ -7,9 +7,11 @@ import { Badge } from "../ui/Badge";
 import { Spinner } from "../ui/Spinner";
 import type { ApiResponse } from "../../types/api";
 import type { CourseAccessType, CourseDetail, CourseLevel, CourseStatus } from "../../types/course";
+import type { PricingSetting } from "../../types/pricing";
 import { getApiErrorMessage } from "../../utils/apiError";
 import { lazyNamed } from "../../utils/lazyNamed";
 import { normalizePaymentLinkInput } from "../../utils/paymentLink";
+import "../../styles/course-editor.css";
 
 type UploadedFileDto = { url: string; key: string; mimeType: string; size: number };
 
@@ -92,6 +94,8 @@ export function CourseEditModal({
   const [banner, setBanner] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [detail, setDetail] = useState<CourseDetail | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [pricingOptions, setPricingOptions] = useState<PricingSetting[]>([]);
+  const [priceMenuOpen, setPriceMenuOpen] = useState(false);
 
   const [form, setForm] = useState<FormState>({
     titulo: "",
@@ -122,7 +126,30 @@ export function CourseEditModal({
     }
     return { ok: Object.keys(errors).length === 0, errors };
   }, [form]);
+  const selectedPricing = useMemo(() => {
+    if (form.tipo_acceso !== "pago") return null;
+    const precioN = Number(form.precio);
+    if (!Number.isFinite(precioN) || precioN <= 0) return null;
+    const selectedLink = normalizePaymentLinkInput(form.payment_link);
+    return (
+      pricingOptions.find(
+        (p) =>
+          Number(p.precio) === precioN &&
+          normalizePaymentLinkInput(p.payment_link) === selectedLink
+      ) ?? null
+    );
+  }, [form.payment_link, form.precio, form.tipo_acceso, pricingOptions]);
   const shortDescriptionCount = form.descripcion_corta.length;
+
+  const selectPricingOption = (item: PricingSetting) => {
+    setForm((p) => ({
+      ...p,
+      tipo_acceso: "pago",
+      precio: String(item.precio),
+      payment_link: item.payment_link,
+    }));
+    setPriceMenuOpen(false);
+  };
 
   useEffect(() => {
     if (!open || !courseId) return;
@@ -130,9 +157,13 @@ export function CourseEditModal({
       try {
         setIsLoading(true);
         setBanner(null);
-        const res = await api.get<ApiResponse<CourseDetail>>(`/courses/${courseId}`);
-        const c = res.data.data;
+        const [courseRes, pricingRes] = await Promise.all([
+          api.get<ApiResponse<CourseDetail>>(`/courses/${courseId}`),
+          api.get<ApiResponse<PricingSetting[]>>("/pricing-settings", { params: { estado: "activo" } }),
+        ]);
+        const c = courseRes.data.data;
         setDetail(c);
+        setPricingOptions(pricingRes.data.data);
         setForm({
           titulo: c.titulo ?? "",
           slug: c.slug ?? "",
@@ -147,9 +178,11 @@ export function CourseEditModal({
           video_intro_url: c.video_intro_url ?? "",
           payment_link: c.payment_link ?? "",
         });
+        setPriceMenuOpen(false);
       } catch (err) {
         setBanner({ tone: "error", text: getApiErrorMessage(err, "No se pudo cargar el curso.") });
         setDetail(null);
+        setPricingOptions([]);
       } finally {
         setIsLoading(false);
       }
@@ -218,9 +251,9 @@ export function CourseEditModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true">
-      <Card className="w-full max-w-5xl overflow-hidden">
-        <div className="border-b border-slate-200 bg-white px-6 py-5">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-3 sm:p-4" role="dialog" aria-modal="true">
+      <Card className="mx-auto my-4 flex max-h-[calc(100dvh-2rem)] w-full max-w-5xl flex-col overflow-hidden sm:my-6 sm:max-h-[calc(100dvh-3rem)]">
+        <div className="shrink-0 border-b border-slate-200 bg-white px-5 py-4 sm:px-6 sm:py-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="text-base font-black text-slate-900">Editar curso</div>
@@ -261,7 +294,8 @@ export function CourseEditModal({
           ) : null}
         </div>
 
-        <div className="grid gap-6 bg-slate-50 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50">
+        <div className="grid gap-6 px-4 py-4 sm:px-6 sm:py-6 lg:grid-cols-[minmax(0,1fr)_380px]">
           <div className="min-w-0 space-y-6">
             {isLoading ? (
               <div className="grid place-items-center py-10">
@@ -342,22 +376,61 @@ export function CourseEditModal({
                 <Card className="p-6">
                   <div className="text-sm font-black text-slate-900">Acceso y precio</div>
                   <div className="mt-5 grid gap-4 md:grid-cols-3">
-                    <Field label="Tipo">
-                      <select
-                        value={form.tipo_acceso}
-                        onChange={(e) =>
-                          setForm((p) => ({
-                            ...p,
-                            tipo_acceso: e.target.value as CourseAccessType,
-                            precio: e.target.value === "gratis" ? "0" : p.precio,
-                          }))
-                        }
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-blue-500 focus:ring-2"
-                      >
-                        <option value="gratis">Gratis</option>
-                        <option value="pago">Pago</option>
-                      </select>
-                    </Field>
+                    <div className="md:col-span-2">
+                      <Field label="Acceso" hint="Gratis o pago">
+                        <div className="grid grid-cols-2 gap-2 sm:max-w-md">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPriceMenuOpen(false);
+                              setForm((p) => ({
+                                ...p,
+                                tipo_acceso: "gratis",
+                                precio: "0",
+                                payment_link: "",
+                              }));
+                            }}
+                            className={`rounded-2xl border px-3 py-3 text-left text-sm font-black transition ${
+                              form.tipo_acceso === "gratis"
+                                ? "border-blue-200 bg-blue-50 ring-2 ring-blue-100"
+                                : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm"
+                            }`}
+                            title="Gratis"
+                          >
+                            Gratis
+                            <div className="mt-1 text-xs font-semibold text-slate-500">Q 0.00</div>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (pricingOptions.length > 0) {
+                                setForm((p) => ({ ...p, tipo_acceso: "pago" }));
+                                setPriceMenuOpen((v) => !v || form.tipo_acceso !== "pago");
+                                return;
+                              }
+                              setForm((p) => ({ ...p, tipo_acceso: "pago" }));
+                              setPriceMenuOpen(false);
+                            }}
+                            className={`rounded-2xl border px-3 py-3 text-left text-sm font-black transition ${
+                              form.tipo_acceso === "pago"
+                                ? "border-blue-200 bg-blue-50 ring-2 ring-blue-100"
+                                : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm"
+                            }`}
+                            title="Pago"
+                          >
+                            Pago
+                            <div className="mt-1 text-xs font-semibold text-slate-500">
+                              {selectedPricing
+                                ? `Q ${Number(selectedPricing.precio).toFixed(2)}`
+                                : pricingOptions.length > 0
+                                  ? `${pricingOptions.length} botones`
+                                  : "Sin precios"}
+                            </div>
+                          </button>
+                        </div>
+                      </Field>
+                    </div>
 
                     <Field label="Nivel">
                       <select
@@ -371,19 +444,132 @@ export function CourseEditModal({
                       </select>
                     </Field>
 
-                    {form.tipo_acceso === "pago" ? (
-                      <Field label="Precio" error={validation.errors.precio ?? null}>
-                        <Input
-                          inputMode="decimal"
-                          value={form.precio}
-                          onChange={(e) => setForm((p) => ({ ...p, precio: e.target.value }))}
-                          placeholder="Ej: 199.99"
-                        />
-                      </Field>
-                    ) : (
-                      <div />
-                    )}
+                    <div />
                   </div>
+
+                  {form.tipo_acceso === "pago" ? (
+                    <div className="mt-4">
+                      {pricingOptions.length === 0 ? (
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                          No hay botones activos en el modulo <span className="font-black">Precio</span>.
+                        </div>
+                      ) : (
+                        <div className="rounded-3xl border border-slate-200 bg-white p-4">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-w-0">
+                              <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
+                                Precio del curso
+                              </div>
+                              <div className="mt-1 text-sm font-black text-slate-900">
+                                {selectedPricing
+                                  ? `Seleccionado: Q ${Number(selectedPricing.precio).toFixed(2)}`
+                                  : "Selecciona un precio del menu"}
+                              </div>
+                              <div className="mt-1 text-xs text-slate-500">
+                                {pricingOptions.length} opciones activas en el modulo Precio
+                              </div>
+                            </div>
+
+                            <div className="relative shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => setPriceMenuOpen((v) => !v)}
+                                className={`cf-course-editor-price-select inline-flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-black transition ${
+                                  priceMenuOpen
+                                    ? "border-blue-200 bg-blue-50 text-blue-900 ring-2 ring-blue-100"
+                                    : "border-slate-200 bg-slate-50 text-slate-900 hover:bg-slate-100"
+                                }`}
+                              >
+                                <span className="truncate">
+                                  {selectedPricing
+                                    ? `Q ${Number(selectedPricing.precio).toFixed(2)}`
+                                    : "Elegir precio"}
+                                </span>
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  className={`h-4 w-4 shrink-0 transition ${priceMenuOpen ? "rotate-180" : ""}`}
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                >
+                                  <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              </button>
+
+                              {priceMenuOpen ? (
+                                <div className="cf-course-editor-price-menu absolute right-0 z-20 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                                  <div className="max-h-72 overflow-y-auto p-2">
+                                    {pricingOptions.map((it) => {
+                                      const active =
+                                        selectedPricing?.id === it.id ||
+                                        (Number(form.precio) === Number(it.precio) &&
+                                          normalizePaymentLinkInput(form.payment_link) ===
+                                            normalizePaymentLinkInput(it.payment_link));
+                                      return (
+                                        <button
+                                          key={it.id}
+                                          type="button"
+                                          onClick={() => selectPricingOption(it)}
+                                          className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left transition ${
+                                            active
+                                              ? "bg-blue-50 text-blue-900"
+                                              : "text-slate-800 hover:bg-slate-50"
+                                          }`}
+                                        >
+                                          <div className="min-w-0">
+                                            <div className="text-sm font-black">
+                                              Q {Number(it.precio).toFixed(2)}
+                                            </div>
+                                            <div className="mt-0.5 truncate text-xs font-semibold text-slate-500">
+                                              {it.nombre}
+                                            </div>
+                                          </div>
+                                          <span
+                                            className={`cf-course-editor-note-badge inline-flex items-center rounded-full px-2.5 py-1 font-black ${
+                                              active ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700"
+                                            }`}
+                                          >
+                                            {active ? "Activo" : "Usar"}
+                                          </span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          <div className="mt-4 grid gap-4 md:grid-cols-[180px_minmax(0,1fr)]">
+                            <Field label="Precio" error={validation.errors.precio ?? null}>
+                              <Input
+                                inputMode="decimal"
+                                value={form.precio}
+                                onChange={(e) =>
+                                  setForm((p) => ({ ...p, precio: e.target.value }))
+                                }
+                                placeholder="Ej: 199.99"
+                              />
+                            </Field>
+
+                            <Field
+                              label="Boton BI Pay / EBI"
+                              hint="Puedes pegar uno manual si no quieres usar el menu."
+                              error={validation.errors.payment_link ?? null}
+                            >
+                              <Input
+                                value={form.payment_link}
+                                onChange={(e) =>
+                                  setForm((p) => ({ ...p, payment_link: e.target.value }))
+                                }
+                                placeholder="Pega la URL o el snippet de EBI"
+                              />
+                            </Field>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
                 </Card>
               </>
             )}
@@ -436,14 +622,7 @@ export function CourseEditModal({
                   placeholder="https://…"
                 />
               </Field>
-              <Field label="Boton BI Pay / EBI" hint="Acepta URL o snippet del iframe." error={validation.errors.payment_link ?? null}>
-                <Input
-                  value={form.payment_link}
-                  onChange={(e) => setForm((p) => ({ ...p, payment_link: e.target.value }))}
-                  placeholder="Pega la URL o el snippet de EBI"
-                />
-              </Field>
-              {normalizePaymentLinkInput(form.payment_link) ? (
+              {form.tipo_acceso === "pago" && normalizePaymentLinkInput(form.payment_link) ? (
                 <Suspense
                   fallback={
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-300">
@@ -456,6 +635,7 @@ export function CourseEditModal({
               ) : null}
             </Card>
           </div>
+        </div>
         </div>
       </Card>
     </div>

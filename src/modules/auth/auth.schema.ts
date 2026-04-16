@@ -4,6 +4,10 @@ export const registerBodySchema = z
   .object({
     nombres: z.string().min(1, "nombres es requerido").max(100),
     apellidos: z.string().min(1, "apellidos es requerido").max(100),
+    dpi: z
+      .string()
+      .min(1, "dpi es requerido")
+      .max(20, "dpi debe tener como máximo 20 caracteres"),
     correo: z.string().email("correo inválido").max(255),
     password: z.string().min(8, "password debe tener al menos 8 caracteres").max(255),
     telefono: z.string().max(30).optional(),

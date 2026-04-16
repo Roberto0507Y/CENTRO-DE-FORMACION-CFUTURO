@@ -19,6 +19,7 @@ type SchemaMode = "es" | "en";
 export class AuthRepository {
   private passwordResetsEnsured = false;
   private schemaMode: SchemaMode | null = null;
+  private userCompatColumnsEnsured = false;
 
   private async resolveSchemaMode(): Promise<SchemaMode> {
     if (this.schemaMode) return this.schemaMode;
@@ -61,6 +62,7 @@ export class AuthRepository {
   }
 
   private buildCompatDpi(input: CreateUserInput): string {
+    if (input.dpi?.trim()) return input.dpi.trim().slice(0, 20);
     const raw = `${input.correo}:${input.nombres}:${input.apellidos}`;
     let hash = 0;
     for (let index = 0; index < raw.length; index += 1) {
@@ -69,6 +71,28 @@ export class AuthRepository {
     }
     const value = Math.abs(hash).toString().padStart(10, "0");
     return `AUTO${value}`.slice(0, 20);
+  }
+
+  private async ensureUserCompatColumns(): Promise<void> {
+    const schemaMode = await this.resolveSchemaMode();
+    if (schemaMode !== "es" || this.userCompatColumnsEnsured) return;
+
+    const [rows] = await pool.query<(RowDataPacket & { total: number })[]>(
+      `SELECT COUNT(*) AS total
+       FROM information_schema.columns
+       WHERE table_schema = DATABASE()
+         AND table_name = 'usuarios'
+         AND column_name = 'dpi'`
+    );
+
+    if ((rows[0]?.total ?? 0) === 0) {
+      await pool.execute(
+        `ALTER TABLE usuarios
+         ADD COLUMN dpi VARCHAR(20) NULL AFTER apellidos`
+      );
+    }
+
+    this.userCompatColumnsEnsured = true;
   }
 
   private async ensurePasswordResetsTable(): Promise<void> {
@@ -98,6 +122,7 @@ export class AuthRepository {
           id,
           first_name AS nombres,
           last_name AS apellidos,
+          dpi,
           email AS correo,
           password,
           phone AS telefono,
@@ -130,9 +155,11 @@ export class AuthRepository {
       return rows[0] ?? null;
     }
 
+    await this.ensureUserCompatColumns();
+
     const [rows] = await pool.query<UserWithPasswordRow[]>(
       `SELECT
-        id, nombres, apellidos, correo, password, telefono, foto_url, fecha_nacimiento, direccion,
+        id, nombres, apellidos, dpi, correo, password, telefono, foto_url, fecha_nacimiento, direccion,
         rol, estado, ultimo_login, created_at, updated_at
        FROM usuarios
        WHERE correo = ?
@@ -150,6 +177,7 @@ export class AuthRepository {
           id,
           first_name AS nombres,
           last_name AS apellidos,
+          dpi,
           email AS correo,
           phone AS telefono,
           NULL AS foto_url,
@@ -181,9 +209,11 @@ export class AuthRepository {
       return rows[0] ?? null;
     }
 
+    await this.ensureUserCompatColumns();
+
     const [rows] = await pool.query<UserPublicRow[]>(
       `SELECT
-        id, nombres, apellidos, correo, telefono, foto_url, fecha_nacimiento, direccion,
+        id, nombres, apellidos, dpi, correo, telefono, foto_url, fecha_nacimiento, direccion,
         rol, estado, ultimo_login, created_at, updated_at
        FROM usuarios
        WHERE id = ?
@@ -256,13 +286,16 @@ export class AuthRepository {
       return result.insertId;
     }
 
+    await this.ensureUserCompatColumns();
+
     const [result] = await pool.execute<ResultSetHeader>(
       `INSERT INTO usuarios
-        (nombres, apellidos, correo, password, telefono, foto_url, fecha_nacimiento, direccion, rol, estado, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        (nombres, apellidos, dpi, correo, password, telefono, foto_url, fecha_nacimiento, direccion, rol, estado, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         input.nombres,
         input.apellidos,
+        input.dpi,
         input.correo,
         input.passwordHash,
         input.telefono,

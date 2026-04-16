@@ -3,6 +3,7 @@ import type { UserRole, UserStatus } from "../../common/types/auth";
 export type RegisterInput = {
   nombres: string;
   apellidos: string;
+  dpi: string;
   correo: string;
   password: string;
   telefono?: string | null;
@@ -20,6 +21,7 @@ export type AuthUserPublic = {
   id: number;
   nombres: string;
   apellidos: string;
+  dpi: string | null;
   correo: string;
   telefono: string | null;
   foto_url: string | null;
@@ -77,6 +79,7 @@ export type PasswordResetRow = {
 export type CreateUserInput = {
   nombres: string;
   apellidos: string;
+  dpi: string | null;
   correo: string;
   passwordHash: string;
   telefono: string | null;
