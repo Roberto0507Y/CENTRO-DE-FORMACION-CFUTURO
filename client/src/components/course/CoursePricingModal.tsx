@@ -143,7 +143,9 @@ export function CoursePricingModal({
               <div className="text-base font-black text-slate-900">
                 Pago: <span className="font-black">{detail?.titulo ?? "—"}</span>
               </div>
-              <div className="mt-1 text-sm text-slate-600">Configura el precio y el link de pago (EBI).</div>
+              <div className="mt-1 text-sm text-slate-600">
+                Configura el precio visible y el botón fijo de pago BI Pay / EBI.
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -182,7 +184,11 @@ export function CoursePricingModal({
           ) : (
             <Card className="p-6">
               <div className="grid gap-5">
-                <Field label="Precio (GTQ)" error={validation.errors.precio ?? null}>
+                <Field
+                  label="Precio visible (GTQ)"
+                  hint="Este monto se muestra en C.FUTURO"
+                  error={validation.errors.precio ?? null}
+                >
                   <Input
                     inputMode="decimal"
                     value={form.precio}
@@ -192,16 +198,21 @@ export function CoursePricingModal({
                 </Field>
 
                 <Field
-                  label="Boton BI Pay / EBI"
-                  hint="Acepta URL directa o snippet del iframe."
+                  label="Botón fijo BI Pay / EBI"
+                  hint="Pega el script iframe oficial o una URL."
                   error={validation.errors.payment_link ?? null}
                 >
-                  <Input
+                  <textarea
                     value={form.payment_link}
                     onChange={(e) => setForm((p) => ({ ...p, payment_link: e.target.value }))}
-                    placeholder="Pega la URL o el snippet de EBI"
+                    rows={5}
+                    placeholder='<script>/*Pay Bi*/document.write(unescape("%3Ciframe..."))</script>'
+                    className="w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 font-mono text-xs text-slate-900 outline-none ring-blue-500 transition focus:ring-2"
                   />
                 </Field>
+                <div className="rounded-2xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-semibold leading-5 text-blue-800">
+                  Para evitar que el botón se inactive después de un pago, usa el script iframe de BI Pay. La app guardará solo el enlace seguro del iframe.
+                </div>
 
                 {computedAccess === "pago" && normalizePaymentLinkInput(form.payment_link) ? (
                   <div>

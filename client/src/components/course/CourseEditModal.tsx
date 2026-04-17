@@ -470,7 +470,7 @@ export function CourseEditModal({
                               </div>
                             </div>
 
-                            <div className="relative shrink-0">
+                            <div className="hidden shrink-0 sm:relative sm:block">
                               <button
                                 type="button"
                                 onClick={() => setPriceMenuOpen((v) => !v)}
@@ -540,6 +540,44 @@ export function CourseEditModal({
                             </div>
                           </div>
 
+                          <div className="mt-4 grid gap-2 sm:hidden">
+                            {pricingOptions.map((it) => {
+                              const active =
+                                selectedPricing?.id === it.id ||
+                                (Number(form.precio) === Number(it.precio) &&
+                                  normalizePaymentLinkInput(form.payment_link) ===
+                                    normalizePaymentLinkInput(it.payment_link));
+                              return (
+                                <button
+                                  key={it.id}
+                                  type="button"
+                                  onClick={() => selectPricingOption(it)}
+                                  className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                                    active
+                                      ? "border-blue-200 bg-blue-50 text-blue-900 ring-2 ring-blue-100"
+                                      : "border-slate-200 bg-slate-50 text-slate-800 hover:bg-white"
+                                  }`}
+                                >
+                                  <div className="min-w-0">
+                                    <div className="text-sm font-black">
+                                      Q {Number(it.precio).toFixed(2)}
+                                    </div>
+                                    <div className="mt-0.5 truncate text-xs font-semibold text-slate-500">
+                                      {it.nombre}
+                                    </div>
+                                  </div>
+                                  <span
+                                    className={`cf-course-editor-note-badge shrink-0 rounded-full px-2.5 py-1 font-black ${
+                                      active ? "bg-blue-600 text-white" : "bg-white text-slate-700"
+                                    }`}
+                                  >
+                                    {active ? "Activo" : "Usar"}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+
                           <div className="mt-4 grid gap-4 md:grid-cols-[180px_minmax(0,1fr)]">
                             <Field label="Precio" error={validation.errors.precio ?? null}>
                               <Input
@@ -553,16 +591,18 @@ export function CourseEditModal({
                             </Field>
 
                             <Field
-                              label="Boton BI Pay / EBI"
-                              hint="Puedes pegar uno manual si no quieres usar el menu."
+                              label="Botón fijo BI Pay / EBI"
+                              hint="Puedes pegar el script iframe si no quieres usar el menu."
                               error={validation.errors.payment_link ?? null}
                             >
-                              <Input
+                              <textarea
                                 value={form.payment_link}
                                 onChange={(e) =>
                                   setForm((p) => ({ ...p, payment_link: e.target.value }))
                                 }
-                                placeholder="Pega la URL o el snippet de EBI"
+                                rows={4}
+                                placeholder='<script>/*Pay Bi*/document.write(unescape("%3Ciframe..."))</script>'
+                                className="w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 font-mono text-xs text-slate-900 outline-none ring-blue-500 transition focus:ring-2"
                               />
                             </Field>
                           </div>

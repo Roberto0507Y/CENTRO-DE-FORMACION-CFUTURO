@@ -9,7 +9,7 @@ import { useAuth } from "../../hooks/useAuth";
 import type { ApiResponse } from "../../types/api";
 import type { PricingSetting, PricingStatus } from "../../types/pricing";
 import { getApiErrorMessage } from "../../utils/apiError";
-import { normalizePaymentLinkInput } from "../../utils/paymentLink";
+import { getBiPayEmbedUrl, normalizePaymentLinkInput } from "../../utils/paymentLink";
 import { lazyNamed } from "../../utils/lazyNamed";
 
 const BiPayEmbed = lazyNamed(() => import("../../components/payment/BiPayEmbed"), "BiPayEmbed");
@@ -144,7 +144,10 @@ export function AdminPricingPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <PageHeader title="Precio" subtitle="Crea y administra precios con boton BI Pay / EBI." />
+        <PageHeader
+          title="Precio"
+          subtitle="Administra el precio visible del curso y el botón fijo BI Pay / EBI por separado."
+        />
         <Button onClick={resetForm} variant="secondary">
           Nuevo precio
         </Button>
@@ -202,7 +205,20 @@ export function AdminPricingPage() {
                           {it.estado}
                         </span>
                       </div>
-                      <div className="mt-1 line-clamp-1 text-xs font-semibold text-slate-500">{it.payment_link}</div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] ${
+                            getBiPayEmbedUrl(it.payment_link)
+                              ? "bg-cyan-50 text-cyan-700 ring-1 ring-cyan-100"
+                              : "bg-amber-50 text-amber-700 ring-1 ring-amber-100"
+                          }`}
+                        >
+                          {getBiPayEmbedUrl(it.payment_link) ? "Iframe fijo" : "Enlace directo"}
+                        </span>
+                      </div>
+                      <div className="mt-1 line-clamp-1 text-xs font-semibold text-slate-500">
+                        {normalizePaymentLinkInput(it.payment_link)}
+                      </div>
                     </button>
                   );
                 })}
@@ -235,19 +251,43 @@ export function AdminPricingPage() {
 
             <div className="mt-5 grid gap-5">
               <div>
-                <div className="text-xs font-extrabold text-slate-700">Cantidad (GTQ)</div>
+                <div className="flex items-baseline justify-between gap-3">
+                  <div className="text-xs font-extrabold text-slate-700">Precio visible (GTQ)</div>
+                  <div className="text-xs text-slate-500">Solo cambia lo que ve el estudiante</div>
+                </div>
                 <div className="mt-2">
                   <Input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="1.00" inputMode="decimal" />
+                </div>
+                <div className="mt-2 text-xs font-semibold text-slate-500">
+                  Este monto se muestra en C.FUTURO. El botón de BI Pay queda fijo con el iframe que pegues abajo.
                 </div>
                 {validation.errors.price ? <div className="mt-2 text-xs font-bold text-rose-700">{validation.errors.price}</div> : null}
               </div>
 
               <div>
-                <div className="text-xs font-extrabold text-slate-700">Boton BI Pay / EBI</div>
+                <div className="flex items-baseline justify-between gap-3">
+                  <div className="text-xs font-extrabold text-slate-700">Botón fijo BI Pay / EBI</div>
+                  <div className="text-xs text-slate-500">Pega el script iframe oficial</div>
+                </div>
                 <div className="mt-2">
-                  <Input value={link} onChange={(e) => setLink(e.target.value)} placeholder="Pega la URL o el snippet de EBI" />
+                  <textarea
+                    value={link}
+                    onChange={(e) => setLink(e.target.value)}
+                    rows={5}
+                    placeholder='<script>/*Pay Bi*/document.write(unescape("%3Ciframe..."))</script>'
+                    className="w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 font-mono text-xs text-slate-900 outline-none ring-blue-500 transition focus:ring-2"
+                  />
+                </div>
+                <div className="mt-2 rounded-2xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-semibold leading-5 text-blue-800">
+                  Recomendado: usa el script iframe de BI Pay para evitar que un enlace directo quede inactivo después de un pago.
                 </div>
                 {validation.errors.link ? <div className="mt-2 text-xs font-bold text-rose-700">{validation.errors.link}</div> : null}
+                {normalizePaymentLinkInput(link) ? (
+                  <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
+                    Se guardará como:{" "}
+                    <span className="break-all font-mono text-slate-800">{normalizePaymentLinkInput(link)}</span>
+                  </div>
+                ) : null}
               </div>
 
               {normalizePaymentLinkInput(link) ? (

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { Button } from "../ui/Button";
 
-const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+const IDLE_TIMEOUT_MS = 20 * 60 * 1000;
 const WARNING_BEFORE_MS = 2 * 60 * 1000;
 const LAST_ACTIVITY_KEY = "cfuturo:last-activity-at";
 const IDLE_LOGOUT_KEY = "cfuturo:idle-logout-at";
