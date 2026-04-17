@@ -35,6 +35,14 @@ export type WebAuthResponse = {
   session: WebAuthSession;
 };
 
+export type RegisterResponse = {
+  user: User;
+  verification: {
+    required: true;
+    emailSent: boolean;
+  };
+};
+
 export type BearerAuthResponse = {
   user: User;
   token: string;

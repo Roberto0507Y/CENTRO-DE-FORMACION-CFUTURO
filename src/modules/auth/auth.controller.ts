@@ -4,9 +4,10 @@ import { readCookieValue } from "../../common/utils/cookies";
 import { clearAuthSessionCookie, setAuthSessionCookie } from "./auth-session";
 import { clearCsrfToken, CSRF_COOKIE_NAME, issueCsrfToken, rotateCsrfToken } from "./csrf";
 import { AuthService } from "./auth.service";
-import type { AuthResult, BearerAuthResponse, WebAuthResponse } from "./auth.types";
+import type { AuthResult, BearerAuthResponse, RegisterResult, WebAuthResponse } from "./auth.types";
 
 type AuthResponseBody = WebAuthResponse | BearerAuthResponse;
+type RegisterResponseBody = RegisterResult;
 
 function wantsBearerResponse(req: AuthedRequest): boolean {
   const requestedTransport = String(req.headers["x-auth-transport"] || "")
@@ -44,16 +45,7 @@ export class AuthController {
 
   register = async (req: AuthedRequest, res: Response) => {
     const result = await this.service.register(req.body);
-    const wantsBearer = wantsBearerResponse(req);
-
-    if (wantsBearer) {
-      res.status(201).json({ ok: true, data: buildBearerAuthResponse(result) satisfies AuthResponseBody });
-      return;
-    }
-
-    setAuthSessionCookie(res, result.token);
-    const csrfToken = rotateCsrfToken(res);
-    res.status(201).json({ ok: true, data: buildWebAuthResponse(result, csrfToken) satisfies AuthResponseBody });
+    res.status(201).json({ ok: true, data: result satisfies RegisterResponseBody });
   };
 
   login = async (req: AuthedRequest, res: Response) => {
@@ -92,6 +84,11 @@ export class AuthController {
 
   resetPassword = async (req: AuthedRequest, res: Response) => {
     await this.service.resetPassword(req.body);
+    res.status(200).json({ ok: true, data: { ok: true } });
+  };
+
+  verifyEmail = async (req: AuthedRequest, res: Response) => {
+    await this.service.verifyEmail(req.body);
     res.status(200).json({ ok: true, data: { ok: true } });
   };
 }

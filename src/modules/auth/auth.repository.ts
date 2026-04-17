@@ -5,6 +5,7 @@ import type {
   AuthUserSessionState,
   AuthUserWithPassword,
   CreateUserInput,
+  EmailVerificationRow,
   PasswordResetRow,
 } from "./auth.types";
 
@@ -12,12 +13,14 @@ type UserWithPasswordRow = RowDataPacket & AuthUserWithPassword;
 type UserSessionStateRow = RowDataPacket & AuthUserSessionState;
 type UserPublicRow = RowDataPacket & AuthUserPublic;
 type PasswordResetDbRow = RowDataPacket & PasswordResetRow;
+type EmailVerificationDbRow = RowDataPacket & EmailVerificationRow;
 type UserIdLockRow = RowDataPacket & { id: number };
 type SchemaTableRow = RowDataPacket & { table_name?: string; TABLE_NAME?: string };
 type SchemaMode = "es" | "en";
 
 export class AuthRepository {
   private passwordResetsEnsured = false;
+  private emailVerificationsEnsured = false;
   private schemaMode: SchemaMode | null = null;
   private userCompatColumnsEnsured = false;
 
@@ -112,6 +115,25 @@ export class AuthRepository {
       )`
     );
     this.passwordResetsEnsured = true;
+  }
+
+  private async ensureEmailVerificationsTable(): Promise<void> {
+    if (this.emailVerificationsEnsured) return;
+    await this.resolveSchemaMode();
+    await pool.execute(
+      `CREATE TABLE IF NOT EXISTS email_verifications (
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        usuario_id INT UNSIGNED NOT NULL,
+        token_hash CHAR(64) NOT NULL,
+        expires_at DATETIME NOT NULL,
+        used_at DATETIME NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_email_verifications_token_hash (token_hash),
+        KEY idx_email_verifications_user (usuario_id),
+        KEY idx_email_verifications_expires (expires_at)
+      )`
+    );
+    this.emailVerificationsEnsured = true;
   }
 
   async findByEmail(correo: string): Promise<AuthUserWithPassword | null> {
@@ -322,6 +344,27 @@ export class AuthRepository {
     );
   }
 
+  async updateUserStatus(
+    userId: number,
+    estado: CreateUserInput["estado"],
+    conn?: PoolConnection
+  ): Promise<number> {
+    const schemaMode = await this.resolveSchemaMode();
+    const tableName = schemaMode === "en" ? "users" : "usuarios";
+    const updateClause = schemaMode === "en"
+      ? "SET status = ?"
+      : "SET estado = ?, updated_at = NOW()";
+    const db = conn ?? pool;
+    const [res] = await db.execute<ResultSetHeader>(
+      `UPDATE ${tableName}
+       ${updateClause}
+       WHERE id = ?
+       LIMIT 1`,
+      [this.mapStatusToDb(estado, schemaMode), userId]
+    );
+    return res.affectedRows;
+  }
+
   async createPasswordReset(
     userId: number,
     tokenHash: string,
@@ -401,6 +444,78 @@ export class AuthRepository {
     const db = conn ?? pool;
     const [res] = await db.execute<ResultSetHeader>(
       `UPDATE password_resets
+       SET used_at = NOW()
+       WHERE usuario_id = ? AND used_at IS NULL`,
+      [userId]
+    );
+    return res.affectedRows;
+  }
+
+  async createEmailVerification(
+    userId: number,
+    tokenHash: string,
+    expiresAt: Date,
+    conn?: PoolConnection
+  ): Promise<number> {
+    await this.ensureEmailVerificationsTable();
+    const db = conn ?? pool;
+    const [result] = await db.execute<ResultSetHeader>(
+      `INSERT INTO email_verifications (usuario_id, token_hash, expires_at, created_at)
+       VALUES (?, ?, ?, NOW())`,
+      [userId, tokenHash, expiresAt]
+    );
+    return result.insertId;
+  }
+
+  async findEmailVerificationByHash(tokenHash: string): Promise<EmailVerificationRow | null> {
+    await this.ensureEmailVerificationsTable();
+    const [rows] = await pool.query<EmailVerificationDbRow[]>(
+      `SELECT id, usuario_id, token_hash, expires_at, used_at, created_at
+       FROM email_verifications
+       WHERE token_hash = ?
+       LIMIT 1`,
+      [tokenHash]
+    );
+    return rows[0] ?? null;
+  }
+
+  async findEmailVerificationByHashForUpdate(
+    conn: PoolConnection,
+    tokenHash: string
+  ): Promise<EmailVerificationRow | null> {
+    await this.ensureEmailVerificationsTable();
+    const [rows] = await conn.query<EmailVerificationDbRow[]>(
+      `SELECT id, usuario_id, token_hash, expires_at, used_at, created_at
+       FROM email_verifications
+       WHERE token_hash = ?
+       LIMIT 1
+       FOR UPDATE`,
+      [tokenHash]
+    );
+    return rows[0] ?? null;
+  }
+
+  async markEmailVerificationUsed(id: number, conn?: PoolConnection): Promise<number> {
+    await this.ensureEmailVerificationsTable();
+    const db = conn ?? pool;
+    const [res] = await db.execute<ResultSetHeader>(
+      `UPDATE email_verifications
+       SET used_at = NOW()
+       WHERE id = ? AND used_at IS NULL
+       LIMIT 1`,
+      [id]
+    );
+    return res.affectedRows;
+  }
+
+  async invalidateUnusedEmailVerificationsForUser(
+    userId: number,
+    conn?: PoolConnection
+  ): Promise<number> {
+    await this.ensureEmailVerificationsTable();
+    const db = conn ?? pool;
+    const [res] = await db.execute<ResultSetHeader>(
+      `UPDATE email_verifications
        SET used_at = NOW()
        WHERE usuario_id = ? AND used_at IS NULL`,
       [userId]

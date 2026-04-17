@@ -1,11 +1,10 @@
-import { ShieldCheck, UserRound, KeyRound } from "lucide-react";
+import { ShieldCheck, UserRound, KeyRound, MailCheck } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { useAuth } from "../../hooks/useAuth";
-import { getSafeAuthRedirect } from "../../utils/authRedirect";
 
 function FieldLabel({
   label,
@@ -56,9 +55,6 @@ function FormSection({
 
 export function RegisterPage() {
   const { register } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const redirectTo = getSafeAuthRedirect(location.search);
 
   const [nombres, setNombres] = useState("");
   const [apellidos, setApellidos] = useState("");
@@ -70,6 +66,7 @@ export function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<{ correo: string; emailSent: boolean } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
@@ -83,7 +80,8 @@ export function RegisterPage() {
     try {
       setIsLoading(true);
       setError(null);
-      const u = await register({
+      setSuccess(null);
+      const result = await register({
         nombres: nombres.trim(),
         apellidos: apellidos.trim(),
         dpi: dpi.trim(),
@@ -93,7 +91,7 @@ export function RegisterPage() {
         fecha_nacimiento: fechaNacimiento,
         direccion: direccion.trim(),
       });
-      navigate(redirectTo ?? (u.rol === "admin" ? "/admin" : u.rol === "docente" ? "/teacher" : "/student"));
+      setSuccess({ correo: result.user.correo, emailSent: result.verification.emailSent });
     } catch {
       setError("No se pudo registrar. Verifica tus datos.");
     } finally {
@@ -117,8 +115,32 @@ export function RegisterPage() {
 
         <form className="grid gap-6 p-6 sm:p-8" onSubmit={submit}>
           <div className="rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm font-medium text-blue-800 dark:border-cyan-400/15 dark:bg-cyan-400/10 dark:text-cyan-100">
-            Todos los campos son obligatorios para crear tu acceso.
+            Todos los campos son obligatorios. Al crear tu cuenta, te enviaremos un correo para confirmar y activar tu acceso.
           </div>
+
+          {success ? (
+            <div className="rounded-[1.4rem] border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm leading-6 text-emerald-900 shadow-[0_18px_40px_-34px_rgba(16,185,129,0.45)] dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-100">
+              <div className="flex items-start gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white text-emerald-700 ring-1 ring-emerald-200 dark:bg-slate-950/80 dark:text-emerald-200 dark:ring-emerald-400/25">
+                  <MailCheck className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <div>
+                  <p className="font-black">Cuenta creada. Confirma tu correo para activarla.</p>
+                  <p className="mt-1">
+                    {success.emailSent
+                      ? `Enviamos un enlace de confirmación a ${success.correo}. Revisa tu bandeja principal y spam.`
+                      : `Tu cuenta quedó pendiente, pero no pudimos enviar el correo a ${success.correo}. Verifica la configuración SMTP o solicita soporte.`}
+                  </p>
+                  <Link
+                    to="/auth/login"
+                    className="mt-3 inline-flex font-black text-emerald-700 underline-offset-4 hover:underline dark:text-emerald-200"
+                  >
+                    Ir a iniciar sesión
+                  </Link>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           <FormSection
             icon={<UserRound className="h-5 w-5" aria-hidden="true" />}
@@ -257,10 +279,10 @@ export function RegisterPage() {
             </div>
             <Button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || Boolean(success)}
               className="h-12 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-6 text-base font-black shadow-[0_18px_40px_-18px_rgba(37,99,235,0.45)] hover:from-blue-500 hover:to-cyan-400 hover:shadow-[0_22px_44px_-18px_rgba(34,211,238,0.35)] sm:min-w-52"
             >
-              {isLoading ? "Creando cuenta…" : "Crear cuenta"}
+              {isLoading ? "Creando cuenta…" : success ? "Cuenta creada" : "Crear cuenta"}
             </Button>
           </div>
         </form>

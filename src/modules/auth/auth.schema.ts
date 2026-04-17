@@ -37,3 +37,9 @@ export const resetPasswordBodySchema = z
     password: z.string().min(8, "password debe tener al menos 8 caracteres").max(255),
   })
   .strict();
+
+export const verifyEmailBodySchema = z
+  .object({
+    token: z.string().min(20, "token inválido").max(500),
+  })
+  .strict();

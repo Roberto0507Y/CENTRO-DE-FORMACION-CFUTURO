@@ -42,6 +42,14 @@ export type AuthResult = {
   user: AuthUserPublic;
 };
 
+export type RegisterResult = {
+  user: AuthUserPublic;
+  verification: {
+    required: true;
+    emailSent: boolean;
+  };
+};
+
 export type WebAuthSession = {
   authenticated: true;
   transport: "cookie";
@@ -67,7 +75,20 @@ export type ResetPasswordInput = {
   password: string;
 };
 
+export type VerifyEmailInput = {
+  token: string;
+};
+
 export type PasswordResetRow = {
+  id: number;
+  usuario_id: number;
+  token_hash: string;
+  expires_at: string;
+  used_at: string | null;
+  created_at: string;
+};
+
+export type EmailVerificationRow = {
   id: number;
   usuario_id: number;
   token_hash: string;

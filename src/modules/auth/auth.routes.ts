@@ -9,6 +9,7 @@ import {
   loginBodySchema,
   registerBodySchema,
   resetPasswordBodySchema,
+  verifyEmailBodySchema,
 } from "./auth.schema";
 
 const router = Router();
@@ -59,6 +60,12 @@ router.post(
   authRecoveryRateLimit,
   validate({ body: resetPasswordBodySchema }),
   asyncHandler(controller.resetPassword)
+);
+router.post(
+  "/verify-email",
+  authRecoveryRateLimit,
+  validate({ body: verifyEmailBodySchema }),
+  asyncHandler(controller.verifyEmail)
 );
 
 export default router;

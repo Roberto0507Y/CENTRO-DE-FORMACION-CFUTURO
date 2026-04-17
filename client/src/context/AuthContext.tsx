@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useEffect, useMemo, useRef, useState
 import type { AxiosInstance } from "axios";
 import { clearCachedCsrfToken, createApiClient, hydrateCsrfToken } from "../api/axios";
 import type { ApiResponse } from "../types/api";
-import type { User, WebAuthResponse } from "../types/auth";
+import type { RegisterResponse, User, WebAuthResponse } from "../types/auth";
 
 type AuthContextValue = {
   token: string | null;
@@ -19,7 +19,7 @@ type AuthContextValue = {
     telefono?: string | null;
     fecha_nacimiento?: string | null;
     direccion?: string | null;
-  }) => Promise<User>;
+  }) => Promise<RegisterResponse>;
   logout: () => void;
   refreshMe: () => Promise<void>;
 };
@@ -90,12 +90,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     telefono?: string | null;
     fecha_nacimiento?: string | null;
     direccion?: string | null;
-  }): Promise<User> => {
-    const res = await api.post<ApiResponse<WebAuthResponse>>("/auth/register", input);
-    setToken(AUTH_SESSION_MARKER);
-    hydrateCsrfToken(res.data.data.session.csrfToken);
-    setUser(res.data.data.user);
-    return res.data.data.user;
+  }): Promise<RegisterResponse> => {
+    const res = await api.post<ApiResponse<RegisterResponse>>("/auth/register", input);
+    return res.data.data;
   }, [api]);
 
   useEffect(() => {

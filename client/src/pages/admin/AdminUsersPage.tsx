@@ -44,12 +44,114 @@ function formatDateTime(value: string | null) {
   return d.toLocaleString("es-GT", { dateStyle: "medium", timeStyle: "short" });
 }
 
+function formatDate(value: string | null) {
+  if (!value) return "—";
+  const dateOnly = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const d = dateOnly
+    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+    : new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleDateString("es-GT", { dateStyle: "long" });
+}
+
+function detailValue(value: string | number | null | undefined) {
+  if (value === null || value === undefined) return "—";
+  const text = String(value).trim();
+  return text.length > 0 ? text : "—";
+}
+
+function DetailField({ label, value }: { label: string; value: string | number | null | undefined }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/65">
+      <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+        {label}
+      </div>
+      <div className="mt-1 break-words text-sm font-bold leading-6 text-slate-900 dark:text-slate-100">
+        {detailValue(value)}
+      </div>
+    </div>
+  );
+}
+
+function UserDetailModal({ user, onClose }: { user: User | null; onClose: () => void }) {
+  if (!user) return null;
+
+  const role = roleBadge(user.rol);
+  const estado = estadoBadge(user.estado);
+
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-slate-950/55 px-4 py-6 backdrop-blur-sm sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="user-detail-title"
+    >
+      <div className="w-full max-w-3xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl shadow-slate-950/20 dark:border-slate-800 dark:bg-slate-950 dark:shadow-black/40">
+        <div className="border-b border-slate-200 bg-gradient-to-br from-slate-950 via-blue-900 to-cyan-700 px-5 py-5 text-white dark:border-slate-800 sm:px-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex min-w-0 items-start gap-4">
+              <Avatar name={`${user.nombres} ${user.apellidos}`} src={user.foto_url} size={56} />
+              <div className="min-w-0">
+                <div className="text-[11px] font-black uppercase tracking-[0.2em] text-cyan-100/80">
+                  Detalle del usuario
+                </div>
+                <h2 id="user-detail-title" className="mt-1 break-words text-2xl font-black tracking-tight">
+                  {user.nombres} {user.apellidos}
+                </h2>
+                <p className="mt-1 break-words text-sm font-medium text-white/75">{user.correo}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Badge variant={role.variant}>{role.label}</Badge>
+                  <Badge variant={estado.variant}>{estado.label}</Badge>
+                  <span className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-bold leading-none text-white">
+                    ID #{user.id}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-10 items-center justify-center rounded-2xl border border-white/15 bg-white/10 px-4 text-sm font-black text-white transition hover:bg-white/15"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+
+        <div className="max-h-[72vh] overflow-y-auto px-5 py-5 sm:px-6">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <DetailField label="DPI" value={user.dpi} />
+            <DetailField label="Teléfono" value={user.telefono} />
+            <DetailField label="Fecha de nacimiento" value={formatDate(user.fecha_nacimiento)} />
+            <DetailField label="Correo" value={user.correo} />
+          </div>
+
+          <div className="mt-3">
+            <DetailField label="Dirección registrada" value={user.direccion} />
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <DetailField label="Último login" value={formatDateTime(user.ultimo_login)} />
+            <DetailField label="Creado" value={formatDateTime(user.created_at)} />
+            <DetailField label="Actualizado" value={formatDateTime(user.updated_at)} />
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm leading-6 text-blue-900 dark:border-cyan-400/15 dark:bg-cyan-400/10 dark:text-cyan-100">
+            Esta información corresponde a los datos capturados durante el registro y los cambios administrativos posteriores.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function UserCard({
   user,
   currentUserId,
   busy,
   onRoleChange,
   onStatusChange,
+  onViewDetail,
   onActivate,
   onSuspend,
   onDisable,
@@ -60,6 +162,7 @@ function UserCard({
   busy: boolean;
   onRoleChange: (role: UserRole) => void;
   onStatusChange: (estado: UserEstado) => void;
+  onViewDetail: () => void;
   onActivate: () => void;
   onSuspend: () => void;
   onDisable: () => void;
@@ -125,6 +228,9 @@ function UserCard({
         </div>
 
         <div className="grid grid-cols-2 gap-2">
+          <Button variant="secondary" size="sm" onClick={onViewDetail}>
+            Detalle
+          </Button>
           <Button variant="ghost" size="sm" disabled={busy || isSelf} onClick={onActivate}>
             Activar
           </Button>
@@ -158,6 +264,7 @@ export function AdminUsersPage() {
   const [page, setPage] = useState(1);
   const [isSaving, setIsSaving] = useState<Record<number, boolean>>({});
   const [pendingDeleteUser, setPendingDeleteUser] = useState<User | null>(null);
+  const [detailUser, setDetailUser] = useState<User | null>(null);
 
   const load = useCallback(
     async (pageToLoad = page, signal?: AbortSignal) => {
@@ -326,6 +433,7 @@ export function AdminUsersPage() {
                       busy={busy}
                       onRoleChange={(rol) => void updateUser(u.id, { rol })}
                       onStatusChange={(estado) => void updateUser(u.id, { estado })}
+                      onViewDetail={() => setDetailUser(u)}
                       onActivate={() => void activateUser(u.id)}
                       onSuspend={() => void suspendUser(u.id)}
                       onDisable={() => void disableUser(u.id)}
@@ -413,6 +521,13 @@ export function AdminUsersPage() {
                         <td className="px-4 py-3 pr-4 align-top">
                           <div className="flex flex-wrap gap-2">
                             <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => setDetailUser(u)}
+                            >
+                              Detalle
+                            </Button>
+                            <Button
                               variant="ghost"
                               size="sm"
                               disabled={busy || isSelf}
@@ -478,6 +593,7 @@ export function AdminUsersPage() {
           if (pendingDeleteUser) void deleteUser(pendingDeleteUser.id);
         }}
       />
+      <UserDetailModal user={detailUser} onClose={() => setDetailUser(null)} />
     </div>
   );
 }

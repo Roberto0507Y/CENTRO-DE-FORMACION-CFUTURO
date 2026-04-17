@@ -44,6 +44,10 @@ const ResetPasswordPage = lazyNamed(
   () => import("../pages/auth/ResetPasswordPage"),
   "ResetPasswordPage",
 );
+const VerifyEmailPage = lazyNamed(
+  () => import("../pages/auth/VerifyEmailPage"),
+  "VerifyEmailPage",
+);
 
 const StudentLayout = lazyNamed(() => import("../layouts/StudentLayout"), "StudentLayout");
 const TeacherLayout = lazyNamed(() => import("../layouts/TeacherLayout"), "TeacherLayout");
@@ -213,6 +217,7 @@ const router = createBrowserRouter([
       { path: "/auth/register", element: suspenseElement(<RegisterPage />) },
       { path: "/auth/forgot-password", element: suspenseElement(<ForgotPasswordPage />) },
       { path: "/auth/reset-password", element: suspenseElement(<ResetPasswordPage />) },
+      { path: "/auth/verify-email", element: suspenseElement(<VerifyEmailPage />) },
     ],
   },
   {
