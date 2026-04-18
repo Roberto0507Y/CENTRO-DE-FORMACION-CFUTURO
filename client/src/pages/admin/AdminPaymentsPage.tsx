@@ -531,111 +531,103 @@ export function AdminPaymentsPage() {
                   }}
                 />
               ) : (
-                <div className="overflow-hidden">
-                  <div className="grid gap-3">
-                    {list.items.map((p) => {
-                      const s = statusUi(p.estado);
-                      const busy = Boolean(mutating[p.id]);
-                      return (
-                        <article
-                          key={p.id}
-                          className="cf-admin-payments-row border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70"
-                        >
-                          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-2">
+                <div>
+                  <div className="w-full overflow-x-auto rounded-[1.6rem] border border-slate-200 [-webkit-overflow-scrolling:touch] dark:border-slate-800">
+                    <table className="w-full min-w-[1180px] border-separate border-spacing-0 bg-white text-left text-sm dark:bg-slate-950/70">
+                      <thead className="bg-slate-50 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 dark:bg-slate-900/80 dark:text-slate-400">
+                        <tr>
+                          <th className="px-5 py-4">Pago</th>
+                          <th className="px-4 py-4">Estudiante</th>
+                          <th className="px-4 py-4">Curso</th>
+                          <th className="px-4 py-4">Monto</th>
+                          <th className="px-4 py-4">Comprobante</th>
+                          <th className="px-4 py-4 text-right">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {list.items.map((p) => {
+                          const s = statusUi(p.estado);
+                          const busy = Boolean(mutating[p.id]);
+                          return (
+                            <tr key={p.id} className="transition hover:bg-slate-50/70 dark:hover:bg-slate-900/50">
+                              <td className="whitespace-nowrap px-5 py-4 align-top">
                                 <div className="text-sm font-black text-slate-950 dark:text-white">Pago #{p.id}</div>
-                                <Badge variant={s.variant}>{s.label}</Badge>
-                                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                                  {methodLabel(p.metodo_pago)}
-                                </span>
-                              </div>
-
-                              <div className="cf-admin-payments-row-grid mt-3">
-                                <div className="min-w-0 rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/60">
-                                  <div className="cf-admin-payments-row-label text-slate-500 dark:text-slate-400">
-                                    Estudiante
-                                  </div>
-                                  <div className="mt-1 truncate text-sm font-black text-slate-950 dark:text-white">
-                                    {p.usuario.nombres} {p.usuario.apellidos}
-                                  </div>
-                                  <div className="mt-1 break-all text-xs font-semibold text-slate-600 dark:text-slate-400">
-                                    {p.usuario.correo}
-                                  </div>
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  <Badge variant={s.variant}>{s.label}</Badge>
+                                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                    {methodLabel(p.metodo_pago)}
+                                  </span>
                                 </div>
-
-                                <div className="min-w-0 rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/60">
-                                  <div className="cf-admin-payments-row-label text-slate-500 dark:text-slate-400">
-                                    Curso
-                                  </div>
-                                  <div className="mt-1 truncate text-sm font-black text-slate-950 dark:text-white">
-                                    {p.cursos ?? "—"}
-                                  </div>
-                                  <div className="mt-1 break-all text-xs font-semibold text-slate-500 dark:text-slate-500">
-                                    {p.referencia_pago}
-                                  </div>
+                              </td>
+                              <td className="min-w-[240px] px-4 py-4 align-top">
+                                <div className="truncate text-sm font-black text-slate-950 dark:text-white">
+                                  {p.usuario.nombres} {p.usuario.apellidos}
                                 </div>
-
-                                <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/60">
-                                  <div className="cf-admin-payments-row-label text-slate-500 dark:text-slate-400">
-                                    Monto
-                                  </div>
-                                  <div className="mt-1 text-sm font-black text-slate-950 dark:text-white">
-                                    {formatMoney(p.monto_total, p.moneda)}
-                                  </div>
-                                  <div className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-500">
-                                    {formatDateTime(p.fecha_pago ?? p.created_at)}
-                                  </div>
+                                <div className="mt-1 break-all text-xs font-semibold text-slate-600 dark:text-slate-400">
+                                  {p.usuario.correo}
                                 </div>
-
-                                <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/60">
-                                  <div className="cf-admin-payments-row-label text-slate-500 dark:text-slate-400">
-                                    Comprobante
-                                  </div>
-                                  {p.comprobante_url ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => void downloadProof(p.id)}
-                                      className="mt-1 text-sm font-black text-blue-700 hover:underline dark:text-cyan-300"
-                                    >
-                                      Ver comprobante
-                                    </button>
-                                  ) : (
-                                    <div className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">Sin archivo</div>
-                                  )}
+                              </td>
+                              <td className="min-w-[250px] px-4 py-4 align-top">
+                                <div className="line-clamp-2 text-sm font-black text-slate-950 dark:text-white">
+                                  {p.cursos ?? "—"}
                                 </div>
-                              </div>
-                            </div>
-
-                            <div className="flex shrink-0 flex-wrap gap-2 xl:flex-col xl:items-stretch">
-                              <Button size="sm" variant="ghost" onClick={() => void openDetail(p.id)}>
-                                Ver detalle
-                              </Button>
-                              {p.estado === "pendiente" ? (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    variant="secondary"
-                                    disabled={busy}
-                                    onClick={() => setPendingApprovePayment(p)}
+                                <div className="mt-1 break-all text-xs font-semibold text-slate-500 dark:text-slate-500">
+                                  {p.referencia_pago}
+                                </div>
+                              </td>
+                              <td className="whitespace-nowrap px-4 py-4 align-top">
+                                <div className="text-sm font-black text-slate-950 dark:text-white">
+                                  {formatMoney(p.monto_total, p.moneda)}
+                                </div>
+                                <div className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-500">
+                                  {formatDateTime(p.fecha_pago ?? p.created_at)}
+                                </div>
+                              </td>
+                              <td className="whitespace-nowrap px-4 py-4 align-top">
+                                {p.comprobante_url ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => void downloadProof(p.id)}
+                                    className="text-sm font-black text-blue-700 hover:underline dark:text-cyan-300"
                                   >
-                                    Aprobar
+                                    Ver comprobante
+                                  </button>
+                                ) : (
+                                  <div className="text-sm font-semibold text-slate-500 dark:text-slate-400">Sin archivo</div>
+                                )}
+                              </td>
+                              <td className="px-4 py-4 text-right align-top">
+                                <div className="flex justify-end gap-2">
+                                  <Button size="sm" variant="ghost" onClick={() => void openDetail(p.id)}>
+                                    Ver detalle
                                   </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="danger"
-                                    disabled={busy}
-                                    onClick={() => openReject(p.id)}
-                                  >
-                                    Rechazar
-                                  </Button>
-                                </>
-                              ) : null}
-                            </div>
-                          </div>
-                        </article>
-                      );
-                    })}
+                                  {p.estado === "pendiente" ? (
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        disabled={busy}
+                                        onClick={() => setPendingApprovePayment(p)}
+                                      >
+                                        Aprobar
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="danger"
+                                        disabled={busy}
+                                        onClick={() => openReject(p.id)}
+                                      >
+                                        Rechazar
+                                      </Button>
+                                    </>
+                                  ) : null}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
 
                   <PaginationControls

@@ -45,42 +45,27 @@
   letter-spacing: 0.16em;
 }
 
-@media (min-width: 1280px) {
-  .cf-admin-reports-attendance-head {
-    display: grid;
-    grid-template-columns: 70px minmax(220px, 1.3fr) minmax(220px, 1fr) 160px minmax(220px, 1fr);
-  }
-
-  .cf-admin-reports-attendance-row {
-    grid-template-columns: 70px minmax(220px, 1.3fr) minmax(220px, 1fr) 160px minmax(220px, 1fr);
-    align-items: center;
-  }
+.cf-admin-reports-attendance-head,
+.cf-admin-reports-attendance-row {
+  display: grid;
+  min-width: 980px;
+  grid-template-columns: 70px minmax(220px, 1.3fr) minmax(220px, 1fr) 160px minmax(220px, 1fr);
+  align-items: center;
 }
 
-@media (min-width: 1280px) {
-  .cf-admin-reports-zone-head {
-    display: grid;
-    grid-template-columns:
-      70px
-      minmax(240px, 1.35fr)
-      minmax(220px, 1fr)
-      minmax(165px, 0.78fr)
-      minmax(165px, 0.78fr)
-      minmax(165px, 0.78fr)
-      110px;
-  }
-
-  .cf-admin-reports-zone-row {
-    grid-template-columns:
-      70px
-      minmax(240px, 1.35fr)
-      minmax(220px, 1fr)
-      minmax(165px, 0.78fr)
-      minmax(165px, 0.78fr)
-      minmax(165px, 0.78fr)
-      110px;
-    align-items: center;
-  }
+.cf-admin-reports-zone-head,
+.cf-admin-reports-zone-row {
+  display: grid;
+  min-width: 1180px;
+  grid-template-columns:
+    70px
+    minmax(240px, 1.35fr)
+    minmax(220px, 1fr)
+    minmax(165px, 0.78fr)
+    minmax(165px, 0.78fr)
+    minmax(165px, 0.78fr)
+    110px;
+  align-items: center;
 }
 
 .cf-admin-reports-score-label {
@@ -159,13 +144,6 @@
   letter-spacing: 0.16em;
 }
 
-@media (min-width: 1280px) {
-  .cf-admin-reports-zone-table {
-    overflow-x: auto;
-  }
-
-  .cf-admin-reports-zone-head,
-  .cf-admin-reports-zone-row {
-    min-width: 1180px;
-  }
+.cf-admin-reports-zone-table {
+  overflow-x: auto;
 }

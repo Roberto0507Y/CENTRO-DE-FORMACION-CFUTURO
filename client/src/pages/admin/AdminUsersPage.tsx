@@ -81,13 +81,13 @@ function UserDetailModal({ user, onClose }: { user: User | null; onClose: () => 
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-slate-950/55 px-4 py-6 backdrop-blur-sm sm:items-center"
+      className="fixed inset-0 z-[80] overflow-y-auto bg-slate-950/55 px-3 py-3 backdrop-blur-sm sm:px-4 sm:py-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="user-detail-title"
     >
-      <div className="w-full max-w-3xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl shadow-slate-950/20 dark:border-slate-800 dark:bg-slate-950 dark:shadow-black/40">
-        <div className="border-b border-slate-200 bg-gradient-to-br from-slate-950 via-blue-900 to-cyan-700 px-5 py-5 text-white dark:border-slate-800 sm:px-6">
+      <div className="mx-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-3xl flex-col overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-2xl shadow-slate-950/20 dark:border-slate-800 dark:bg-slate-950 dark:shadow-black/40 sm:max-h-[calc(100dvh-3rem)] sm:rounded-[2rem]">
+        <div className="shrink-0 border-b border-slate-200 bg-gradient-to-br from-slate-950 via-blue-900 to-cyan-700 px-5 py-5 text-white dark:border-slate-800 sm:px-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex min-w-0 items-start gap-4">
               <Avatar name={`${user.nombres} ${user.apellidos}`} src={user.foto_url} size={56} />
@@ -118,7 +118,7 @@ function UserDetailModal({ user, onClose }: { user: User | null; onClose: () => 
           </div>
         </div>
 
-        <div className="max-h-[72vh] overflow-y-auto px-5 py-5 sm:px-6">
+        <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-5 py-5 sm:px-6">
           <div className="grid gap-3 sm:grid-cols-2">
             <DetailField label="DPI" value={user.dpi} />
             <DetailField label="Teléfono" value={user.telefono} />
@@ -142,106 +142,6 @@ function UserDetailModal({ user, onClose }: { user: User | null; onClose: () => 
         </div>
       </div>
     </div>
-  );
-}
-
-function UserCard({
-  user,
-  currentUserId,
-  busy,
-  onRoleChange,
-  onStatusChange,
-  onViewDetail,
-  onDelete,
-}: {
-  user: User;
-  currentUserId?: number;
-  busy: boolean;
-  onRoleChange: (role: UserRole) => void;
-  onStatusChange: (estado: UserEstado) => void;
-  onViewDetail: () => void;
-  onDelete: () => void;
-}) {
-  const role = roleBadge(user.rol);
-  const estado = estadoBadge(user.estado);
-  const isSelf = currentUserId === user.id;
-
-  return (
-    <Card className="rounded-[1.75rem] border-slate-200/80 p-4 shadow-[0_18px_44px_-36px_rgba(15,23,42,0.45)] md:hidden dark:border-slate-800 dark:bg-slate-950/80">
-      <div className="flex items-start gap-3">
-        <Avatar name={`${user.nombres} ${user.apellidos}`} src={user.foto_url} size={48} />
-        <div className="min-w-0 flex-1">
-          <div className="line-clamp-2 text-sm font-black leading-5 text-slate-900 dark:text-slate-100">
-            {user.nombres} {user.apellidos} <span className="text-xs font-bold text-slate-500 dark:text-slate-400">#{user.id}</span>
-          </div>
-          <div className="mt-0.5 break-all text-sm text-slate-600 dark:text-slate-300">{user.correo}</div>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <Badge variant={role.variant}>{role.label}</Badge>
-            <Badge variant={estado.variant}>{estado.label}</Badge>
-            {isSelf ? <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Tú</span> : null}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-4 grid gap-3">
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={onViewDetail}
-          className="h-11 rounded-2xl bg-gradient-to-r from-slate-950 to-blue-700 text-white shadow-[0_14px_28px_-18px_rgba(37,99,235,0.65)] dark:from-cyan-400 dark:to-blue-500 dark:text-slate-950"
-        >
-          Ver detalle del usuario
-        </Button>
-
-        <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/55">
-        <div>
-          <div className="mb-2 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Rol</div>
-          <select
-            value={user.rol}
-            disabled={busy || isSelf}
-            onChange={(e) => onRoleChange(e.target.value as UserRole)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none ring-blue-500 focus:ring-2 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-          >
-            <option value="estudiante">Estudiante</option>
-            <option value="docente">Docente</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
-
-        <div>
-          <div className="mb-2 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Estado</div>
-          <select
-            value={user.estado}
-            disabled={busy || isSelf}
-            onChange={(e) => onStatusChange(e.target.value as UserEstado)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none ring-blue-500 focus:ring-2 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-          >
-            <option value="activo">Activo</option>
-            <option value="inactivo">Inactivo</option>
-            <option value="suspendido">Suspendido</option>
-          </select>
-        </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900/55 dark:text-slate-300">
-          <div>
-            Último login: <span className="font-semibold text-slate-800 dark:text-slate-100">{formatDateTime(user.ultimo_login)}</span>
-          </div>
-          <div className="mt-1">
-            Creado: <span className="font-semibold text-slate-800 dark:text-slate-100">{formatDateTime(user.created_at)}</span>
-          </div>
-        </div>
-
-        <Button variant="danger" size="sm" disabled={busy || isSelf} onClick={onDelete} className="h-11 rounded-2xl">
-          Eliminar usuario
-        </Button>
-
-        {isSelf ? (
-          <div className="text-xs text-slate-500 dark:text-slate-400">No puedes cambiar tu propio rol ni desactivar tu cuenta aquí.</div>
-        ) : null}
-        {busy ? <div className="text-xs text-slate-500 dark:text-slate-400">Guardando…</div> : null}
-      </div>
-    </Card>
   );
 }
 
@@ -409,25 +309,7 @@ export function AdminUsersPage() {
             />
           ) : (
             <div className="space-y-3">
-              <div className="grid gap-3 md:hidden">
-                {list.items.map((u) => {
-                  const busy = Boolean(isSaving[u.id]);
-                  return (
-                    <UserCard
-                      key={u.id}
-                      user={u}
-                      currentUserId={me?.id}
-                      busy={busy}
-                      onRoleChange={(rol) => void updateUser(u.id, { rol })}
-                      onStatusChange={(estado) => void updateUser(u.id, { estado })}
-                      onViewDetail={() => setDetailUser(u)}
-                      onDelete={() => setPendingDeleteUser(u)}
-                    />
-                  );
-                })}
-              </div>
-
-              <div className="hidden overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)] md:block dark:border-slate-800 dark:bg-slate-950/70">
+              <div className="w-full overflow-x-auto rounded-[28px] border border-slate-200 bg-white shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)] [-webkit-overflow-scrolling:touch] dark:border-slate-800 dark:bg-slate-950/70">
               <table className="w-full min-w-[980px] border-separate border-spacing-0 bg-white dark:bg-slate-950/70">
                 <colgroup>
                   <col className="w-[30%]" />

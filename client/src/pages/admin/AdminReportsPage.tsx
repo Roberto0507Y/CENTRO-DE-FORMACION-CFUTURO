@@ -358,8 +358,8 @@ export function AdminReportsPage() {
                   description="Selecciona otro curso o fecha para consultar la asistencia."
                 />
               ) : (
-                <div className="cf-admin-reports-table-shell overflow-hidden border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-                  <div className="cf-admin-reports-attendance-head cf-admin-reports-head-label hidden gap-4 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase text-slate-500 xl:grid dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
+                <div className="cf-admin-reports-table-shell overflow-x-auto border border-slate-200 bg-white [-webkit-overflow-scrolling:touch] dark:border-slate-800 dark:bg-slate-900">
+                  <div className="cf-admin-reports-attendance-head cf-admin-reports-head-label gap-4 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
                     <div>#</div>
                     <div>Estudiante</div>
                     <div>Correo</div>
@@ -373,12 +373,9 @@ export function AdminReportsPage() {
                       const fullName = `${item.estudiante.apellidos}, ${item.estudiante.nombres}`.trim();
                       return (
                         <div key={item.estudiante.id} className="cf-admin-reports-attendance-row grid gap-3 px-5 py-4">
-                          <div className="hidden text-sm font-black text-slate-500 xl:block">#{rowNumber}</div>
+                          <div className="text-sm font-black text-slate-500">#{rowNumber}</div>
                           <div className="min-w-0">
                             <div className="text-sm font-black text-slate-950 dark:text-white">{fullName}</div>
-                            <div className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400 xl:hidden">
-                              Registro #{rowNumber}
-                            </div>
                           </div>
                           <div className="truncate text-sm font-semibold text-slate-600 dark:text-slate-300">
                             {item.estudiante.correo}
@@ -494,8 +491,8 @@ function ZoneReportContent({
             description="Cuando el curso tenga estudiantes inscritos, tareas o quizzes, aparecerá el resumen aquí."
           />
         ) : (
-          <div className="cf-admin-reports-table-shell cf-admin-reports-zone-table overflow-hidden border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-            <div className="cf-admin-reports-zone-head cf-admin-reports-head-label hidden gap-4 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase text-slate-500 xl:grid dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
+          <div className="cf-admin-reports-table-shell cf-admin-reports-zone-table border border-slate-200 bg-white [-webkit-overflow-scrolling:touch] dark:border-slate-800 dark:bg-slate-900">
+            <div className="cf-admin-reports-zone-head cf-admin-reports-head-label gap-4 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
               <div>#</div>
               <div>Estudiante</div>
               <div>Correo</div>
@@ -511,12 +508,9 @@ function ZoneReportContent({
                 const fullName = `${row.estudiante.apellidos}, ${row.estudiante.nombres}`.trim();
                 return (
                   <div key={row.estudiante.id} className="cf-admin-reports-zone-row grid gap-3 px-5 py-4">
-                    <div className="hidden text-sm font-black text-slate-500 xl:block">#{rowNumber}</div>
+                    <div className="text-sm font-black text-slate-500">#{rowNumber}</div>
                     <div className="min-w-0">
                       <div className="text-sm font-black text-slate-950 dark:text-white">{fullName}</div>
-                      <div className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400 xl:hidden">
-                        Registro #{rowNumber}
-                      </div>
                     </div>
                     <div className="truncate text-sm font-semibold text-slate-600 dark:text-slate-300">
                       {row.estudiante.correo}
@@ -575,11 +569,9 @@ function ScoreCell({
   hint: string;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-950/70 xl:border-0 xl:bg-transparent xl:p-0 xl:dark:bg-transparent">
-      <div className="cf-admin-reports-score-label text-slate-500 dark:text-slate-400 xl:hidden">
-        {label}
-      </div>
-      <div className="mt-1 text-sm font-black text-slate-950 dark:text-white xl:mt-0">
+    <div className="min-w-0">
+      <div className="sr-only">{label}</div>
+      <div className="text-sm font-black text-slate-950 dark:text-white">
         {formatNumber(score)} / {formatNumber(possible)}
       </div>
       <div className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{hint}</div>
