@@ -1,6 +1,6 @@
 import type { RowDataPacket } from "mysql2/promise";
 import { pool } from "../../config/db";
-import type { GradebookAttendanceItem, GradebookCourse, GradebookTaskItem } from "./gradebook.types";
+import type { GradebookAttendanceItem, GradebookCourse, GradebookQuizItem, GradebookTaskItem } from "./gradebook.types";
 
 type CourseAccessRow = RowDataPacket & GradebookCourse & {
   estado: "borrador" | "publicado" | "oculto";
@@ -22,6 +22,17 @@ type TaskGradeRow = RowDataPacket & {
 };
 
 type AttendanceRow = RowDataPacket & GradebookAttendanceItem;
+type QuizGradeRow = RowDataPacket & {
+  id: number;
+  titulo: string;
+  puntaje_total: string;
+  fecha_cierre: string | null;
+  estado: GradebookQuizItem["estado"];
+  intentos: number | null;
+  completado: 0 | 1 | null;
+  puntaje_obtenido: string | number | null;
+  fecha_fin: string | null;
+};
 
 export class GradebookRepository {
   async findStudentCourse(courseId: number, studentId: number): Promise<CourseAccessRow | null> {
@@ -98,5 +109,51 @@ export class GradebookRepository {
       [courseId, studentId]
     );
     return rows;
+  }
+
+  async listQuizGrades(courseId: number, studentId: number): Promise<GradebookQuizItem[]> {
+    const [rows] = await pool.query<QuizGradeRow[]>(
+      `SELECT
+        q.id,
+        q.titulo,
+        q.puntaje_total,
+        q.fecha_cierre,
+        q.estado,
+        COALESCE(qa.intentos, 0) AS intentos,
+        COALESCE(qa.completado, 0) AS completado,
+        qa.puntaje_obtenido,
+        qa.fecha_fin
+       FROM quizzes q
+       LEFT JOIN (
+         SELECT
+           quiz_id,
+           estudiante_id,
+           COUNT(*) AS intentos,
+           MAX(CASE WHEN completado = 1 THEN 1 ELSE 0 END) AS completado,
+           MAX(CASE WHEN completado = 1 THEN puntaje_obtenido ELSE NULL END) AS puntaje_obtenido,
+           MAX(CASE WHEN completado = 1 THEN fecha_fin ELSE NULL END) AS fecha_fin
+         FROM intentos_quiz
+         WHERE estudiante_id = ?
+         GROUP BY quiz_id, estudiante_id
+       ) qa
+         ON qa.quiz_id = q.id
+        AND qa.estudiante_id = ?
+       WHERE q.curso_id = ?
+         AND q.estado IN ('publicado', 'cerrado')
+       ORDER BY q.fecha_cierre ASC, q.id ASC`,
+      [studentId, studentId, courseId]
+    );
+
+    return rows.map((row) => ({
+      id: row.id,
+      titulo: row.titulo,
+      puntaje_total: row.puntaje_total,
+      fecha_cierre: row.fecha_cierre,
+      estado: row.estado,
+      intentos: Number(row.intentos ?? 0),
+      completado: row.completado === 1,
+      puntaje_obtenido: row.puntaje_obtenido,
+      fecha_fin: row.fecha_fin,
+    }));
   }
 }

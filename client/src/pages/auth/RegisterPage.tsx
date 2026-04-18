@@ -93,6 +93,8 @@ export function RegisterPage() {
         direccion: direccion.trim(),
       });
       setSuccess({ correo: result.user.correo, emailSent: result.verification.emailSent });
+      setPassword("");
+      setConfirmPassword("");
     } catch (err) {
       const message = getApiErrorMessage(err, "No se pudo registrar. Verifica tus datos.");
       const normalized = message.toLowerCase();
@@ -109,6 +111,61 @@ export function RegisterPage() {
       setIsLoading(false);
     }
   };
+
+  if (success) {
+    return (
+      <div className="mx-auto flex min-h-[calc(100vh-7rem)] max-w-4xl items-center px-4 py-8">
+        <Card className="relative w-full overflow-hidden p-0 dark:border-slate-800 dark:bg-slate-900/95">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-400 via-blue-500 to-emerald-400" />
+          <div className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-cyan-950 px-6 py-10 text-white sm:px-10 sm:py-12">
+            <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
+            <div className="absolute -bottom-28 left-10 h-72 w-72 rounded-full bg-blue-500/18 blur-3xl" />
+
+            <div className="relative mx-auto max-w-2xl text-center">
+              <div className="mx-auto grid h-20 w-20 place-items-center rounded-[1.6rem] bg-white/10 text-cyan-200 ring-1 ring-white/15 shadow-[0_24px_70px_-28px_rgba(34,211,238,0.75)] backdrop-blur">
+                <MailCheck className="h-10 w-10" aria-hidden="true" />
+              </div>
+              <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-4 py-1.5 text-[11px] font-black uppercase tracking-[0.2em] text-cyan-100">
+                Cuenta creada
+              </div>
+              <h1 className="mt-5 text-3xl font-black tracking-tight sm:text-5xl">
+                Confirma tu correo para activar tu acceso
+              </h1>
+              <p className="mx-auto mt-4 max-w-xl text-sm font-medium leading-6 text-white/78 sm:text-base">
+                {success.emailSent
+                  ? `Enviamos un enlace de confirmación a ${success.correo}. Abre ese correo para activar tu cuenta antes de iniciar sesión.`
+                  : `Tu cuenta fue creada con ${success.correo}, pero no pudimos enviar el correo de confirmación. Solicita soporte para activar tu acceso.`}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-5 p-6 sm:p-8">
+            <div className="rounded-[1.4rem] border border-cyan-200/70 bg-cyan-50/80 p-5 text-sm leading-6 text-slate-700 dark:border-cyan-400/20 dark:bg-cyan-400/10 dark:text-cyan-50">
+              <p className="font-black text-slate-900 dark:text-white">Siguiente paso</p>
+              <p className="mt-1">
+                Revisa tu bandeja principal y también la carpeta de spam. Cuando confirmes el correo, ya podrás iniciar sesión con normalidad.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center">
+              <Link
+                to="/auth/login"
+                className="inline-flex h-12 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-6 text-sm font-black text-white shadow-[0_18px_40px_-18px_rgba(37,99,235,0.45)] transition hover:-translate-y-0.5 hover:from-blue-500 hover:to-cyan-400 hover:shadow-[0_22px_44px_-18px_rgba(34,211,238,0.35)]"
+              >
+                Ir a iniciar sesión
+              </Link>
+              <Link
+                to="/"
+                className="inline-flex h-12 items-center justify-center rounded-xl border border-slate-200 bg-white px-6 text-sm font-black text-slate-700 transition hover:-translate-y-0.5 hover:border-blue-200 hover:text-blue-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-cyan-400/40 dark:hover:text-cyan-200"
+              >
+                Volver al inicio
+              </Link>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -128,30 +185,6 @@ export function RegisterPage() {
           <div className="rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm font-medium text-blue-800 dark:border-cyan-400/15 dark:bg-cyan-400/10 dark:text-cyan-100">
             Todos los campos son obligatorios. Al crear tu cuenta, te enviaremos un correo para confirmar y activar tu acceso.
           </div>
-
-          {success ? (
-            <div className="rounded-[1.4rem] border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm leading-6 text-emerald-900 shadow-[0_18px_40px_-34px_rgba(16,185,129,0.45)] dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-100">
-              <div className="flex items-start gap-3">
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white text-emerald-700 ring-1 ring-emerald-200 dark:bg-slate-950/80 dark:text-emerald-200 dark:ring-emerald-400/25">
-                  <MailCheck className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <div>
-                  <p className="font-black">Cuenta creada. Confirma tu correo para activarla.</p>
-                  <p className="mt-1">
-                    {success.emailSent
-                      ? `Enviamos un enlace de confirmación a ${success.correo}. Revisa tu bandeja principal y spam.`
-                      : `Tu cuenta quedó pendiente, pero no pudimos enviar el correo a ${success.correo}. Verifica la configuración SMTP o solicita soporte.`}
-                  </p>
-                  <Link
-                    to="/auth/login"
-                    className="mt-3 inline-flex font-black text-emerald-700 underline-offset-4 hover:underline dark:text-emerald-200"
-                  >
-                    Ir a iniciar sesión
-                  </Link>
-                </div>
-              </div>
-            </div>
-          ) : null}
 
           <FormSection
             icon={<UserRound className="h-5 w-5" aria-hidden="true" />}
@@ -290,10 +323,10 @@ export function RegisterPage() {
             </div>
             <Button
               type="submit"
-              disabled={isLoading || Boolean(success)}
+              disabled={isLoading}
               className="h-12 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-6 text-base font-black shadow-[0_18px_40px_-18px_rgba(37,99,235,0.45)] hover:from-blue-500 hover:to-cyan-400 hover:shadow-[0_22px_44px_-18px_rgba(34,211,238,0.35)] sm:min-w-52"
             >
-              {isLoading ? "Creando cuenta…" : success ? "Cuenta creada" : "Crear cuenta"}
+              {isLoading ? "Creando cuenta…" : "Crear cuenta"}
             </Button>
           </div>
         </form>

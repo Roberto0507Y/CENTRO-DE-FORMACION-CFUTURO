@@ -490,49 +490,51 @@ export function CourseTasksStudentPage() {
 
           {selected.archivo_url || selected.enlace_url ? (
             <section className="border-b border-slate-200 py-7">
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                <div className="hidden border-b border-slate-300 px-5 py-3 text-sm font-black text-slate-800 md:grid md:grid-cols-[minmax(0,1fr)_180px]">
-                  <div>Nombre del recurso</div>
-                  <div>Acción</div>
+              <div className="w-full overflow-x-auto rounded-2xl border border-slate-200 bg-slate-50 [-webkit-overflow-scrolling:touch]">
+                <div className="min-w-[620px]">
+                  <div className="grid grid-cols-[minmax(0,1fr)_180px] border-b border-slate-300 px-5 py-3 text-sm font-black text-slate-800">
+                    <div>Nombre del recurso</div>
+                    <div>Acción</div>
+                  </div>
+
+                  {selected.archivo_url ? (
+                    <button
+                      className="grid w-full grid-cols-[minmax(0,1fr)_180px] items-center gap-3 border-b border-slate-200 bg-white px-5 py-4 text-left text-sm text-slate-700 hover:bg-slate-50"
+                      type="button"
+                      onClick={() => void downloadFileUrl(api, selected.archivo_url!, selected.titulo)}
+                    >
+                      <span className="inline-flex min-w-0 items-center gap-4">
+                        <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0 text-slate-600" fill="none" aria-hidden="true">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="2" />
+                          <path d="M14 2v6h6" stroke="currentColor" strokeWidth="2" />
+                        </svg>
+                        <span className="truncate font-semibold">Archivo adjunto del docente</span>
+                      </span>
+                      <span className="justify-self-start text-sm font-semibold text-blue-700">
+                        Abrir
+                      </span>
+                    </button>
+                  ) : null}
+
+                  {selected.enlace_url ? (
+                    <button
+                      className="grid w-full grid-cols-[minmax(0,1fr)_180px] items-center gap-3 border-b border-slate-200 bg-white px-5 py-4 text-left text-sm text-slate-700 hover:bg-slate-50"
+                      type="button"
+                      onClick={() => void downloadFileUrl(api, selected.enlace_url!, selected.titulo)}
+                    >
+                      <span className="inline-flex min-w-0 items-center gap-4">
+                        <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0 text-slate-600" fill="none" aria-hidden="true">
+                          <path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                          <path d="M14 11a5 5 0 0 0-7.1 0l-2 2A5 5 0 0 0 12 20.1l1.1-1.1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        </svg>
+                        <span className="truncate font-semibold">Enlace de apoyo</span>
+                      </span>
+                      <span className="justify-self-start text-sm font-semibold text-blue-700">
+                        Abrir
+                      </span>
+                    </button>
+                  ) : null}
                 </div>
-
-                {selected.archivo_url ? (
-                  <button
-                    className="flex flex-col items-start gap-3 border-b border-slate-200 bg-white px-5 py-4 text-left text-sm text-slate-700 hover:bg-slate-50 md:grid md:grid-cols-[minmax(0,1fr)_180px] md:items-center"
-                    type="button"
-                    onClick={() => void downloadFileUrl(api, selected.archivo_url!, selected.titulo)}
-                  >
-                    <span className="inline-flex min-w-0 items-center gap-4">
-                      <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0 text-slate-600" fill="none" aria-hidden="true">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="2" />
-                        <path d="M14 2v6h6" stroke="currentColor" strokeWidth="2" />
-                      </svg>
-                      <span className="truncate font-semibold">Archivo adjunto del docente</span>
-                    </span>
-                    <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 md:justify-self-start md:rounded-none md:bg-transparent md:px-0 md:py-0 md:text-sm">
-                      Abrir
-                    </span>
-                  </button>
-                ) : null}
-
-                {selected.enlace_url ? (
-                  <button
-                    className="flex flex-col items-start gap-3 border-b border-slate-200 bg-white px-5 py-4 text-left text-sm text-slate-700 hover:bg-slate-50 md:grid md:grid-cols-[minmax(0,1fr)_180px] md:items-center"
-                    type="button"
-                    onClick={() => void downloadFileUrl(api, selected.enlace_url!, selected.titulo)}
-                  >
-                    <span className="inline-flex min-w-0 items-center gap-4">
-                      <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0 text-slate-600" fill="none" aria-hidden="true">
-                        <path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                        <path d="M14 11a5 5 0 0 0-7.1 0l-2 2A5 5 0 0 0 12 20.1l1.1-1.1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                      </svg>
-                      <span className="truncate font-semibold">Enlace de apoyo</span>
-                    </span>
-                    <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 md:justify-self-start md:rounded-none md:bg-transparent md:px-0 md:py-0 md:text-sm">
-                      Abrir
-                    </span>
-                  </button>
-                ) : null}
               </div>
             </section>
           ) : null}
@@ -644,7 +646,7 @@ export function CourseTasksStudentPage() {
                   <div>
                     <div className="text-sm font-black text-slate-950">Selecciona cómo entregar</div>
                     <div className="mt-1 text-xs font-semibold text-slate-500">
-                      Elige archivo para subir a S3 o enlace para compartir una URL.
+                      Elige un archivo o comparte un enlace para enviar tu tarea.
                     </div>
                     <div className="mt-1 text-xs font-bold text-slate-500">
                       {canUploadFile

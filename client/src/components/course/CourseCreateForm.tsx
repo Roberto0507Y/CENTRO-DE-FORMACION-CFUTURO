@@ -402,7 +402,7 @@ export function CourseCreateForm({ api, currentUser, variant, onCreated, hideHea
       setUploadedImage(null);
       setForm((p) => ({ ...p, imagen_url: "" }));
       setMetaError(
-        `${getApiErrorMessage(e, "No se pudo subir la imagen.")} Tip: este upload requiere configurar AWS S3 en el backend (.env).`
+        `${getApiErrorMessage(e, "No se pudo subir la imagen.")} Verifica que el servicio de archivos esté configurado correctamente.`
       );
     } finally {
       setIsUploadingImage(false);

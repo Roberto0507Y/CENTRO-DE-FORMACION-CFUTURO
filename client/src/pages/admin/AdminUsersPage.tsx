@@ -152,9 +152,6 @@ function UserCard({
   onRoleChange,
   onStatusChange,
   onViewDetail,
-  onActivate,
-  onSuspend,
-  onDisable,
   onDelete,
 }: {
   user: User;
@@ -163,9 +160,6 @@ function UserCard({
   onRoleChange: (role: UserRole) => void;
   onStatusChange: (estado: UserEstado) => void;
   onViewDetail: () => void;
-  onActivate: () => void;
-  onSuspend: () => void;
-  onDisable: () => void;
   onDelete: () => void;
 }) {
   const role = roleBadge(user.rol);
@@ -238,23 +232,9 @@ function UserCard({
           </div>
         </div>
 
-        <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-          Gestión
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <Button variant="ghost" size="sm" disabled={busy || isSelf} onClick={onActivate}>
-            Activar
-          </Button>
-          <Button variant="ghost" size="sm" disabled={busy || isSelf} onClick={onSuspend}>
-            Suspender
-          </Button>
-          <Button variant="ghost" size="sm" disabled={busy || isSelf} onClick={onDisable}>
-            Desactivar
-          </Button>
-          <Button variant="danger" size="sm" disabled={busy || isSelf} onClick={onDelete}>
-            Eliminar
-          </Button>
-        </div>
+        <Button variant="danger" size="sm" disabled={busy || isSelf} onClick={onDelete} className="h-11 rounded-2xl">
+          Eliminar usuario
+        </Button>
 
         {isSelf ? (
           <div className="text-xs text-slate-500 dark:text-slate-400">No puedes cambiar tu propio rol ni desactivar tu cuenta aquí.</div>
@@ -342,10 +322,6 @@ export function AdminUsersPage() {
       setIsSaving((p) => ({ ...p, [id]: false }));
     }
   };
-
-  const disableUser = async (id: number) => updateUser(id, { estado: "inactivo" });
-  const suspendUser = async (id: number) => updateUser(id, { estado: "suspendido" });
-  const activateUser = async (id: number) => updateUser(id, { estado: "activo" });
 
   const deleteUser = async (id: number) => {
     if (me?.id === id) {
@@ -445,9 +421,6 @@ export function AdminUsersPage() {
                       onRoleChange={(rol) => void updateUser(u.id, { rol })}
                       onStatusChange={(estado) => void updateUser(u.id, { estado })}
                       onViewDetail={() => setDetailUser(u)}
-                      onActivate={() => void activateUser(u.id)}
-                      onSuspend={() => void suspendUser(u.id)}
-                      onDisable={() => void disableUser(u.id)}
                       onDelete={() => setPendingDeleteUser(u)}
                     />
                   );
@@ -455,13 +428,13 @@ export function AdminUsersPage() {
               </div>
 
               <div className="hidden overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)] md:block dark:border-slate-800 dark:bg-slate-950/70">
-              <table className="w-full min-w-[1080px] border-separate border-spacing-0 bg-white dark:bg-slate-950/70">
+              <table className="w-full min-w-[980px] border-separate border-spacing-0 bg-white dark:bg-slate-950/70">
                 <colgroup>
-                  <col className="w-[28%]" />
-                  <col className="w-[22%]" />
+                  <col className="w-[30%]" />
+                  <col className="w-[24%]" />
                   <col className="w-[18%]" />
-                  <col className="w-[13%]" />
-                  <col className="w-[19%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[14%]" />
                 </colgroup>
                 <thead>
                   <tr className="text-left text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
@@ -469,7 +442,7 @@ export function AdminUsersPage() {
                     <th className="bg-slate-50 px-4 pb-3 pt-4 pr-4 dark:bg-slate-900/80">Rol y estado</th>
                     <th className="bg-slate-50 px-4 pb-3 pt-4 pr-4 dark:bg-slate-900/80">Actividad</th>
                     <th className="bg-slate-50 px-4 pb-3 pt-4 pr-4 dark:bg-slate-900/80">Detalle</th>
-                    <th className="bg-slate-50 px-4 pb-3 pt-4 pr-5 dark:bg-slate-900/80">Gestión</th>
+                    <th className="bg-slate-50 px-4 pb-3 pt-4 pr-5 dark:bg-slate-900/80">Acción</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -569,41 +542,16 @@ export function AdminUsersPage() {
                         </td>
 
                         <td className="px-4 py-4 pr-5 align-top">
-                          <div className="grid grid-cols-2 gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={busy || isSelf}
-                              onClick={() => void activateUser(u.id)}
-                            >
-                              Activar
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={busy || isSelf}
-                              onClick={() => void suspendUser(u.id)}
-                            >
-                              Suspender
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={busy || isSelf}
-                              onClick={() => void disableUser(u.id)}
-                            >
-                              Desactivar
-                            </Button>
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              disabled={busy || isSelf}
-                              onClick={() => setPendingDeleteUser(u)}
-                              title="Eliminación física (puede fallar si tiene registros asociados)"
-                            >
-                              Eliminar
-                            </Button>
-                          </div>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            disabled={busy || isSelf}
+                            onClick={() => setPendingDeleteUser(u)}
+                            title="Eliminación física (puede fallar si tiene registros asociados)"
+                            className="h-10 w-full rounded-xl"
+                          >
+                            Eliminar
+                          </Button>
                           {busy ? <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">Guardando…</div> : null}
                         </td>
                       </tr>

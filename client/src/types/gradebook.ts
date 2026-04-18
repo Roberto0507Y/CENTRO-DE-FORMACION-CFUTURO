@@ -17,6 +17,18 @@ export type GradebookTaskItem = {
   } | null;
 };
 
+export type GradebookQuizItem = {
+  id: number;
+  titulo: string;
+  puntaje_total: string;
+  fecha_cierre: string | null;
+  estado: "borrador" | "publicado" | "cerrado";
+  intentos: number;
+  completado: boolean;
+  puntaje_obtenido: string | number | null;
+  fecha_fin: string | null;
+};
+
 export type GradebookAttendanceItem = {
   id: number;
   fecha: string;
@@ -27,6 +39,16 @@ export type GradebookAttendanceItem = {
 export type GradebookSummary = {
   tareas_total: number;
   tareas_calificadas: number;
+  quizzes_total: number;
+  quizzes_completados: number;
+  quizzes_intentos: number;
+  tareas_puntos_obtenidos: number;
+  tareas_puntos_posibles: number;
+  quizzes_puntos_obtenidos: number;
+  quizzes_puntos_posibles: number;
+  zona_puntos_obtenidos: number;
+  zona_puntos_posibles: number;
+  zona_porcentaje: number | null;
   puntos_obtenidos: number;
   puntos_posibles: number;
   promedio_porcentaje: number | null;
@@ -45,5 +67,6 @@ export type MyCourseGradebook = {
   };
   resumen: GradebookSummary;
   tareas: GradebookTaskItem[];
+  quizzes: GradebookQuizItem[];
   asistencia: GradebookAttendanceItem[];
 };

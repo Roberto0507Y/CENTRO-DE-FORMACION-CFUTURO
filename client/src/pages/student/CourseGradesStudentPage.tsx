@@ -8,7 +8,12 @@ import { Spinner } from "../../components/ui/Spinner";
 import { useAuth } from "../../hooks/useAuth";
 import type { ApiResponse } from "../../types/api";
 import type { AttendanceStatus } from "../../types/attendance";
-import type { GradebookAttendanceItem, GradebookTaskItem, MyCourseGradebook } from "../../types/gradebook";
+import type {
+  GradebookAttendanceItem,
+  GradebookQuizItem,
+  GradebookTaskItem,
+  MyCourseGradebook,
+} from "../../types/gradebook";
 import { getApiErrorMessage } from "../../utils/apiError";
 import type { CourseManageOutletContext } from "../shared/courseManage.types";
 
@@ -62,6 +67,14 @@ function gradeBadge(task: GradebookTaskItem) {
   return <Badge variant="green">Calificada</Badge>;
 }
 
+function quizGradeBadge(quiz: GradebookQuizItem) {
+  if (!quiz.completado) return <Badge variant="slate">Sin completar</Badge>;
+  if (quiz.puntaje_obtenido === null || quiz.puntaje_obtenido === undefined) {
+    return <Badge variant="amber">Pendiente</Badge>;
+  }
+  return <Badge variant="green">Completado</Badge>;
+}
+
 function metricTone(value: number | null | undefined) {
   if (value === null || value === undefined) return "from-slate-950 to-slate-800 dark:from-slate-900 dark:to-slate-800";
   if (value >= 85) return "from-emerald-600 to-cyan-700 dark:from-emerald-500 dark:to-cyan-600";
@@ -113,6 +126,36 @@ function AttendanceRow({ item }: { item: GradebookAttendanceItem }) {
         ) : null}
       </div>
       {attendanceBadge(item.estado)}
+    </div>
+  );
+}
+
+function QuizGradeRow({ quiz }: { quiz: GradebookQuizItem }) {
+  const score = quiz.puntaje_obtenido;
+  const hasGrade = score !== null && score !== undefined;
+
+  return (
+    <div className="rounded-[1.35rem] border border-slate-200/80 bg-white/85 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900/80 dark:hover:border-emerald-400/40">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="text-base font-black text-slate-950 dark:text-white">{quiz.titulo}</div>
+          <div className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+            Cierre: {formatDateTime(quiz.fecha_cierre)} · Intentos: {quiz.intentos}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {quizGradeBadge(quiz)}
+          <div className="rounded-2xl bg-emerald-700 px-3 py-2 text-sm font-black text-white dark:bg-emerald-400 dark:text-slate-950">
+            {hasGrade ? formatScore(score) : "—"} / {formatScore(quiz.puntaje_total)}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 text-sm font-semibold text-slate-500 dark:text-slate-400">
+        {quiz.completado
+          ? `Mejor resultado registrado${quiz.fecha_fin ? ` el ${formatDateTime(quiz.fecha_fin)}` : ""}.`
+          : "Aún no has completado este quiz."}
+      </div>
     </div>
   );
 }
@@ -180,6 +223,7 @@ export function CourseGradesStudentPage() {
   if (!data) return null;
 
   const resumen = data.resumen;
+  const quizzes = data.quizzes ?? [];
 
   return (
     <div className="space-y-6">
@@ -203,29 +247,55 @@ export function CourseGradesStudentPage() {
             </div>
             <div
               className={`w-full rounded-[1.75rem] bg-gradient-to-br ${metricTone(
-                resumen.promedio_porcentaje,
+                resumen.zona_porcentaje,
               )} p-5 text-white shadow-2xl shadow-slate-950/20 sm:w-auto sm:min-w-[220px]`}
             >
-              <div className="text-xs font-black uppercase tracking-[0.22em] opacity-80">Promedio</div>
-              <div className="mt-3 text-4xl font-black tracking-tight">{formatPercent(resumen.promedio_porcentaje)}</div>
+              <div className="text-xs font-black uppercase tracking-[0.22em] opacity-80">Zona total</div>
+              <div className="mt-3 text-4xl font-black tracking-tight">{formatPercent(resumen.zona_porcentaje)}</div>
               <div className="mt-2 text-xs font-bold opacity-80">
-                {resumen.tareas_calificadas} de {resumen.tareas_total} tareas calificadas
+                Tareas + quizzes completados
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card className="p-5">
           <div className="text-xs font-black uppercase tracking-[0.20em] text-slate-500 dark:text-slate-400">
-            Puntos
+            Zona acumulada
           </div>
           <div className="mt-3 text-3xl font-black text-slate-950 dark:text-white">
-            {formatScore(resumen.puntos_obtenidos)}
-            <span className="text-lg text-slate-400"> / {formatScore(resumen.puntos_posibles)}</span>
+            {formatScore(resumen.zona_puntos_obtenidos)}
+            <span className="text-lg text-slate-400"> / {formatScore(resumen.zona_puntos_posibles)}</span>
           </div>
-          <div className="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-400">Acumulados en tareas calificadas</div>
+          <div className="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-400">Tareas + quizzes completados</div>
+        </Card>
+
+        <Card className="p-5">
+          <div className="text-xs font-black uppercase tracking-[0.20em] text-slate-500 dark:text-slate-400">
+            Tareas
+          </div>
+          <div className="mt-3 text-3xl font-black text-slate-950 dark:text-white">
+            {formatScore(resumen.tareas_puntos_obtenidos)}
+            <span className="text-lg text-slate-400"> / {formatScore(resumen.tareas_puntos_posibles)}</span>
+          </div>
+          <div className="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
+            {resumen.tareas_calificadas} de {resumen.tareas_total} calificadas
+          </div>
+        </Card>
+
+        <Card className="p-5">
+          <div className="text-xs font-black uppercase tracking-[0.20em] text-slate-500 dark:text-slate-400">
+            Quizzes
+          </div>
+          <div className="mt-3 text-3xl font-black text-slate-950 dark:text-white">
+            {formatScore(resumen.quizzes_puntos_obtenidos)}
+            <span className="text-lg text-slate-400"> / {formatScore(resumen.quizzes_puntos_posibles)}</span>
+          </div>
+          <div className="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
+            {resumen.quizzes_completados} de {resumen.quizzes_total} completados
+          </div>
         </Card>
 
         <Card className="p-5">
@@ -240,7 +310,7 @@ export function CourseGradesStudentPage() {
           </div>
         </Card>
 
-        <Card className="p-5">
+        <Card className="p-5 md:col-span-2 xl:col-span-4">
           <div className="text-xs font-black uppercase tracking-[0.20em] text-slate-500 dark:text-slate-400">
             Resumen asistencia
           </div>
@@ -254,25 +324,47 @@ export function CourseGradesStudentPage() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <Card className="p-5 sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <div className="text-xl font-black text-slate-950 dark:text-white">Notas por tarea</div>
-              <div className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
-                Calificaciones y comentarios del docente.
+        <div className="space-y-6">
+          <Card className="p-5 sm:p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="text-xl font-black text-slate-950 dark:text-white">Notas por tarea</div>
+                <div className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                  Calificaciones y comentarios del docente.
+                </div>
               </div>
+              <Badge variant="blue">{resumen.tareas_calificadas} calificadas</Badge>
             </div>
-            <Badge variant="blue">{resumen.tareas_calificadas} calificadas</Badge>
-          </div>
 
-          <div className="mt-5 space-y-3">
-            {data.tareas.length === 0 ? (
-              <EmptyState title="Sin tareas publicadas" description="Cuando tu docente publique tareas aparecerán aquí." />
-            ) : (
-              data.tareas.map((task) => <TaskGradeRow key={task.id} task={task} />)
-            )}
-          </div>
-        </Card>
+            <div className="mt-5 space-y-3">
+              {data.tareas.length === 0 ? (
+                <EmptyState title="Sin tareas publicadas" description="Cuando tu docente publique tareas aparecerán aquí." />
+              ) : (
+                data.tareas.map((task) => <TaskGradeRow key={task.id} task={task} />)
+              )}
+            </div>
+          </Card>
+
+          <Card className="p-5 sm:p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="text-xl font-black text-slate-950 dark:text-white">Notas por quiz</div>
+                <div className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                  Resultados completados que suman a tu zona.
+                </div>
+              </div>
+              <Badge variant="green">{resumen.quizzes_completados} completados</Badge>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              {quizzes.length === 0 ? (
+                <EmptyState title="Sin quizzes publicados" description="Cuando tu docente publique quizzes aparecerán aquí." />
+              ) : (
+                quizzes.map((quiz) => <QuizGradeRow key={quiz.id} quiz={quiz} />)
+              )}
+            </div>
+          </Card>
+        </div>
 
         <Card className="p-5 sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">

@@ -236,13 +236,13 @@ export function TaskModal({
               </div>
 
               <div>
-                <div className="text-xs font-extrabold text-slate-700">Adjunto en S3 (opcional)</div>
+                <div className="text-xs font-extrabold text-slate-700">Adjunto opcional</div>
                 <div className="mt-2 space-y-2">
                   <FilePicker
                     label={existingFileUrl ? "Reemplazar archivo" : "Adjuntar archivo"}
                     helperText={
                       existingFileUrl
-                        ? "Si seleccionas un nuevo archivo, se sube a S3 y luego se elimina el anterior."
+                        ? "Si seleccionas un nuevo archivo, se reemplazará el adjunto anterior."
                         : "PDF, imágenes, ZIP o documentos (opcional)."
                     }
                     accept="application/pdf,image/jpeg,image/png,image/webp,text/plain,application/zip,application/x-zip-compressed,application/msword,application/vnd.ms-excel,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.presentationml.presentation"
@@ -468,7 +468,7 @@ export function SubmissionsModal({
             />
           ) : (
             <div className="space-y-4">
-              <div className="space-y-3 md:hidden">
+              <div className="hidden">
                 {items.map((submission) => {
                   const rowKey = submissionRowKey(submission);
                   const savingKey = submission.id || -submission.estudiante.id;
@@ -617,7 +617,7 @@ export function SubmissionsModal({
                 })}
               </div>
 
-              <div className="hidden overflow-x-auto md:block">
+              <div className="w-full overflow-x-auto [-webkit-overflow-scrolling:touch]">
                 <table className="w-full min-w-[1320px] text-left text-sm">
                   <thead className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
                     <tr className="[&>th]:pb-3">

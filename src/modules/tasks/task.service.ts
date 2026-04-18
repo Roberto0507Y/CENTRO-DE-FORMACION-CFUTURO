@@ -19,7 +19,10 @@ import type {
 
 function parseMysqlDatetime(dt: string | null): Date | null {
   if (!dt) return null;
-  const d = new Date(dt.replace(" ", "T"));
+  // Las fechas de tareas vienen de inputs locales en Guatemala; no deben depender del TZ del servidor.
+  const normalized = dt.replace(" ", "T");
+  const withSeconds = normalized.length === 16 ? `${normalized}:00` : normalized;
+  const d = new Date(`${withSeconds}-06:00`);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 

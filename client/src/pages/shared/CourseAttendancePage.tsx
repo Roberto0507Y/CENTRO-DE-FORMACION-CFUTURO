@@ -261,63 +261,8 @@ export function CourseAttendancePage() {
               />
             ) : (
               <div className="space-y-4">
-                <div className="space-y-3 md:hidden">
-                  {paginated.map((it) => {
-                    const sId = it.estudiante.id;
-                    const cur = draft[sId] ?? { estado: "ausente" as AttendanceStatus, comentario: "" };
-                    return (
-                      <div
-                        key={sId}
-                        className="space-y-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/70"
-                      >
-                        <div>
-                          <div className="font-black text-slate-900 dark:text-slate-100">
-                            {it.estudiante.apellidos}, {it.estudiante.nombres}
-                          </div>
-                          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{it.estudiante.correo}</div>
-                        </div>
-
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/70">
-                          <div className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                            Estado
-                          </div>
-                          <div className="mt-2 flex flex-col gap-2">
-                            <div>{statusBadge(cur.estado)}</div>
-                            <select
-                              value={cur.estado}
-                              disabled={saving}
-                              onChange={(e) => updateStudentStatus(sId, e.target.value as AttendanceStatus)}
-                              className="w-full rounded-xl border border-slate-200 bg-white/92 px-3 py-2 text-sm font-semibold text-slate-900 outline-none ring-blue-500 transition-colors focus:ring-2 dark:border-slate-700 dark:bg-slate-950/85 dark:text-slate-100"
-                            >
-                              <option value="presente">Presente</option>
-                              <option value="ausente">Ausente</option>
-                              <option value="tarde">Tarde</option>
-                              <option value="justificado">Justificado</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="mb-1 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                            Comentario
-                          </div>
-                          <textarea
-                            value={cur.comentario}
-                            disabled={saving}
-                            onChange={(e) => updateStudentComment(sId, e.target.value)}
-                            onBlur={() => saveStudentComment(sId)}
-                            rows={3}
-                            className="w-full resize-none rounded-2xl border border-slate-200 bg-white/92 px-4 py-3 text-sm text-slate-900 outline-none ring-blue-500 transition-colors focus:ring-2 dark:border-slate-700 dark:bg-slate-950/85 dark:text-slate-100"
-                            placeholder="Opcional…"
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="hidden overflow-x-auto rounded-3xl border border-slate-200/80 dark:border-slate-800 md:block">
-                  <table className="min-w-full text-left text-sm">
+                <div className="w-full overflow-x-auto rounded-3xl border border-slate-200/80 [-webkit-overflow-scrolling:touch] dark:border-slate-800">
+                  <table className="min-w-[780px] text-left text-sm">
                     <thead className="bg-slate-50 text-xs font-black uppercase tracking-wider text-slate-500 dark:bg-slate-900 dark:text-slate-400">
                       <tr className="[&>th]:px-4 [&>th]:py-3">
                         <th>Estudiante</th>

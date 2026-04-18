@@ -179,9 +179,6 @@ export function AccountPanel({ subtitle }: { subtitle?: string }) {
               <Button type="button" variant="danger" onClick={logout}>
                 Cerrar sesión
               </Button>
-              <Button type="button" variant="ghost" disabled title="Próximamente">
-                Cerrar otras sesiones (próximamente)
-              </Button>
             </div>
           </Card>
         </div>

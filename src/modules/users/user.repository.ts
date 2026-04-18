@@ -30,7 +30,7 @@ export class UserRepository {
   async findById(id: number): Promise<UserPublic | null> {
     const [rows] = await pool.query<UserPublicRow[]>(
       `SELECT
-        id, nombres, apellidos, correo, telefono, foto_url, fecha_nacimiento, direccion,
+        id, nombres, apellidos, dpi, correo, telefono, foto_url, fecha_nacimiento, direccion,
         rol, estado, ultimo_login, created_at, updated_at
        FROM usuarios
        WHERE id = ?
@@ -53,7 +53,7 @@ export class UserRepository {
 
     const [rows] = await pool.query<UserPublicRow[]>(
       `SELECT
-        id, nombres, apellidos, correo, telefono, foto_url, fecha_nacimiento, direccion,
+        id, nombres, apellidos, dpi, correo, telefono, foto_url, fecha_nacimiento, direccion,
         rol, estado, ultimo_login, created_at, updated_at
        FROM usuarios
        ${whereSql}
