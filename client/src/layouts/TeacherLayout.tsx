@@ -37,7 +37,7 @@ export function TeacherLayout() {
       <div className="flex min-h-[100dvh] min-w-0 flex-1 flex-col xl:min-h-0 xl:pl-[17rem]">
         <Topbar title={title} onMenuClick={() => setMobileMenuOpen(true)} />
         <main className="cf-admin-dark-scope cf-app-shell-main min-h-0 min-w-0 flex-1 overflow-visible xl:overflow-y-auto">
-          <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6">
+          <div className="cf-internal-content mx-auto w-full max-w-7xl px-3 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6">
             <Outlet />
           </div>
         </main>

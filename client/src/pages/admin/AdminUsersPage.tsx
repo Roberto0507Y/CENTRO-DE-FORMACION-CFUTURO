@@ -173,30 +173,40 @@ function UserCard({
   const isSelf = currentUserId === user.id;
 
   return (
-    <Card className="rounded-[1.75rem] p-4 md:hidden">
+    <Card className="rounded-[1.75rem] border-slate-200/80 p-4 shadow-[0_18px_44px_-36px_rgba(15,23,42,0.45)] md:hidden dark:border-slate-800 dark:bg-slate-950/80">
       <div className="flex items-start gap-3">
         <Avatar name={`${user.nombres} ${user.apellidos}`} src={user.foto_url} size={48} />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-black text-slate-900">
-            {user.nombres} {user.apellidos} <span className="text-xs font-bold text-slate-500">#{user.id}</span>
+          <div className="line-clamp-2 text-sm font-black leading-5 text-slate-900 dark:text-slate-100">
+            {user.nombres} {user.apellidos} <span className="text-xs font-bold text-slate-500 dark:text-slate-400">#{user.id}</span>
           </div>
-          <div className="truncate text-sm text-slate-600">{user.correo}</div>
+          <div className="mt-0.5 break-all text-sm text-slate-600 dark:text-slate-300">{user.correo}</div>
           <div className="mt-2 flex flex-wrap gap-2">
             <Badge variant={role.variant}>{role.label}</Badge>
             <Badge variant={estado.variant}>{estado.label}</Badge>
-            {isSelf ? <span className="text-xs font-bold text-slate-500">Tú</span> : null}
+            {isSelf ? <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Tú</span> : null}
           </div>
         </div>
       </div>
 
       <div className="mt-4 grid gap-3">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={onViewDetail}
+          className="h-11 rounded-2xl bg-gradient-to-r from-slate-950 to-blue-700 text-white shadow-[0_14px_28px_-18px_rgba(37,99,235,0.65)] dark:from-cyan-400 dark:to-blue-500 dark:text-slate-950"
+        >
+          Ver detalle del usuario
+        </Button>
+
+        <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/55">
         <div>
-          <div className="mb-2 text-[11px] font-black uppercase tracking-wider text-slate-500">Rol</div>
+          <div className="mb-2 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Rol</div>
           <select
             value={user.rol}
             disabled={busy || isSelf}
             onChange={(e) => onRoleChange(e.target.value as UserRole)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none ring-blue-500 focus:ring-2 disabled:opacity-60"
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none ring-blue-500 focus:ring-2 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
           >
             <option value="estudiante">Estudiante</option>
             <option value="docente">Docente</option>
@@ -205,32 +215,33 @@ function UserCard({
         </div>
 
         <div>
-          <div className="mb-2 text-[11px] font-black uppercase tracking-wider text-slate-500">Estado</div>
+          <div className="mb-2 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Estado</div>
           <select
             value={user.estado}
             disabled={busy || isSelf}
             onChange={(e) => onStatusChange(e.target.value as UserEstado)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none ring-blue-500 focus:ring-2 disabled:opacity-60"
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none ring-blue-500 focus:ring-2 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
           >
             <option value="activo">Activo</option>
             <option value="inactivo">Inactivo</option>
             <option value="suspendido">Suspendido</option>
           </select>
         </div>
+        </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900/55 dark:text-slate-300">
           <div>
-            Último login: <span className="font-semibold text-slate-800">{formatDateTime(user.ultimo_login)}</span>
+            Último login: <span className="font-semibold text-slate-800 dark:text-slate-100">{formatDateTime(user.ultimo_login)}</span>
           </div>
           <div className="mt-1">
-            Creado: <span className="font-semibold text-slate-800">{formatDateTime(user.created_at)}</span>
+            Creado: <span className="font-semibold text-slate-800 dark:text-slate-100">{formatDateTime(user.created_at)}</span>
           </div>
         </div>
 
+        <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+          Gestión
+        </div>
         <div className="grid grid-cols-2 gap-2">
-          <Button variant="secondary" size="sm" onClick={onViewDetail}>
-            Detalle
-          </Button>
           <Button variant="ghost" size="sm" disabled={busy || isSelf} onClick={onActivate}>
             Activar
           </Button>
@@ -246,9 +257,9 @@ function UserCard({
         </div>
 
         {isSelf ? (
-          <div className="text-xs text-slate-500">No puedes cambiar tu propio rol ni desactivar tu cuenta aquí.</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400">No puedes cambiar tu propio rol ni desactivar tu cuenta aquí.</div>
         ) : null}
-        {busy ? <div className="text-xs text-slate-500">Guardando…</div> : null}
+        {busy ? <div className="text-xs text-slate-500 dark:text-slate-400">Guardando…</div> : null}
       </div>
     </Card>
   );
@@ -443,15 +454,22 @@ export function AdminUsersPage() {
                 })}
               </div>
 
-              <div className="hidden overflow-hidden rounded-[28px] border border-slate-200 md:block">
-              <table className="w-full min-w-[900px] border-separate border-spacing-0 bg-white">
+              <div className="hidden overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)] md:block dark:border-slate-800 dark:bg-slate-950/70">
+              <table className="w-full min-w-[1080px] border-separate border-spacing-0 bg-white dark:bg-slate-950/70">
+                <colgroup>
+                  <col className="w-[28%]" />
+                  <col className="w-[22%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[13%]" />
+                  <col className="w-[19%]" />
+                </colgroup>
                 <thead>
-                  <tr className="text-left text-[11px] font-black uppercase tracking-wider text-slate-500">
-                    <th className="bg-slate-50 px-4 pb-3 pt-4 pr-4">Usuario</th>
-                    <th className="bg-slate-50 px-4 pb-3 pt-4 pr-4">Rol</th>
-                    <th className="bg-slate-50 px-4 pb-3 pt-4 pr-4">Estado</th>
-                    <th className="bg-slate-50 px-4 pb-3 pt-4 pr-4">Último login</th>
-                    <th className="bg-slate-50 px-4 pb-3 pt-4 pr-4">Acciones</th>
+                  <tr className="text-left text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                    <th className="bg-slate-50 px-5 pb-3 pt-4 pr-4 dark:bg-slate-900/80">Usuario</th>
+                    <th className="bg-slate-50 px-4 pb-3 pt-4 pr-4 dark:bg-slate-900/80">Rol y estado</th>
+                    <th className="bg-slate-50 px-4 pb-3 pt-4 pr-4 dark:bg-slate-900/80">Actividad</th>
+                    <th className="bg-slate-50 px-4 pb-3 pt-4 pr-4 dark:bg-slate-900/80">Detalle</th>
+                    <th className="bg-slate-50 px-4 pb-3 pt-4 pr-5 dark:bg-slate-900/80">Gestión</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -462,16 +480,16 @@ export function AdminUsersPage() {
                     const isSelf = me?.id === u.id;
 
                     return (
-                      <tr key={u.id} className="border-t">
-                        <td className="px-4 py-3 pr-4 align-top">
+                      <tr key={u.id} className="border-t border-slate-200 transition hover:bg-slate-50/70 dark:border-slate-800 dark:hover:bg-slate-900/45">
+                        <td className="px-5 py-4 pr-4 align-top">
                           <div className="flex items-start gap-3">
                             <Avatar name={`${u.nombres} ${u.apellidos}`} src={u.foto_url} size={44} />
                             <div className="min-w-0">
-                              <div className="truncate text-sm font-black text-slate-900">
+                              <div className="line-clamp-2 text-sm font-black leading-5 text-slate-900 dark:text-slate-100">
                                 {u.nombres} {u.apellidos}{" "}
                                 <span className="text-xs font-bold text-slate-500">#{u.id}</span>
                               </div>
-                              <div className="truncate text-sm text-slate-600">{u.correo}</div>
+                              <div className="mt-1 break-all text-sm text-slate-600 dark:text-slate-300">{u.correo}</div>
                               <div className="mt-2 flex flex-wrap gap-2">
                                 <Badge variant={role.variant}>{role.label}</Badge>
                                 <Badge variant={estado.variant}>{estado.label}</Badge>
@@ -481,52 +499,77 @@ export function AdminUsersPage() {
                           </div>
                         </td>
 
-                        <td className="px-4 py-3 pr-4 align-top">
+                        <td className="px-4 py-4 pr-4 align-top">
+                          <div className="grid gap-3">
+                            <div>
+                              <label className="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                                Rol
+                              </label>
                           <select
                             value={u.rol}
                             disabled={busy || isSelf}
                             onChange={(e) => void updateUser(u.id, { rol: e.target.value as UserRole })}
-                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none ring-blue-500 focus:ring-2 disabled:opacity-60"
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none ring-blue-500 transition focus:ring-2 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                           >
                             <option value="estudiante">Estudiante</option>
                             <option value="docente">Docente</option>
                             <option value="admin">Admin</option>
                           </select>
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                                Estado
+                              </label>
+                              <select
+                                value={u.estado}
+                                disabled={busy || isSelf}
+                                onChange={(e) => void updateUser(u.id, { estado: e.target.value as UserEstado })}
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none ring-blue-500 transition focus:ring-2 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                              >
+                                <option value="activo">Activo</option>
+                                <option value="inactivo">Inactivo</option>
+                                <option value="suspendido">Suspendido</option>
+                              </select>
+                            </div>
+                          </div>
                           {isSelf ? (
-                            <div className="mt-2 text-xs text-slate-500">No puedes cambiar tu propio rol.</div>
+                            <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">No puedes cambiar tu propio rol ni estado.</div>
                           ) : null}
                         </td>
 
-                        <td className="px-4 py-3 pr-4 align-top">
-                          <select
-                            value={u.estado}
-                            disabled={busy || isSelf}
-                            onChange={(e) => void updateUser(u.id, { estado: e.target.value as UserEstado })}
-                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none ring-blue-500 focus:ring-2 disabled:opacity-60"
+                        <td className="px-4 py-4 pr-4 align-top">
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/65">
+                            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                              Último login
+                            </div>
+                            <div className="mt-1 text-sm font-bold text-slate-900 dark:text-slate-100">
+                              {formatDateTime(u.ultimo_login)}
+                            </div>
+                            <div className="mt-3 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                              Creado
+                            </div>
+                            <div className="mt-1 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-300">
+                              {formatDateTime(u.created_at)}
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-4 pr-4 align-top">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setDetailUser(u)}
+                            className="h-10 w-full rounded-xl bg-gradient-to-r from-slate-950 to-blue-700 text-white shadow-[0_14px_28px_-18px_rgba(37,99,235,0.65)] dark:from-cyan-400 dark:to-blue-500 dark:text-slate-950"
                           >
-                            <option value="activo">Activo</option>
-                            <option value="inactivo">Inactivo</option>
-                            <option value="suspendido">Suspendido</option>
-                          </select>
-                          {isSelf ? (
-                            <div className="mt-2 text-xs text-slate-500">No puedes desactivar tu propia cuenta aquí.</div>
-                          ) : null}
+                            Ver detalle
+                          </Button>
+                          <div className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                            DPI, teléfono, dirección y fechas.
+                          </div>
                         </td>
 
-                        <td className="px-4 py-3 pr-4 align-top">
-                          <div className="text-sm font-semibold text-slate-800">{formatDateTime(u.ultimo_login)}</div>
-                          <div className="mt-1 text-xs text-slate-500">Creado: {formatDateTime(u.created_at)}</div>
-                        </td>
-
-                        <td className="px-4 py-3 pr-4 align-top">
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => setDetailUser(u)}
-                            >
-                              Detalle
-                            </Button>
+                        <td className="px-4 py-4 pr-5 align-top">
+                          <div className="grid grid-cols-2 gap-2">
                             <Button
                               variant="ghost"
                               size="sm"
@@ -561,7 +604,7 @@ export function AdminUsersPage() {
                               Eliminar
                             </Button>
                           </div>
-                          {busy ? <div className="mt-2 text-xs text-slate-500">Guardando…</div> : null}
+                          {busy ? <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">Guardando…</div> : null}
                         </td>
                       </tr>
                     );

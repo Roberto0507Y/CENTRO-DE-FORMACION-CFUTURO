@@ -486,7 +486,7 @@ export function CourseManageLayout({ base }: { base: "admin" | "teacher" | "stud
           </div>
         </header>
         <main className="cf-admin-dark-scope cf-app-shell-main min-h-0 min-w-0 flex-1 overflow-visible xl:overflow-y-auto">
-          <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6">
+          <div className="cf-internal-content mx-auto w-full max-w-7xl px-3 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6">
             <Outlet context={outletCtx} />
           </div>
         </main>

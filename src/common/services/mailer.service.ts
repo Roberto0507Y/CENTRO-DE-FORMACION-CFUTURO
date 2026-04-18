@@ -23,11 +23,11 @@ function getMailerConfig(): MailerConfig {
   const port = env.SMTP_PORT;
   const user = env.SMTP_USER;
   const password = env.SMTP_PASSWORD;
-  const from = env.SMTP_FROM;
+  const from = env.SMTP_FROM?.trim() || `C.FUTURO <${user}>`;
 
-  if (!host || !port || !user || !password || !from) {
+  if (!host || !port || !user || !password) {
     throw new Error(
-      "[smtp] SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASSWORD/SMTP_FROM son requeridos para enviar correos."
+      "[smtp] SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASSWORD son requeridos para enviar correos."
     );
   }
   return { host, port, user, password, from };
@@ -60,4 +60,3 @@ export async function sendMail(input: SendMailInput): Promise<void> {
     html: input.html,
   });
 }
-

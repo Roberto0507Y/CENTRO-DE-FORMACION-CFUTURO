@@ -6,6 +6,7 @@ type RateLimitOptions = {
   max: number;
   keyPrefix?: string;
   message?: string;
+  keyGenerator?: (req: Request) => string;
 };
 
 type Bucket = {
@@ -32,7 +33,8 @@ export function rateLimit(options: RateLimitOptions) {
       lastCleanupAt = now;
     }
 
-    const key = `${keyPrefix}:${req.ip}`;
+    const keySuffix = options.keyGenerator ? options.keyGenerator(req) : req.ip;
+    const key = `${keyPrefix}:${keySuffix}`;
     const current = buckets.get(key);
 
     if (!current || current.resetAt <= now) {

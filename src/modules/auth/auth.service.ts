@@ -266,6 +266,11 @@ export class AuthService {
       `.trim();
 
       await sendMail({ to: user.correo, subject, text, html });
+      // eslint-disable-next-line no-console
+      console.info("[auth] Correo de recuperación enviado", {
+        userId: user.id,
+        correo: maskEmail(user.correo),
+      });
     } catch (err) {
       // Mantenemos respuesta uniforme para evitar enumeración de usuarios.
       // eslint-disable-next-line no-console
@@ -503,6 +508,10 @@ export class AuthService {
       `.trim();
 
       await sendMail({ to: user.correo, subject, text, html });
+      // eslint-disable-next-line no-console
+      console.info("[auth] Correo de confirmación enviado", {
+        correo: maskEmail(user.correo),
+      });
       return true;
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -532,4 +541,11 @@ function escapeHtml(input: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+function maskEmail(email: string): string {
+  const [rawName, rawDomain] = email.split("@");
+  if (!rawName || !rawDomain) return "***";
+  const visible = rawName.slice(0, 2);
+  return `${visible}${"*".repeat(Math.max(2, rawName.length - 2))}@${rawDomain}`;
 }

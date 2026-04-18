@@ -2,6 +2,7 @@
   background:
     radial-gradient(circle at 18% 0%, rgba(59, 130, 246, 0.1), transparent 30%),
     linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(241, 245, 249, 1));
+  overscroll-behavior-x: none;
 }
 
 .dark .cf-app-shell-main {
@@ -27,4 +28,18 @@
 
 .cf-course-shell-mobile-header {
   box-shadow: 0 18px 50px -42px rgba(15, 23, 42, 0.65);
+}
+
+.cf-internal-content {
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .cf-internal-content {
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+  }
+
+  .cf-app-shell-main {
+    -webkit-overflow-scrolling: touch;
+  }
 }
