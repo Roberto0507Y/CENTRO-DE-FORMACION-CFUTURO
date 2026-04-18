@@ -62,7 +62,14 @@ export class AuthService {
       await this.repo.createEmailVerification(user.id, tokenHash, expiresAt, conn);
     });
 
-    const emailSent = await this.sendAccountVerificationEmail(user, verificationToken);
+    const emailSent = this.canQueueAccountVerificationEmail();
+    if (emailSent) {
+      void this.sendAccountVerificationEmail(user, verificationToken);
+    } else {
+      // eslint-disable-next-line no-console
+      console.error("[auth] SMTP/FRONTEND_URL incompleto; no se pudo encolar correo de confirmación.");
+    }
+
     return {
       user,
       verification: {
@@ -376,6 +383,16 @@ export class AuthService {
 
   private hashToken(token: string): string {
     return crypto.createHash("sha256").update(token).digest("hex");
+  }
+
+  private canQueueAccountVerificationEmail(): boolean {
+    return Boolean(
+      env.FRONTEND_URL &&
+        env.SMTP_HOST &&
+        env.SMTP_PORT &&
+        env.SMTP_USER &&
+        env.SMTP_PASSWORD
+    );
   }
 
   private async sendAccountVerificationEmail(

@@ -5,6 +5,7 @@ import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { useAuth } from "../../hooks/useAuth";
+import { getApiErrorMessage } from "../../utils/apiError";
 
 function FieldLabel({
   label,
@@ -92,8 +93,18 @@ export function RegisterPage() {
         direccion: direccion.trim(),
       });
       setSuccess({ correo: result.user.correo, emailSent: result.verification.emailSent });
-    } catch {
-      setError("No se pudo registrar. Verifica tus datos.");
+    } catch (err) {
+      const message = getApiErrorMessage(err, "No se pudo registrar. Verifica tus datos.");
+      const normalized = message.toLowerCase();
+      if (normalized.includes("registrado") || normalized.includes("duplicado")) {
+        setError("Ese correo o DPI ya tiene una cuenta. Si recibiste el correo de confirmación, abre el enlace para activar tu acceso.");
+        return;
+      }
+      if (normalized.includes("timeout") || normalized.includes("exceeded")) {
+        setError("La solicitud tardó más de lo esperado. Si recibiste el correo de confirmación, puedes abrir el enlace para activar tu cuenta.");
+        return;
+      }
+      setError(message);
     } finally {
       setIsLoading(false);
     }

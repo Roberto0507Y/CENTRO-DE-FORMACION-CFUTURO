@@ -1,11 +1,14 @@
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { Card } from "../../components/ui/Card";
+import { Button } from "../../components/ui/Button";
+import { ConfirmDeleteModal } from "../../components/ui/ConfirmDeleteModal";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Input } from "../../components/ui/Input";
 import { PaginationControls } from "../../components/ui/PaginationControls";
 import { Spinner } from "../../components/ui/Spinner";
 import { useAuth } from "../../hooks/useAuth";
+import { useToast } from "../../context/ToastContext";
 import type { ApiResponse } from "../../types/api";
 import { getApiErrorMessage } from "../../utils/apiError";
 import type { CourseManageOutletContext } from "./courseManage.types";
@@ -13,6 +16,7 @@ import type { CourseManageOutletContext } from "./courseManage.types";
 const PAGE_SIZE = 10;
 
 type CourseStudentItem = {
+  id: number;
   usuario_id: number;
   nombres: string;
   apellidos: string;
@@ -25,6 +29,7 @@ type CourseStudentItem = {
 
 export function CourseStudentsPage() {
   const { api } = useAuth();
+  const toast = useToast();
   const ctx = useOutletContext<CourseManageOutletContext>();
 
   const [items, setItems] = useState<CourseStudentItem[]>([]);
@@ -33,6 +38,8 @@ export function CourseStudentsPage() {
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search.trim().toLowerCase());
   const [page, setPage] = useState(1);
+  const [pendingExpelStudent, setPendingExpelStudent] = useState<CourseStudentItem | null>(null);
+  const [expellingId, setExpellingId] = useState<number | null>(null);
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
@@ -77,6 +84,28 @@ export function CourseStudentsPage() {
     return filtered.slice(start, start + PAGE_SIZE);
   }, [filtered, safePage]);
 
+  const expelStudent = async (student: CourseStudentItem) => {
+    try {
+      setExpellingId(student.id);
+      await api.delete<ApiResponse<{ id: number }>>(`/enrollments/${student.id}`);
+      setItems((current) => current.filter((item) => item.id !== student.id));
+      setPendingExpelStudent(null);
+      toast.push({
+        kind: "success",
+        title: "Alumno expulsado",
+        description: `La inscripción de ${student.nombres} ${student.apellidos} fue cancelada y eliminada del curso.`,
+      });
+    } catch (err) {
+      toast.push({
+        kind: "error",
+        title: "No se pudo expulsar al alumno",
+        description: getApiErrorMessage(err, "Intenta de nuevo."),
+      });
+    } finally {
+      setExpellingId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card className="p-6">
@@ -112,22 +141,23 @@ export function CourseStudentsPage() {
         <Card className="overflow-hidden">
           <div className="space-y-3 p-4 md:hidden">
             {paginated.map((s) => (
-              <StudentCard key={s.usuario_id} student={s} />
+              <StudentCard key={s.id} student={s} onExpel={() => setPendingExpelStudent(s)} />
             ))}
           </div>
           <div className="hidden overflow-x-auto md:block">
-            <table className="min-w-full text-left text-sm">
+            <table className="min-w-[920px] text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-xs font-black uppercase tracking-wider text-slate-500">
                 <tr>
                   <th className="px-6 py-3">Estudiante</th>
                   <th className="px-6 py-3">Progreso</th>
                   <th className="px-6 py-3">Tipo</th>
                   <th className="px-6 py-3">Fecha</th>
+                  <th className="px-6 py-3 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {paginated.map((s) => (
-                  <StudentRow key={s.usuario_id} student={s} />
+                  <StudentRow key={s.id} student={s} onExpel={() => setPendingExpelStudent(s)} />
                 ))}
               </tbody>
             </table>
@@ -141,11 +171,29 @@ export function CourseStudentsPage() {
           />
         </Card>
       )}
+
+      <ConfirmDeleteModal
+        open={Boolean(pendingExpelStudent)}
+        title="¿Expulsar y eliminar inscripción?"
+        description={`Vas a quitar a ${pendingExpelStudent?.nombres ?? "este alumno"} ${pendingExpelStudent?.apellidos ?? ""} de ${ctx.courseTitle}.\nSe cancelará y eliminará la inscripción del curso. La cuenta del alumno no se eliminará del sistema.`}
+        confirmLabel="Expulsar"
+        isLoading={pendingExpelStudent ? expellingId === pendingExpelStudent.id : false}
+        onCancel={() => setPendingExpelStudent(null)}
+        onConfirm={() => {
+          if (pendingExpelStudent) void expelStudent(pendingExpelStudent);
+        }}
+      />
     </div>
   );
 }
 
-const StudentRow = memo(function StudentRow({ student }: { student: CourseStudentItem }) {
+const StudentRow = memo(function StudentRow({
+  student,
+  onExpel,
+}: {
+  student: CourseStudentItem;
+  onExpel: () => void;
+}) {
   return (
     <tr className="hover:bg-slate-50/60">
       <td className="px-6 py-4">
@@ -175,11 +223,27 @@ const StudentRow = memo(function StudentRow({ student }: { student: CourseStuden
         </span>
       </td>
       <td className="px-6 py-4 text-slate-700">{student.fecha_inscripcion}</td>
+      <td className="px-6 py-4 text-right">
+        <Button
+          variant="danger"
+          size="sm"
+          onClick={onExpel}
+          className="rounded-xl px-4 font-black"
+        >
+          Expulsar
+        </Button>
+      </td>
     </tr>
   );
 });
 
-const StudentCard = memo(function StudentCard({ student }: { student: CourseStudentItem }) {
+const StudentCard = memo(function StudentCard({
+  student,
+  onExpel,
+}: {
+  student: CourseStudentItem;
+  onExpel: () => void;
+}) {
   return (
     <div className="space-y-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/70">
       <div className="flex items-center gap-3">
@@ -221,6 +285,15 @@ const StudentCard = memo(function StudentCard({ student }: { student: CourseStud
           <div className="mt-1 text-sm text-slate-700 dark:text-slate-200">{student.fecha_inscripcion}</div>
         </div>
       </div>
+
+      <Button
+        variant="danger"
+        size="sm"
+        onClick={onExpel}
+        className="h-11 w-full rounded-2xl font-black"
+      >
+        Expulsar alumno
+      </Button>
     </div>
   );
 });

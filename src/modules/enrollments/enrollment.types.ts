@@ -50,6 +50,7 @@ export type AccessCheck = {
 };
 
 export type CourseStudentItem = {
+  id: number;
   usuario_id: number;
   nombres: string;
   apellidos: string;
@@ -63,4 +64,3 @@ export type CourseStudentItem = {
 export type ProgressUpdateInput = {
   progreso: number;
 };
-

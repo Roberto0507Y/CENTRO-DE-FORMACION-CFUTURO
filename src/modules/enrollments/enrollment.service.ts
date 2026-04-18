@@ -102,12 +102,35 @@ export class EnrollmentService {
     const enrollment = await this.repo.findEnrollmentById(enrollmentId);
     if (!enrollment) throw notFound("Inscripción no encontrada");
 
+    const course = await this.repo.findCourseById(enrollment.curso_id);
+    if (!course) throw notFound("Curso no encontrado");
+
     const isAdmin = requester.role === "admin";
     const isOwner = requester.userId === enrollment.usuario_id;
-    if (!isAdmin && !isOwner) throw forbidden("No autorizado");
+    const isOwnerTeacher = requester.role === "docente" && requester.userId === course.docente_id;
+    if (!isAdmin && !isOwner && !isOwnerTeacher) throw forbidden("No autorizado");
 
     const ok = await this.repo.cancelEnrollment(enrollmentId);
     if (!ok) throw notFound("Inscripción no encontrada");
   }
-}
 
+  async expel(requester: AuthContext, enrollmentId: number): Promise<void> {
+    const enrollment = await this.repo.findEnrollmentById(enrollmentId);
+    if (!enrollment) throw notFound("Inscripción no encontrada");
+
+    const course = await this.repo.findCourseById(enrollment.curso_id);
+    if (!course) throw notFound("Curso no encontrado");
+
+    const isAdmin = requester.role === "admin";
+    const isOwnerTeacher = requester.role === "docente" && requester.userId === course.docente_id;
+    if (!isAdmin && !isOwnerTeacher) throw forbidden("No autorizado");
+
+    if (enrollment.estado !== "cancelada") {
+      const cancelled = await this.repo.cancelEnrollment(enrollmentId);
+      if (!cancelled) throw notFound("Inscripción no encontrada");
+    }
+
+    const deleted = await this.repo.deleteCancelledEnrollment(enrollmentId);
+    if (!deleted) throw notFound("Inscripción no encontrada");
+  }
+}

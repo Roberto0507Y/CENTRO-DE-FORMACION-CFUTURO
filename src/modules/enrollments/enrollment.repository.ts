@@ -54,6 +54,7 @@ type MyEnrollmentRow = RowDataPacket & {
 };
 
 type CourseStudentRow = RowDataPacket & {
+  id: number;
   usuario_id: number;
   nombres: string;
   apellidos: string;
@@ -194,6 +195,7 @@ export class EnrollmentRepository {
   async listActiveStudents(courseId: number): Promise<CourseStudentItem[]> {
     const [rows] = await pool.query<CourseStudentRow[]>(
       `SELECT
+        i.id,
         u.id as usuario_id, u.nombres, u.apellidos, u.correo, u.foto_url,
         i.progreso, i.tipo_inscripcion, i.fecha_inscripcion
        FROM inscripciones i
@@ -243,5 +245,15 @@ export class EnrollmentRepository {
     );
     return result.affectedRows > 0;
   }
-}
 
+  async deleteCancelledEnrollment(id: number): Promise<boolean> {
+    const [result] = await pool.execute<ResultSetHeader>(
+      `DELETE FROM inscripciones
+       WHERE id = ?
+         AND estado = 'cancelada'
+       LIMIT 1`,
+      [id]
+    );
+    return result.affectedRows > 0;
+  }
+}

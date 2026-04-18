@@ -45,5 +45,10 @@ export class EnrollmentController {
     await this.service.cancel(req.auth!, id);
     res.status(200).json({ ok: true, data: { id } });
   };
-}
 
+  expel = async (req: AuthedRequest, res: Response) => {
+    const id = Number(req.params.id);
+    await this.service.expel(req.auth!, id);
+    res.status(200).json({ ok: true, data: { id } });
+  };
+}

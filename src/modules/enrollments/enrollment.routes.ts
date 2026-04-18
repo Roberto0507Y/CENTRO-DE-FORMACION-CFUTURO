@@ -52,5 +52,11 @@ router.put(
   asyncHandler(controller.cancel)
 );
 
-export default router;
+router.delete(
+  "/:id",
+  requireRole("admin", "docente"),
+  validate({ params: enrollmentIdParamsSchema }),
+  asyncHandler(controller.expel)
+);
 
+export default router;
