@@ -7,6 +7,7 @@ type RateLimitOptions = {
   keyPrefix?: string;
   message?: string;
   keyGenerator?: (req: Request) => string;
+  maxBuckets?: number;
 };
 
 type Bucket = {
@@ -16,11 +17,23 @@ type Bucket = {
 
 export function rateLimit(options: RateLimitOptions) {
   const keyPrefix = options.keyPrefix ?? "global";
+  const maxBuckets = Math.max(100, options.maxBuckets ?? 5_000);
   const buckets = new Map<string, Bucket>();
 
   const cleanup = (now: number) => {
     for (const [key, bucket] of buckets) {
       if (bucket.resetAt <= now) buckets.delete(key);
+    }
+  };
+
+  const trimBuckets = () => {
+    if (buckets.size <= maxBuckets) return;
+    const overflow = buckets.size - maxBuckets;
+    let deleted = 0;
+    for (const key of buckets.keys()) {
+      buckets.delete(key);
+      deleted += 1;
+      if (deleted >= overflow) break;
     }
   };
 
@@ -39,6 +52,7 @@ export function rateLimit(options: RateLimitOptions) {
 
     if (!current || current.resetAt <= now) {
       buckets.set(key, { count: 1, resetAt: now + options.windowMs });
+      trimBuckets();
       next();
       return;
     }

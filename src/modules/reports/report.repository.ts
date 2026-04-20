@@ -120,13 +120,16 @@ export class ReportRepository {
         AND q.estado = 'publicado'
        LEFT JOIN (
          SELECT
-           quiz_id,
-           estudiante_id,
+           iq.quiz_id,
+           iq.estudiante_id,
            COUNT(*) AS intentos,
-           MAX(CASE WHEN completado = 1 THEN 1 ELSE 0 END) AS completado,
-           MAX(puntaje_obtenido) AS mejor_puntaje
-         FROM intentos_quiz
-         GROUP BY quiz_id, estudiante_id
+           MAX(CASE WHEN iq.completado = 1 THEN 1 ELSE 0 END) AS completado,
+           MAX(iq.puntaje_obtenido) AS mejor_puntaje
+         FROM intentos_quiz iq
+         JOIN quizzes q_scope
+           ON q_scope.id = iq.quiz_id
+          AND q_scope.curso_id = ?
+         GROUP BY iq.quiz_id, iq.estudiante_id
        ) qa
          ON qa.quiz_id = q.id
         AND qa.estudiante_id = u.id
@@ -134,7 +137,7 @@ export class ReportRepository {
          AND i.estado = 'activa'
        GROUP BY u.id
        ORDER BY u.apellidos ASC, u.nombres ASC, u.id ASC`,
-      [courseId]
+      [courseId, courseId]
     );
     return rows;
   }

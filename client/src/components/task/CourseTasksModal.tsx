@@ -10,6 +10,11 @@ import { ConfirmDeleteModal } from "../ui/ConfirmDeleteModal";
 import type { ApiResponse } from "../../types/api";
 import type { CreateTaskInput, Task, TaskStatus, UpdateTaskInput } from "../../types/task";
 import { getApiErrorMessage } from "../../utils/apiError";
+import {
+  formatGuatemalaDateTime,
+  fromDateTimeLocalValue,
+  toDateTimeLocalValue,
+} from "../../utils/guatemalaDate";
 
 type Banner = { tone: "success" | "error"; text: string } | null;
 
@@ -17,17 +22,6 @@ function statusBadge(estado: TaskStatus) {
   if (estado === "publicada") return <Badge variant="green">Publicada</Badge>;
   if (estado === "borrador") return <Badge variant="slate">Borrador</Badge>;
   return <Badge variant="amber">Cerrada</Badge>;
-}
-
-function toLocalInputValue(mysqlDatetime: string | null) {
-  if (!mysqlDatetime) return "";
-  return mysqlDatetime.replace(" ", "T").slice(0, 16);
-}
-
-function toMysqlDatetime(local: string) {
-  if (!local) return local;
-  const v = local.replace("T", " ");
-  return v.length === 16 ? `${v}:00` : v;
 }
 
 type FormState = {
@@ -106,7 +100,7 @@ export function CourseTasksModal({
       descripcion: t.descripcion ?? "",
       instrucciones: t.instrucciones ?? "",
       puntos: String(t.puntos ?? "100"),
-      fecha_entrega: toLocalInputValue(t.fecha_entrega),
+      fecha_entrega: toDateTimeLocalValue(t.fecha_entrega),
       estado: t.estado,
     });
   };
@@ -133,7 +127,7 @@ export function CourseTasksModal({
         descripcion: form.descripcion ? form.descripcion : null,
         instrucciones: form.instrucciones ? form.instrucciones : null,
         puntos: Number(form.puntos || "100"),
-        fecha_entrega: toMysqlDatetime(form.fecha_entrega),
+        fecha_entrega: fromDateTimeLocalValue(form.fecha_entrega),
         estado: form.estado,
       };
 
@@ -233,7 +227,7 @@ export function CourseTasksModal({
                             <div className="mt-1 text-xs text-slate-600">
                               Entrega:{" "}
                               <span className="font-bold">
-                                {new Date(t.fecha_entrega).toLocaleString("es-GT")}
+                                {formatGuatemalaDateTime(t.fecha_entrega, { endOfDayIfMidnight: true })}
                               </span>{" "}
                               · {t.puntos} pts
                             </div>

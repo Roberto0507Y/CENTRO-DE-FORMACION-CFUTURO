@@ -8,6 +8,7 @@ import type {
   EmailVerificationRow,
   PasswordResetRow,
 } from "./auth.types";
+import { invalidateSessionState } from "./session-state-cache";
 
 type UserWithPasswordRow = RowDataPacket & AuthUserWithPassword;
 type UserSessionStateRow = RowDataPacket & AuthUserSessionState;
@@ -362,6 +363,7 @@ export class AuthRepository {
        LIMIT 1`,
       [this.mapStatusToDb(estado, schemaMode), userId]
     );
+    if (res.affectedRows > 0) invalidateSessionState(userId);
     return res.affectedRows;
   }
 
@@ -541,6 +543,7 @@ export class AuthRepository {
        LIMIT 1`,
       [passwordHash, userId]
     );
+    if (res.affectedRows > 0) invalidateSessionState(userId);
     return res.affectedRows;
   }
 }

@@ -17,13 +17,51 @@ import type {
   UpsertSubmissionInput,
 } from "./task.types";
 
-function parseMysqlDatetime(dt: string | null): Date | null {
+const GUATEMALA_OFFSET = "-06:00";
+const EXPLICIT_TIME_ZONE_RE = /(?:z|[+-]\d{2}:?\d{2})$/i;
+const DATE_ONLY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+const LOCAL_DATETIME_RE =
+  /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/;
+
+function parseMysqlDatetime(
+  dt: string | Date | null | undefined,
+  options: { endOfDayIfMidnight?: boolean } = {}
+): Date | null {
   if (!dt) return null;
-  // Las fechas de tareas vienen de inputs locales en Guatemala; no deben depender del TZ del servidor.
-  const normalized = dt.replace(" ", "T");
-  const withSeconds = normalized.length === 16 ? `${normalized}:00` : normalized;
-  const d = new Date(`${withSeconds}-06:00`);
-  return Number.isNaN(d.getTime()) ? null : d;
+  if (dt instanceof Date) return Number.isNaN(dt.getTime()) ? null : dt;
+
+  const raw = dt.trim();
+  if (!raw) return null;
+
+  if (EXPLICIT_TIME_ZONE_RE.test(raw)) {
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  const dateOnly = raw.match(DATE_ONLY_RE);
+  if (dateOnly) {
+    const [, year, month, day] = dateOnly;
+    const time = options.endOfDayIfMidnight ? "23:59:59.999" : "00:00:00";
+    const d = new Date(`${year}-${month}-${day}T${time}${GUATEMALA_OFFSET}`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  const local = raw.match(LOCAL_DATETIME_RE);
+  if (local) {
+    const [, year, month, day, hour, minute, second = "00", millis = ""] = local;
+    const normalizedMillis = (millis || "0").padEnd(3, "0");
+    const isMidnight =
+      hour === "00" && minute === "00" && Number(second) === 0 && Number(normalizedMillis) === 0;
+    const time =
+      options.endOfDayIfMidnight && isMidnight
+        ? "23:59:59.999"
+        : `${hour}:${minute}:${String(Number(second)).padStart(2, "0")}${millis ? `.${normalizedMillis}` : ""}`;
+    const d = new Date(`${year}-${month}-${day}T${time}${GUATEMALA_OFFSET}`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  const fallback = new Date(raw);
+  return Number.isNaN(fallback.getTime()) ? null : fallback;
 }
 
 function getEffectiveTaskClose(entrega: Date | null, cierre: Date | null): Date | null {
@@ -225,8 +263,11 @@ export class TaskService {
 
     const now = new Date();
     const apertura = parseMysqlDatetime(ctx.fecha_apertura);
-    const entrega = parseMysqlDatetime(ctx.fecha_entrega);
-    const cierre = getEffectiveTaskClose(entrega, parseMysqlDatetime(ctx.fecha_cierre));
+    const entrega = parseMysqlDatetime(ctx.fecha_entrega, { endOfDayIfMidnight: true });
+    const cierre = getEffectiveTaskClose(
+      entrega,
+      parseMysqlDatetime(ctx.fecha_cierre, { endOfDayIfMidnight: true })
+    );
 
     if (apertura && now.getTime() < apertura.getTime()) {
       throw forbidden("La tarea aún no está disponible");

@@ -8,6 +8,7 @@ import { readCookieValue } from "../common/utils/cookies";
 import { AuthRepository } from "../modules/auth/auth.repository";
 import { AUTH_COOKIE_NAME } from "../modules/auth/auth-session";
 import { buildPasswordTokenVersion } from "../modules/auth/auth-token-version";
+import { getCachedSessionState, setCachedSessionState } from "../modules/auth/session-state-cache";
 
 const payloadSchema: z.ZodType<AuthTokenPayload> = z.object({
   sub: z.string().min(1),
@@ -65,10 +66,12 @@ export async function resolveAuthContext(headers: {
     throw unauthorized("Token inválido");
   }
 
-  const user = await authRepo.findSessionStateById(userId);
+  const cachedUser = getCachedSessionState(userId);
+  const user = cachedUser ?? (await authRepo.findSessionStateById(userId));
   if (!user) {
     throw unauthorized("Usuario no encontrado");
   }
+  if (!cachedUser) setCachedSessionState(user);
 
   if (user.estado !== "activo") {
     throw forbidden("Tu usuario no está activo");

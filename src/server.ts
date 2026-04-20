@@ -1,14 +1,15 @@
 import app from "./app";
 import { env } from "./config/env";
-import { pingDb, pool } from "./config/db";
+import { pool, startDbKeepAlive, stopDbKeepAlive, waitForDb } from "./config/db";
 
 async function main() {
-  await pingDb();
+  await waitForDb();
 
   const server = app.listen(env.PORT, () => {
     // eslint-disable-next-line no-console
     console.log(`Servidor corriendo en http://localhost:${env.PORT}`);
   });
+  startDbKeepAlive();
   server.keepAliveTimeout = 15_000;
   server.headersTimeout = 20_000;
   server.requestTimeout = 30_000;
@@ -21,6 +22,7 @@ async function main() {
     // eslint-disable-next-line no-console
     console.log(`[shutdown] ${signal}`);
     await new Promise((resolve) => server.close(() => resolve(null)));
+    stopDbKeepAlive();
     await pool.end();
     process.exit(0);
   }

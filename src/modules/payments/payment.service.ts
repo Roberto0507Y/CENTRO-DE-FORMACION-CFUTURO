@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import path from "path";
 import { badRequest, conflict, forbidden, notFound } from "../../common/errors/httpErrors";
+import { TtlCache } from "../../common/utils/ttlCache";
 import { extractKeyFromPublicUrl } from "../../common/utils/file.util";
 import type { AuthContext } from "../../common/types/express";
 import { withTransaction } from "../../config/db";
@@ -21,6 +22,16 @@ import type {
 } from "./payment.types";
 
 export class PaymentService {
+  private static readonly summaryCache = new TtlCache<"summary", PaymentsSummary>({
+    ttlMs: 10_000,
+    maxEntries: 1,
+  });
+
+  private static readonly revenueCache = new TtlCache<number, RevenuePoint[]>({
+    ttlMs: 30_000,
+    maxEntries: 10,
+  });
+
   private readonly repo = new PaymentRepository();
   private readonly storage = new StorageService();
   private readonly notifications = new NotificationService();
@@ -65,12 +76,12 @@ export class PaymentService {
 
   async summary(requester: AuthContext): Promise<PaymentsSummary> {
     if (requester.role !== "admin") throw forbidden("Solo admin puede ver pagos");
-    return this.repo.summary();
+    return PaymentService.summaryCache.getOrSet("summary", () => this.repo.summary());
   }
 
   async revenueByDay(requester: AuthContext, days: number): Promise<RevenuePoint[]> {
     if (requester.role !== "admin") throw forbidden("Solo admin puede ver pagos");
-    return this.repo.revenueByDay(days);
+    return PaymentService.revenueCache.getOrSet(days, () => this.repo.revenueByDay(days));
   }
 
   async myCoursePayment(requester: AuthContext, courseId: number): Promise<MyCoursePayment> {
@@ -158,6 +169,7 @@ export class PaymentService {
       });
     }
 
+    PaymentService.clearAdminCaches();
     return result;
   }
 
@@ -208,6 +220,7 @@ export class PaymentService {
         observaciones: updated.observaciones,
       });
     }
+    PaymentService.clearAdminCaches();
     return updated;
   }
 
@@ -258,5 +271,10 @@ export class PaymentService {
     } catch (err) {
       console.warn("No se pudo eliminar comprobante anterior en S3", err);
     }
+  }
+
+  private static clearAdminCaches(): void {
+    PaymentService.summaryCache.clear();
+    PaymentService.revenueCache.clear();
   }
 }

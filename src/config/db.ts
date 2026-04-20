@@ -3,9 +3,16 @@ import { env } from "./env";
 
 const defaultConnectionLimit = env.NODE_ENV === "production" ? 5 : 10;
 const connectionLimit = Math.max(1, env.DB_POOL_LIMIT ?? defaultConnectionLimit);
-const maxIdle = Math.min(connectionLimit, Math.max(1, env.DB_POOL_MAX_IDLE ?? Math.min(3, connectionLimit)));
-const idleTimeout = Math.max(10_000, env.DB_POOL_IDLE_MS ?? 60_000);
+const defaultMaxIdle = env.NODE_ENV === "production" ? Math.min(2, connectionLimit) : Math.min(3, connectionLimit);
+const maxIdle = Math.min(connectionLimit, Math.max(1, env.DB_POOL_MAX_IDLE ?? defaultMaxIdle));
+const defaultIdleTimeout = env.NODE_ENV === "production" ? 5 * 60_000 : 60_000;
+const idleTimeout = Math.max(10_000, env.DB_POOL_IDLE_MS ?? defaultIdleTimeout);
 const queueLimit = Math.max(0, env.DB_POOL_QUEUE_LIMIT ?? 50);
+const connectTimeout = Math.max(5_000, env.DB_CONNECT_TIMEOUT_MS ?? 10_000);
+const keepAliveMs = Math.max(0, env.DB_KEEPALIVE_MS ?? (env.NODE_ENV === "production" ? 4 * 60_000 : 0));
+const startupRetries = Math.max(0, env.DB_STARTUP_RETRIES ?? (env.NODE_ENV === "production" ? 3 : 1));
+const startupRetryMs = Math.max(500, env.DB_STARTUP_RETRY_MS ?? 1_500);
+const dbSessionTimeZone = "-06:00";
 
 export const pool = mysql.createPool({
   host: env.DB_HOST,
@@ -18,21 +25,103 @@ export const pool = mysql.createPool({
   maxIdle,
   idleTimeout,
   queueLimit,
+  connectTimeout,
   enableKeepAlive: true,
   keepAliveInitialDelay: 10_000,
   namedPlaceholders: false,
-  timezone: "Z",
+  timezone: dbSessionTimeZone,
   decimalNumbers: true,
   dateStrings: true,
+  multipleStatements: false,
+});
+
+let keepAliveTimer: NodeJS.Timeout | null = null;
+let queueWarningLastLoggedAt = 0;
+
+function getDbErrorSummary(err: unknown): string {
+  if (!err || typeof err !== "object") return "unknown";
+  const e = err as { code?: string; errno?: number; sqlState?: string; message?: string };
+  return [
+    e.code ? `code=${e.code}` : null,
+    e.errno ? `errno=${e.errno}` : null,
+    e.sqlState ? `sqlState=${e.sqlState}` : null,
+    e.message ? `message=${e.message}` : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+pool.on("connection", (conn) => {
+  void conn.query(`SET time_zone = '${dbSessionTimeZone}'`).catch((err) => {
+    // eslint-disable-next-line no-console
+    console.warn(`[db] No se pudo configurar time_zone ${dbSessionTimeZone}: ${getDbErrorSummary(err)}`);
+  });
+});
+
+pool.on("enqueue", () => {
+  const now = Date.now();
+  if (now - queueWarningLastLoggedAt < 60_000) return;
+  queueWarningLastLoggedAt = now;
+  // eslint-disable-next-line no-console
+  console.warn("[db] Pool MySQL en cola: revisa consultas lentas o aumenta DB_POOL_LIMIT con cuidado.");
 });
 
 export async function pingDb(): Promise<void> {
-  const conn = await pool.getConnection();
+  let conn: mysql.PoolConnection | null = null;
+  let healthy = false;
   try {
+    conn = await pool.getConnection();
     await conn.ping();
+    healthy = true;
   } finally {
-    conn.release();
+    if (conn) {
+      if (healthy) conn.release();
+      else conn.destroy();
+    }
   }
+}
+
+export async function waitForDb(): Promise<void> {
+  let attempt = 0;
+  while (true) {
+    try {
+      await pingDb();
+      return;
+    } catch (err) {
+      if (attempt >= startupRetries) throw err;
+      attempt += 1;
+      const delay = Math.min(startupRetryMs * attempt, 10_000);
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[db] Conexión no disponible, reintentando ${attempt}/${startupRetries} en ${delay}ms: ${getDbErrorSummary(err)}`
+      );
+      await sleep(delay);
+    }
+  }
+}
+
+export function startDbKeepAlive(): () => void {
+  if (keepAliveMs <= 0 || keepAliveTimer) return stopDbKeepAlive;
+
+  keepAliveTimer = setInterval(() => {
+    void pingDb().catch((err) => {
+      // eslint-disable-next-line no-console
+      console.warn(`[db] Keepalive falló: ${getDbErrorSummary(err)}`);
+    });
+  }, keepAliveMs);
+  keepAliveTimer.unref?.();
+
+  return stopDbKeepAlive;
+}
+
+export function stopDbKeepAlive(): void {
+  if (!keepAliveTimer) return;
+  clearInterval(keepAliveTimer);
+  keepAliveTimer = null;
 }
 
 export async function withTransaction<T>(

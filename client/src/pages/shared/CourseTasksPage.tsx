@@ -21,6 +21,13 @@ import type {
 } from "../../types/task";
 import { getApiErrorMessage } from "../../utils/apiError";
 import { downloadFileUrl } from "../../utils/downloadFile";
+import {
+  compareDateTimeLocalValues,
+  formatGuatemalaDateTime,
+  fromDateTimeLocalValue,
+  parseGuatemalaDateTime,
+  toDateTimeLocalValue,
+} from "../../utils/guatemalaDate";
 import { lazyNamed } from "../../utils/lazyNamed";
 import type { CourseManageOutletContext } from "./courseManage.types";
 
@@ -67,17 +74,6 @@ function courseQuickCardAccent(estado?: CourseStatus) {
 
 function courseInitial(title?: string) {
   return (title?.trim()?.[0] ?? "C").toUpperCase();
-}
-
-function toLocalInputValue(mysqlDatetime: string | null) {
-  if (!mysqlDatetime) return "";
-  return mysqlDatetime.replace(" ", "T").slice(0, 16);
-}
-
-function toMysqlDatetime(local: string) {
-  if (!local) return local;
-  const v = local.replace("T", " ");
-  return v.length === 16 ? `${v}:00` : v;
 }
 
 type FormState = {
@@ -254,8 +250,8 @@ export function CourseTasksPage() {
       instrucciones: t.instrucciones ?? "",
       enlace_url: t.enlace_url ?? "",
       puntos: String(t.puntos ?? "100"),
-      fecha_entrega: toLocalInputValue(t.fecha_entrega),
-      fecha_cierre: toLocalInputValue(t.fecha_cierre),
+      fecha_entrega: toDateTimeLocalValue(t.fecha_entrega),
+      fecha_cierre: toDateTimeLocalValue(t.fecha_cierre),
       permite_entrega_tardia: t.permite_entrega_tardia === 1,
       estado: t.estado,
     });
@@ -268,11 +264,10 @@ export function CourseTasksPage() {
     if (!form.titulo.trim()) errors.titulo = "Título requerido";
     if (!form.fecha_entrega) errors.fecha_entrega = "Fecha de entrega requerida";
     if (form.fecha_cierre) {
-      const due = new Date(form.fecha_entrega).getTime();
-      const close = new Date(form.fecha_cierre).getTime();
-      if (!Number.isFinite(close)) {
+      const diff = compareDateTimeLocalValues(form.fecha_cierre, form.fecha_entrega);
+      if (diff === null) {
         errors.fecha_cierre = "Fecha de cierre inválida";
-      } else if (form.fecha_entrega && Number.isFinite(due) && close < due) {
+      } else if (diff < 0) {
         errors.fecha_cierre = "La fecha de cierre no puede ser anterior a la fecha de entrega.";
       }
     }
@@ -303,8 +298,8 @@ export function CourseTasksPage() {
         instrucciones: form.instrucciones ? form.instrucciones : null,
         enlace_url: form.enlace_url ? form.enlace_url : null,
         puntos: Number(form.puntos || "100"),
-        fecha_entrega: toMysqlDatetime(form.fecha_entrega),
-        fecha_cierre: form.fecha_cierre ? toMysqlDatetime(form.fecha_cierre) : null,
+        fecha_entrega: fromDateTimeLocalValue(form.fecha_entrega),
+        fecha_cierre: form.fecha_cierre ? fromDateTimeLocalValue(form.fecha_cierre) : null,
         permite_entrega_tardia: form.permite_entrega_tardia,
         estado: form.estado,
       };
@@ -452,15 +447,18 @@ export function CourseTasksPage() {
 
   const stats = useMemo(() => {
     const total = items.length;
-    const now = new Date();
+    const now = Date.now();
     const upcoming = items
       .filter((t) => t.estado !== "cerrada")
-      .map((t) => ({ t, dt: new Date(t.fecha_entrega) }))
-      .filter((x) => Number.isFinite(x.dt.getTime()) && x.dt.getTime() >= now.getTime())
+      .map((t) => ({ t, dt: parseGuatemalaDateTime(t.fecha_entrega, { endOfDayIfMidnight: true }) }))
+      .filter((x): x is { t: Task; dt: Date } => {
+        const dt = x.dt;
+        return dt !== null && dt.getTime() >= now;
+      })
       .sort((a, b) => a.dt.getTime() - b.dt.getTime());
 
     const nextDue = upcoming[0]?.dt ?? null;
-    const next7DaysCount = upcoming.filter((x) => x.dt.getTime() <= now.getTime() + 7 * 24 * 3600 * 1000).length;
+    const next7DaysCount = upcoming.filter((x) => x.dt.getTime() <= now + 7 * 24 * 3600 * 1000).length;
 
     return { total, nextDue, next7DaysCount };
   }, [items]);
@@ -563,7 +561,7 @@ export function CourseTasksPage() {
                 <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Próximas entregas</div>
                 <div className="mt-2 text-2xl font-black text-slate-900">{stats.next7DaysCount}</div>
                 <div className="mt-1 text-xs text-slate-500">
-                  {stats.nextDue ? `Siguiente: ${stats.nextDue.toLocaleString("es-GT")}` : "Sin pendientes"}
+                  {stats.nextDue ? `Siguiente: ${formatGuatemalaDateTime(stats.nextDue)}` : "Sin pendientes"}
                 </div>
               </Card>
             </div>
@@ -590,7 +588,9 @@ export function CourseTasksPage() {
                           <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-600">
                             <span className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-200">
                               Entrega:{" "}
-                              <span className="font-black">{new Date(t.fecha_entrega).toLocaleString("es-GT")}</span>
+                              <span className="font-black">
+                                {formatGuatemalaDateTime(t.fecha_entrega, { endOfDayIfMidnight: true })}
+                              </span>
                             </span>
                             <span className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-200">
                               Puntos: <span className="font-black">{t.puntos}</span>

@@ -1,5 +1,6 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { pool } from "../../config/db";
+import { invalidateSessionState } from "../auth/session-state-cache";
 import type { ListUsersParams, ListUsersResult, UpdateUserInput, UserPublic } from "./user.types";
 
 type UserPublicRow = RowDataPacket & UserPublic;
@@ -43,24 +44,25 @@ export class UserRepository {
   async list(params: ListUsersParams): Promise<ListUsersResult> {
     const { whereSql, values } = this.buildListWhere(params);
 
-    const [countRows] = await pool.query<(RowDataPacket & { total: number })[]>(
-      `SELECT COUNT(*) as total
-       FROM usuarios
-       ${whereSql}`,
-      values
-    );
+    const [[countRows], [rows]] = await Promise.all([
+      pool.query<(RowDataPacket & { total: number })[]>(
+        `SELECT COUNT(*) as total
+         FROM usuarios
+         ${whereSql}`,
+        values
+      ),
+      pool.query<UserPublicRow[]>(
+        `SELECT
+          id, nombres, apellidos, dpi, correo, telefono, foto_url, fecha_nacimiento, direccion,
+          rol, estado, ultimo_login, created_at, updated_at
+         FROM usuarios
+         ${whereSql}
+         ORDER BY id DESC
+         LIMIT ? OFFSET ?`,
+        [...values, params.limit, params.offset]
+      ),
+    ]);
     const total = countRows[0]?.total ?? 0;
-
-    const [rows] = await pool.query<UserPublicRow[]>(
-      `SELECT
-        id, nombres, apellidos, dpi, correo, telefono, foto_url, fecha_nacimiento, direccion,
-        rol, estado, ultimo_login, created_at, updated_at
-       FROM usuarios
-       ${whereSql}
-       ORDER BY id DESC
-       LIMIT ? OFFSET ?`,
-      [...values, params.limit, params.offset]
-    );
     return { items: rows, total };
   }
 
@@ -94,12 +96,14 @@ export class UserRepository {
        LIMIT 1`,
       values
     );
+    if (input.rol !== undefined || input.estado !== undefined) invalidateSessionState(id);
   }
 
   async deleteById(id: number): Promise<number> {
     const [res] = await pool.execute<ResultSetHeader>("DELETE FROM usuarios WHERE id = ? LIMIT 1", [
       id,
     ]);
+    if (res.affectedRows > 0) invalidateSessionState(id);
     return res.affectedRows;
   }
 }

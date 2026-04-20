@@ -12,6 +12,7 @@ import type { ApiResponse } from "../../types/api";
 import type { Task, TaskSubmission } from "../../types/task";
 import { getApiErrorMessage } from "../../utils/apiError";
 import { downloadFileUrl } from "../../utils/downloadFile";
+import { formatGuatemalaDateTime, parseGuatemalaDateTime } from "../../utils/guatemalaDate";
 
 type Banner = { tone: "success" | "error"; text: string } | null;
 type SubmissionMethod = "file" | "link";
@@ -24,9 +25,7 @@ function getPreferredSubmissionMethod(submission: TaskSubmission | null): Submis
 }
 
 function formatDate(iso: string) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString("es-GT", { dateStyle: "medium", timeStyle: "short" });
+  return formatGuatemalaDateTime(iso, { endOfDayIfMidnight: true });
 }
 
 function gradeText(value: unknown) {
@@ -36,8 +35,10 @@ function gradeText(value: unknown) {
 
 function taskAvailability(task: Task) {
   const now = Date.now();
-  const due = new Date(task.fecha_entrega).getTime();
-  const close = task.fecha_cierre ? new Date(task.fecha_cierre).getTime() : null;
+  const dueDate = parseGuatemalaDateTime(task.fecha_entrega, { endOfDayIfMidnight: true });
+  const closeDate = parseGuatemalaDateTime(task.fecha_cierre, { endOfDayIfMidnight: true });
+  const due = dueDate?.getTime() ?? Number.NaN;
+  const close = closeDate?.getTime() ?? null;
 
   if (task.estado === "cerrada" || (close && Number.isFinite(close) && now > close)) {
     return { label: "Cerrada", variant: "rose" as const };

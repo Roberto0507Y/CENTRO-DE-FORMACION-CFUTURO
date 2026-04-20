@@ -14,6 +14,7 @@ import type {
   TaskSubmissionWithStudent,
 } from "../../types/task";
 import { getApiErrorMessage } from "../../utils/apiError";
+import { formatGuatemalaDateTime } from "../../utils/guatemalaDate";
 
 type FormState = {
   titulo: string;
@@ -501,13 +502,13 @@ export function SubmissionsModal({
                           <Badge variant={badgeVariant}>{submission.estado}</Badge>
                           <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                             {submission.has_submission
-                              ? new Date(submission.fecha_entrega).toLocaleString("es-GT")
+                              ? formatGuatemalaDateTime(submission.fecha_entrega)
                               : "Sin entrega"}
                           </span>
                         </div>
                         {submission.fecha_calificacion ? (
                           <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                            Revisada: {new Date(submission.fecha_calificacion).toLocaleString("es-GT")}
+                            Revisada: {formatGuatemalaDateTime(submission.fecha_calificacion)}
                           </div>
                         ) : null}
                       </div>
@@ -659,13 +660,13 @@ export function SubmissionsModal({
                           <Badge variant={badgeVariant}>{submission.estado}</Badge>
                           {submission.fecha_calificacion ? (
                             <div className="mt-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                              Revisada: {new Date(submission.fecha_calificacion).toLocaleString("es-GT")}
+                              Revisada: {formatGuatemalaDateTime(submission.fecha_calificacion)}
                             </div>
                           ) : null}
                         </td>
                         <td className="text-slate-600 dark:text-slate-300">
                           {submission.has_submission
-                            ? new Date(submission.fecha_entrega).toLocaleString("es-GT")
+                            ? formatGuatemalaDateTime(submission.fecha_entrega)
                             : "Sin entrega"}
                         </td>
                         <td className="max-w-[260px] space-y-1">

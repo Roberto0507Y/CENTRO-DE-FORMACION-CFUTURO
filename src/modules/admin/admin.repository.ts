@@ -134,7 +134,29 @@ export class AdminRepository {
          LIMIT 5`
       ),
       pool.query<RecentPaymentRow[]>(
-        `SELECT
+        `WITH recent_payments AS (
+          SELECT
+            id,
+            usuario_id,
+            monto_total,
+            metodo_pago,
+            estado,
+            created_at,
+            fecha_pago
+          FROM pagos
+          ORDER BY created_at DESC
+          LIMIT 5
+        ),
+        dp_stats AS (
+          SELECT
+            dp.pago_id,
+            COUNT(*) AS cursos_count,
+            MIN(dp.id) AS first_detail_id
+          FROM detalle_pagos dp
+          JOIN recent_payments rp ON rp.id = dp.pago_id
+          GROUP BY dp.pago_id
+        )
+        SELECT
           p.id,
           p.usuario_id,
           u.nombres,
@@ -147,20 +169,13 @@ export class AdminRepository {
           p.fecha_pago,
           c_first.titulo AS curso_titulo,
           COALESCE(dp_stats.cursos_count, 0) AS cursos_count
-        FROM pagos p
+        FROM recent_payments p
         JOIN usuarios u ON u.id = p.usuario_id
-        LEFT JOIN (
-          SELECT
-            dp.pago_id,
-            COUNT(*) AS cursos_count,
-            MIN(dp.id) AS first_detail_id
-          FROM detalle_pagos dp
-          GROUP BY dp.pago_id
-        ) dp_stats ON dp_stats.pago_id = p.id
+        LEFT JOIN dp_stats ON dp_stats.pago_id = p.id
         LEFT JOIN detalle_pagos dp_first ON dp_first.id = dp_stats.first_detail_id
         LEFT JOIN cursos c_first ON c_first.id = dp_first.curso_id
         ORDER BY p.created_at DESC
-        LIMIT 5`
+        `
       ),
     ]);
 

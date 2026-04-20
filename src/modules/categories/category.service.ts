@@ -1,13 +1,19 @@
 import { conflict, forbidden, notFound } from "../../common/errors/httpErrors";
+import { TtlCache } from "../../common/utils/ttlCache";
 import { CategoryRepository } from "./category.repository";
 import type { AuthContext } from "../../common/types/express";
 import type { Category, CategoryAdminListItem, CreateCategoryInput, ListCategoriesQuery, UpdateCategoryInput } from "./category.types";
 
 export class CategoryService {
+  private static readonly publicListCache = new TtlCache<"active", Category[]>({
+    ttlMs: 60_000,
+    maxEntries: 1,
+  });
+
   private readonly repo = new CategoryRepository();
 
   async listPublic(): Promise<Category[]> {
-    return this.repo.listActive();
+    return CategoryService.publicListCache.getOrSet("active", () => this.repo.listActive());
   }
 
   async listAdmin(requester: AuthContext, q: ListCategoriesQuery): Promise<CategoryAdminListItem[]> {
@@ -40,6 +46,7 @@ export class CategoryService {
     });
     const category = await this.repo.findById(id);
     if (!category) throw new Error("No se pudo crear la categoría");
+    CategoryService.publicListCache.clear();
     return category;
   }
 
@@ -69,6 +76,7 @@ export class CategoryService {
 
     const updated = await this.repo.findById(id);
     if (!updated) throw notFound("Categoría no encontrada");
+    CategoryService.publicListCache.clear();
     return updated;
   }
 
@@ -77,6 +85,7 @@ export class CategoryService {
     if (count > 0) throw conflict("No puedes inactivar una categoría con cursos asociados");
     const ok = await this.repo.softDeleteById(id);
     if (!ok) throw notFound("Categoría no encontrada");
+    CategoryService.publicListCache.clear();
   }
 
   async patchStatus(requester: AuthContext, id: number, estado: "activo" | "inactivo"): Promise<Category> {
@@ -93,6 +102,7 @@ export class CategoryService {
     if (!ok) throw notFound("Categoría no encontrada");
     const updated = await this.repo.findById(id);
     if (!updated) throw notFound("Categoría no encontrada");
+    CategoryService.publicListCache.clear();
     return updated;
   }
 }

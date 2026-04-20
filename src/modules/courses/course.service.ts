@@ -1,5 +1,6 @@
 import { badRequest, conflict, forbidden, notFound } from "../../common/errors/httpErrors";
 import { sanitizeSlug, slugFromTitle } from "../../common/utils/slug";
+import { TtlCache } from "../../common/utils/ttlCache";
 import type { AuthContext } from "../../common/types/express";
 import { CourseRepository } from "./course.repository";
 import { NotificationService } from "../notifications/notification.service";
@@ -16,6 +17,26 @@ import type {
 } from "./course.types";
 
 export class CourseService {
+  private static readonly publicListCache = new TtlCache<string, {
+    items: CourseListItem[];
+    total: number;
+    page: number;
+    limit: number;
+  }>({
+    ttlMs: 20_000,
+    maxEntries: 80,
+  });
+
+  private static readonly publicDetailByIdCache = new TtlCache<number, CourseDetail>({
+    ttlMs: 30_000,
+    maxEntries: 200,
+  });
+
+  private static readonly publicDetailBySlugCache = new TtlCache<string, CourseDetail>({
+    ttlMs: 30_000,
+    maxEntries: 200,
+  });
+
   private readonly repo = new CourseRepository();
   private readonly notifications = new NotificationService();
 
@@ -25,12 +46,18 @@ export class CourseService {
     page: number;
     limit: number;
   }> {
-    const { items, total } = await this.repo.listPublished(filters, pagination);
-    return { items, total, page: pagination.page, limit: pagination.limit };
+    const cacheKey = JSON.stringify({ filters, pagination });
+    return CourseService.publicListCache.getOrSet(cacheKey, async () => {
+      const { items, total } = await this.repo.listPublished(filters, pagination);
+      return { items, total, page: pagination.page, limit: pagination.limit };
+    });
   }
 
   async getPublicById(id: number, requester?: AuthContext): Promise<CourseDetail | CourseDetailPrivate> {
-    const publicCourse = await this.repo.findPublishedDetailById(id);
+    const publicCourse =
+      CourseService.publicDetailByIdCache.get(id) ??
+      (await this.repo.findPublishedDetailById(id));
+    if (publicCourse) CourseService.publicDetailByIdCache.set(id, publicCourse);
     if (publicCourse) return publicCourse;
 
     if (!requester) throw notFound("Curso no encontrado");
@@ -46,8 +73,11 @@ export class CourseService {
   }
 
   async getPublicBySlug(slug: string): Promise<CourseDetail> {
-    const course = await this.repo.findPublishedDetailBySlug(slug);
+    const course =
+      CourseService.publicDetailBySlugCache.get(slug) ??
+      (await this.repo.findPublishedDetailBySlug(slug));
     if (!course) throw notFound("Curso no encontrado");
+    CourseService.publicDetailBySlugCache.set(slug, course);
     return course;
   }
 
@@ -100,6 +130,7 @@ export class CourseService {
     const teacherName = `${created.docente.nombres} ${created.docente.apellidos}`.trim();
     void this.notifications.notifyAdminsCourseCreated({ courseId: created.id, courseTitle: created.titulo, teacherName });
 
+    CourseService.clearPublicCaches();
     return created;
   }
 
@@ -174,6 +205,7 @@ export class CourseService {
 
     const updated = await this.repo.findDetailById(id);
     if (!updated) throw notFound("Curso no encontrado");
+    CourseService.clearPublicCaches();
     return updated;
   }
 
@@ -187,6 +219,7 @@ export class CourseService {
 
     const ok = await this.repo.hideCourseById(id);
     if (!ok) throw notFound("Curso no encontrado");
+    CourseService.clearPublicCaches();
   }
 
   async listTeaching(
@@ -254,6 +287,12 @@ export class CourseService {
       slug = `${trimmed}${suffix}`;
     }
     throw conflict("No se pudo generar un slug único");
+  }
+
+  private static clearPublicCaches(): void {
+    CourseService.publicListCache.clear();
+    CourseService.publicDetailByIdCache.clear();
+    CourseService.publicDetailBySlugCache.clear();
   }
 }
 
