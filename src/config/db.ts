@@ -56,7 +56,12 @@ function sleep(ms: number): Promise<void> {
 }
 
 pool.on("connection", (conn) => {
-  void conn.query(`SET time_zone = '${dbSessionTimeZone}'`).catch((err) => {
+  const rawConn = conn as unknown as {
+    query: (sql: string, values: unknown[], cb: (err: unknown) => void) => void;
+  };
+
+  rawConn.query("SET time_zone = ?", [dbSessionTimeZone], (err) => {
+    if (!err) return;
     // eslint-disable-next-line no-console
     console.warn(`[db] No se pudo configurar time_zone ${dbSessionTimeZone}: ${getDbErrorSummary(err)}`);
   });
