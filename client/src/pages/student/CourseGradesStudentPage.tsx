@@ -253,7 +253,7 @@ export function CourseGradesStudentPage() {
               <div className="text-xs font-black uppercase tracking-[0.22em] opacity-80">Zona total</div>
               <div className="mt-3 text-4xl font-black tracking-tight">{formatPercent(resumen.zona_porcentaje)}</div>
               <div className="mt-2 text-xs font-bold opacity-80">
-                Tareas + quizzes completados
+                Sobre la zona total publicada
               </div>
             </div>
           </div>
@@ -270,6 +270,7 @@ export function CourseGradesStudentPage() {
             <span className="text-lg text-slate-400"> / {formatScore(resumen.zona_puntos_posibles)}</span>
           </div>
           <div className="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-400">Tareas + quizzes completados</div>
+          <div className="mt-1 text-xs font-semibold text-slate-400 dark:text-slate-500">El total incluye actividades publicadas.</div>
         </Card>
 
         <Card className="p-5">

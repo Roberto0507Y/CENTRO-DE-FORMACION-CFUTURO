@@ -26,6 +26,7 @@ export type ListNotificationsQuery = {
   limit: number;
   offset: number;
   unread?: boolean;
+  countOnly?: boolean;
 };
 
 export type NotificationListResponse = {
@@ -35,4 +36,3 @@ export type NotificationListResponse = {
   offset: number;
   unreadCount: number;
 };
-

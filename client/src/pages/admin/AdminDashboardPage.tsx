@@ -8,7 +8,6 @@ import { Avatar } from "../../components/ui/Avatar";
 import { useAuth } from "../../hooks/useAuth";
 import "../../styles/admin-dashboard.css";
 
-type HealthDbResponse = { ok: true; db: "up" };
 type AdminMetricsResponse = {
   ok: true;
   data: {
@@ -63,33 +62,22 @@ function formatMoneyGTQ(value: string) {
 
 export function AdminDashboardPage() {
   const { user, api } = useAuth();
-  const [dbStatus, setDbStatus] = useState<"up" | "down" | "unknown">("unknown");
   const [healthCheckedAt, setHealthCheckedAt] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<AdminMetricsResponse["data"] | null>(null);
 
   const loadOverview = useCallback(
     async (signal?: AbortSignal) => {
       const checkedAt = new Date().toISOString();
-      const [healthResult, metricsResult] = await Promise.allSettled([
-        api.get<HealthDbResponse>("/admin/health/db", { signal }),
-        api.get<AdminMetricsResponse>("/admin/metrics", { signal }),
-      ]);
-
-      if (signal?.aborted) return;
-
-      if (healthResult.status === "fulfilled") {
-        setDbStatus(healthResult.value.data.db === "up" ? "up" : "down");
-      } else {
-        setDbStatus("down");
+      try {
+        const metricsResult = await api.get<AdminMetricsResponse>("/admin/metrics", { signal });
+        if (signal?.aborted) return;
+        setMetrics(metricsResult.data.data);
+      } catch {
+        if (signal?.aborted) return;
+        setMetrics(null);
       }
 
       setHealthCheckedAt(checkedAt);
-
-      if (metricsResult.status === "fulfilled") {
-        setMetrics(metricsResult.value.data.data);
-      } else {
-        setMetrics(null);
-      }
     },
     [api],
   );
@@ -204,8 +192,8 @@ export function AdminDashboardPage() {
         />
         <MetricCard
           label="Sistema"
-          value={dbStatus === "up" ? "Operativo" : dbStatus === "down" ? "Atención" : "Revisando"}
-          tone={dbStatus === "up" ? "green" : dbStatus === "down" ? "amber" : "slate"}
+          value={!healthCheckedAt ? "Revisando" : metrics ? "Operativo" : "Atención"}
+          tone={!healthCheckedAt ? "slate" : metrics ? "green" : "amber"}
           icon={
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M4 4h16v6H4z" />
@@ -275,22 +263,16 @@ export function AdminDashboardPage() {
             <div className="border-b border-slate-200 bg-white px-6 py-5 dark:border-slate-800 dark:bg-slate-900/85">
               <div className="text-sm font-black text-slate-900 dark:text-white">Estado del sistema</div>
               <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                Indicadores reales del campus (usuarios, cursos, pagos e inscripciones).
+                Indicadores reales del campus con caché para reducir consultas.
               </div>
             </div>
             <div className="p-6">
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3">
                 <StatusRow
                   label="API"
                   value="Online"
                   tone="green"
-                  detail="Responde correctamente"
-                />
-                <StatusRow
-                  label="Base de datos"
-                  value={dbStatus === "up" ? "Online" : dbStatus === "down" ? "Offline" : "Revisando"}
-                  tone={dbStatus === "up" ? "green" : dbStatus === "down" ? "amber" : "slate"}
-                  detail={dbStatus === "up" ? "Conexión OK" : "Revisa credenciales/servidor"}
+                  detail="Sin ping directo a la base de datos"
                 />
               </div>
               <div className="mt-4 grid gap-3 md:grid-cols-3">

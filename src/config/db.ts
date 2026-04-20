@@ -9,7 +9,7 @@ const defaultIdleTimeout = env.NODE_ENV === "production" ? 5 * 60_000 : 60_000;
 const idleTimeout = Math.max(10_000, env.DB_POOL_IDLE_MS ?? defaultIdleTimeout);
 const queueLimit = Math.max(0, env.DB_POOL_QUEUE_LIMIT ?? 50);
 const connectTimeout = Math.max(5_000, env.DB_CONNECT_TIMEOUT_MS ?? 10_000);
-const keepAliveMs = Math.max(0, env.DB_KEEPALIVE_MS ?? (env.NODE_ENV === "production" ? 4 * 60_000 : 0));
+const keepAliveMs = Math.max(0, env.DB_KEEPALIVE_MS ?? 0);
 const startupRetries = Math.max(0, env.DB_STARTUP_RETRIES ?? (env.NODE_ENV === "production" ? 3 : 1));
 const startupRetryMs = Math.max(500, env.DB_STARTUP_RETRY_MS ?? 1_500);
 const dbSessionTimeZone = "-06:00";

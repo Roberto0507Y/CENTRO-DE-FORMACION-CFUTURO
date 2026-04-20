@@ -27,22 +27,26 @@ function buildSummary(
   let quizzesIntentos = 0;
 
   for (const tarea of tareas) {
-    const calificacion = Number(tarea.entrega?.calificacion);
     const puntos = Number(tarea.puntos);
-    if (!Number.isFinite(calificacion) || !Number.isFinite(puntos) || puntos <= 0) continue;
+    if (!Number.isFinite(puntos) || puntos <= 0) continue;
+    tareasPuntosPosibles += puntos;
+
+    const calificacion = Number(tarea.entrega?.calificacion);
+    if (!Number.isFinite(calificacion)) continue;
     tareasCalificadas += 1;
     tareasPuntosObtenidos += calificacion;
-    tareasPuntosPosibles += puntos;
   }
 
   for (const quiz of quizzes) {
     quizzesIntentos += quiz.intentos;
-    const puntaje = Number(quiz.puntaje_obtenido);
     const total = Number(quiz.puntaje_total);
-    if (!quiz.completado || !Number.isFinite(puntaje) || !Number.isFinite(total) || total <= 0) continue;
+    if (!Number.isFinite(total) || total <= 0) continue;
+    quizzesPuntosPosibles += total;
+
+    const puntaje = Number(quiz.puntaje_obtenido);
+    if (!quiz.completado || !Number.isFinite(puntaje)) continue;
     quizzesCompletados += 1;
     quizzesPuntosObtenidos += puntaje;
-    quizzesPuntosPosibles += total;
   }
 
   const attendanceTotals = {

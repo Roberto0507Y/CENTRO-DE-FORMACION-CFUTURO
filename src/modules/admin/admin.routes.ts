@@ -10,7 +10,6 @@ const controller = new AdminController();
 router.use(authMiddleware);
 router.use(requireRole("admin"));
 
-router.get("/health/db", asyncHandler(controller.dbHealth));
 router.get("/metrics", asyncHandler(controller.metrics));
 
 export default router;

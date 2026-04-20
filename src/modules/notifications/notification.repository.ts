@@ -7,6 +7,16 @@ type CountRow = RowDataPacket & { total: number };
 type AdminIdRow = RowDataPacket & { id: number };
 
 export class NotificationRepository {
+  async countUnreadForUser(userId: number): Promise<number> {
+    const [rows] = await pool.query<CountRow[]>(
+      `SELECT COUNT(*) AS total
+       FROM notificaciones n
+       WHERE n.usuario_id = ? AND n.leida = 0`,
+      [userId]
+    );
+    return Number(rows[0]?.total ?? 0);
+  }
+
   async listForUser(
     userId: number,
     q: { limit: number; offset: number; unread?: boolean }

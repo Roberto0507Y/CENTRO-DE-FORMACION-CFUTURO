@@ -6,7 +6,7 @@ import type { AdminMetrics } from "./admin.types";
 
 export class AdminService {
   private static readonly metricsCache = new TtlCache<"metrics", AdminMetrics>({
-    ttlMs: 10_000,
+    ttlMs: 60_000,
     maxEntries: 1,
   });
 

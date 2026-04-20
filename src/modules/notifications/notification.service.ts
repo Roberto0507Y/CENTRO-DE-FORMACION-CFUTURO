@@ -24,6 +24,11 @@ export class NotificationService {
 
   async listMy(requester: AuthContext, q: ListNotificationsQuery): Promise<NotificationListResponse> {
     const normalized = this.normalizeListQuery(q);
+    if (normalized.countOnly && normalized.unread) {
+      const unreadCount = await this.repo.countUnreadForUser(requester.userId);
+      return { items: [], total: unreadCount, limit: normalized.limit, offset: normalized.offset, unreadCount };
+    }
+
     const { items, total, unreadCount } = await this.repo.listForUser(requester.userId, normalized);
     return { items, total, limit: normalized.limit, offset: normalized.offset, unreadCount };
   }

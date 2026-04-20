@@ -54,6 +54,7 @@ export function NotificationsBell({ api, role }: { api: AxiosInstance; role: Not
   const pollInFlightRef = useRef(false);
   const requestRef = useRef<AbortController | null>(null);
   const lastLoadedAtRef = useRef(0);
+  const lastUnreadLoadedAtRef = useRef(0);
   const navigate = useNavigate();
 
   const hasUnread = unreadCount > 0;
@@ -62,6 +63,9 @@ export function NotificationsBell({ api, role }: { api: AxiosInstance; role: Not
     async (opts?: { unreadOnly?: boolean; silent?: boolean; force?: boolean }) => {
       const now = Date.now();
       if (!opts?.force && !opts?.unreadOnly && items.length > 0 && now - lastLoadedAtRef.current < 30000) {
+        return;
+      }
+      if (!opts?.force && opts?.unreadOnly && now - lastUnreadLoadedAtRef.current < 5 * 60000) {
         return;
       }
 
@@ -79,6 +83,7 @@ export function NotificationsBell({ api, role }: { api: AxiosInstance; role: Not
             limit: opts?.unreadOnly ? 1 : 12,
             offset: 0,
             unread: opts?.unreadOnly ? 1 : undefined,
+            countOnly: opts?.unreadOnly ? 1 : undefined,
           },
           signal: controller.signal,
         });
@@ -86,6 +91,8 @@ export function NotificationsBell({ api, role }: { api: AxiosInstance; role: Not
         if (!opts?.unreadOnly) {
           setItems(res.data.data.items);
           lastLoadedAtRef.current = Date.now();
+        } else {
+          lastUnreadLoadedAtRef.current = Date.now();
         }
         setUnreadCount(res.data.data.unreadCount);
       } catch (err) {
@@ -103,14 +110,14 @@ export function NotificationsBell({ api, role }: { api: AxiosInstance; role: Not
   );
 
   useEffect(() => {
-    // Poll ligero para el contador (solo si está cerrado y la pestaña está visible)
+    // Poll conservador para no golpear la DB: máximo una consulta cada 5 minutos y solo en pestaña visible.
     const t = window.setInterval(() => {
       if (open || document.visibilityState !== "visible" || pollInFlightRef.current) return;
       pollInFlightRef.current = true;
       void load({ unreadOnly: true, silent: true }).finally(() => {
         pollInFlightRef.current = false;
       });
-    }, 60000);
+    }, 5 * 60000);
     return () => window.clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load, open]);

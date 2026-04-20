@@ -10,7 +10,13 @@ export class NotificationController {
     const limit = Number(q.limit ?? 20);
     const offset = Number(q.offset ?? 0);
     const unread = String(q.unread ?? "") === "1";
-    const data = await this.service.listMy(req.auth!, { limit, offset, unread: q.unread !== undefined ? unread : undefined });
+    const countOnly = String(q.countOnly ?? "") === "1";
+    const data = await this.service.listMy(req.auth!, {
+      limit,
+      offset,
+      unread: q.unread !== undefined ? unread : undefined,
+      countOnly,
+    });
     res.status(200).json({ ok: true, data });
   };
 
