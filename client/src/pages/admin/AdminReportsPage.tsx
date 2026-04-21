@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { BookOpen, CalendarDays, Download, Users } from "lucide-react";
+import { BookOpen, CalendarDays, Download, FileText, Users } from "lucide-react";
 import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
@@ -64,6 +64,7 @@ export function AdminReportsPage() {
   const [isLoadingCourses, setIsLoadingCourses] = useState(true);
   const [isLoadingReport, setIsLoadingReport] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [zonePage, setZonePage] = useState(1);
@@ -218,10 +219,10 @@ export function AdminReportsPage() {
   const heroCopy =
     reportMode === "attendance"
       ? {
-          eyebrow: "Asistencia general",
-          title: "Reporte por curso y fecha",
+          eyebrow: "Asistencia por estudiante",
+          title: "Reporte individual por fecha",
           description:
-            "Selecciona un curso, revisa el estado de cada estudiante y descarga una hoja de Excel lista para entregar.",
+            "Selecciona un curso, revisa el estado individual de cada estudiante y descarga una hoja de Excel lista para entregar.",
         }
       : {
           eyebrow: "Zona académica",
@@ -243,6 +244,31 @@ export function AdminReportsPage() {
       }
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handlePdfExport = async () => {
+    if (isExportingPdf) return;
+    const printWindow = window.open("", "_blank", "width=1200,height=800");
+    if (!printWindow) {
+      setError("Permite ventanas emergentes para generar el PDF.");
+      return;
+    }
+
+    try {
+      setIsExportingPdf(true);
+      const { exportAttendancePdf, exportZonePdf } = await import("./reports/reportExcel");
+      if (reportMode === "attendance" && selectedCourse) {
+        exportAttendancePdf({ course: selectedCourse, date, items }, printWindow);
+      }
+      if (reportMode === "zone" && zoneReport) {
+        exportZonePdf(zoneReport, printWindow);
+      }
+    } catch (err) {
+      printWindow.close();
+      setError(getApiErrorMessage(err, "No se pudo preparar el PDF."));
+    } finally {
+      setIsExportingPdf(false);
     }
   };
 
@@ -289,16 +315,28 @@ export function AdminReportsPage() {
                 {heroCopy.description}
               </p>
             </div>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={!canExport || isExporting}
-              onClick={() => void handleExport()}
-              className="gap-2 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100"
-            >
-              <Download className="h-4 w-4" aria-hidden="true" />
-              {isExporting ? "Preparando..." : "Exportar Excel"}
-            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={!canExport || isExporting || isExportingPdf}
+                onClick={() => void handleExport()}
+                className="gap-2 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100"
+              >
+                <Download className="h-4 w-4" aria-hidden="true" />
+                {isExporting ? "Preparando..." : "Exportar Excel"}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={!canExport || isExporting || isExportingPdf}
+                onClick={() => void handlePdfExport()}
+                className="gap-2 border-white/20 bg-white/15 text-white hover:bg-white/25 dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20"
+              >
+                <FileText className="h-4 w-4" aria-hidden="true" />
+                {isExportingPdf ? "Preparando..." : "Exportar PDF"}
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -471,14 +509,16 @@ function ZoneReportContent({
   isLoading: boolean;
   onPageChange: (page: number) => void;
 }) {
+  const zonePossiblePerStudent = summary.tareas_puntos_posibles + summary.quizzes_puntos_posibles;
+
   return (
     <>
       <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-6">
         <ReportStat icon={<Users className="h-4 w-4" />} label="Estudiantes" value={summary.estudiantes} />
         <ReportStat icon={<BookOpen className="h-4 w-4" />} label="Tareas" value={summary.tareas_total} tone="blue" />
         <ReportStat icon={<BookOpen className="h-4 w-4" />} label="Quizzes" value={summary.quizzes_total} tone="green" />
-        <ReportStat icon={<CalendarDays className="h-4 w-4" />} label="Zona obtenida" value={formatNumber(summary.zona_puntos_obtenidos)} tone="amber" />
-        <ReportStat icon={<CalendarDays className="h-4 w-4" />} label="Zona posible" value={formatNumber(summary.zona_puntos_posibles)} />
+        <ReportStat icon={<CalendarDays className="h-4 w-4" />} label="Suma obtenida" value={formatNumber(summary.zona_puntos_obtenidos)} tone="amber" />
+        <ReportStat icon={<CalendarDays className="h-4 w-4" />} label="Zona por estudiante" value={formatNumber(zonePossiblePerStudent)} />
         <ReportStat icon={<BookOpen className="h-4 w-4" />} label="Promedio" value={formatPercent(summary.zona_promedio_porcentaje)} tone="green" />
       </div>
 
