@@ -4,9 +4,11 @@ import type {
   AuthUserPublic,
   AuthUserSessionState,
   AuthUserWithPassword,
+  CreatePendingUserRegistrationInput,
   CreateUserInput,
   EmailVerificationRow,
   PasswordResetRow,
+  PendingUserRegistrationRow,
 } from "./auth.types";
 import { invalidateSessionState } from "./session-state-cache";
 
@@ -15,6 +17,7 @@ type UserSessionStateRow = RowDataPacket & AuthUserSessionState;
 type UserPublicRow = RowDataPacket & AuthUserPublic;
 type PasswordResetDbRow = RowDataPacket & PasswordResetRow;
 type EmailVerificationDbRow = RowDataPacket & EmailVerificationRow;
+type PendingUserRegistrationDbRow = RowDataPacket & PendingUserRegistrationRow;
 type UserIdLockRow = RowDataPacket & { id: number };
 type SchemaTableRow = RowDataPacket & { table_name?: string; TABLE_NAME?: string };
 type SchemaMode = "es" | "en";
@@ -22,6 +25,7 @@ type SchemaMode = "es" | "en";
 export class AuthRepository {
   private passwordResetsEnsured = false;
   private emailVerificationsEnsured = false;
+  private pendingRegistrationsEnsured = false;
   private schemaMode: SchemaMode | null = null;
   private userCompatColumnsEnsured = false;
 
@@ -137,10 +141,37 @@ export class AuthRepository {
     this.emailVerificationsEnsured = true;
   }
 
-  async findByEmail(correo: string): Promise<AuthUserWithPassword | null> {
+  private async ensurePendingRegistrationsTable(): Promise<void> {
+    if (this.pendingRegistrationsEnsured) return;
+    await this.resolveSchemaMode();
+    await pool.execute(
+      `CREATE TABLE IF NOT EXISTS pending_user_registrations (
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        token_hash CHAR(64) NOT NULL,
+        nombres VARCHAR(100) NOT NULL,
+        apellidos VARCHAR(100) NOT NULL,
+        dpi VARCHAR(20) DEFAULT NULL,
+        correo VARCHAR(150) NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        telefono VARCHAR(20) DEFAULT NULL,
+        fecha_nacimiento DATE DEFAULT NULL,
+        direccion VARCHAR(255) DEFAULT NULL,
+        expires_at DATETIME NOT NULL,
+        used_at DATETIME NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_pending_user_registrations_token_hash (token_hash),
+        UNIQUE KEY uq_pending_user_registrations_correo (correo),
+        KEY idx_pending_user_registrations_expires (expires_at)
+      )`
+    );
+    this.pendingRegistrationsEnsured = true;
+  }
+
+  async findByEmail(correo: string, conn?: PoolConnection): Promise<AuthUserWithPassword | null> {
     const schemaMode = await this.resolveSchemaMode();
+    const db = conn ?? pool;
     if (schemaMode === "en") {
-      const [rows] = await pool.query<UserWithPasswordRow[]>(
+      const [rows] = await db.query<UserWithPasswordRow[]>(
         `SELECT
           id,
           first_name AS nombres,
@@ -180,7 +211,7 @@ export class AuthRepository {
 
     await this.ensureUserCompatColumns();
 
-    const [rows] = await pool.query<UserWithPasswordRow[]>(
+    const [rows] = await db.query<UserWithPasswordRow[]>(
       `SELECT
         id, nombres, apellidos, dpi, correo, password, telefono, foto_url, fecha_nacimiento, direccion,
         rol, estado, ultimo_login, created_at, updated_at
@@ -286,10 +317,11 @@ export class AuthRepository {
     return rows[0] ?? null;
   }
 
-  async createUser(input: CreateUserInput): Promise<number> {
+  async createUser(input: CreateUserInput, conn?: PoolConnection): Promise<number> {
     const schemaMode = await this.resolveSchemaMode();
+    const db = conn ?? pool;
     if (schemaMode === "en") {
-      const [result] = await pool.execute<ResultSetHeader>(
+      const [result] = await db.execute<ResultSetHeader>(
         `INSERT INTO users
           (first_name, last_name, dpi, phone, birth_date, gender, address, email, password, role, status, created_at)
          VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, NOW())`,
@@ -311,7 +343,7 @@ export class AuthRepository {
 
     await this.ensureUserCompatColumns();
 
-    const [result] = await pool.execute<ResultSetHeader>(
+    const [result] = await db.execute<ResultSetHeader>(
       `INSERT INTO usuarios
         (nombres, apellidos, dpi, correo, password, telefono, foto_url, fecha_nacimiento, direccion, rol, estado, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
@@ -330,6 +362,91 @@ export class AuthRepository {
       ]
     );
     return result.insertId;
+  }
+
+  async upsertPendingRegistration(
+    input: CreatePendingUserRegistrationInput,
+    conn?: PoolConnection
+  ): Promise<number> {
+    await this.ensurePendingRegistrationsTable();
+    const db = conn ?? pool;
+    const [result] = await db.execute<ResultSetHeader>(
+      `INSERT INTO pending_user_registrations
+        (token_hash, nombres, apellidos, dpi, correo, password_hash, telefono, fecha_nacimiento, direccion, expires_at, used_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NOW())
+       ON DUPLICATE KEY UPDATE
+        token_hash = VALUES(token_hash),
+        nombres = VALUES(nombres),
+        apellidos = VALUES(apellidos),
+        dpi = VALUES(dpi),
+        password_hash = VALUES(password_hash),
+        telefono = VALUES(telefono),
+        fecha_nacimiento = VALUES(fecha_nacimiento),
+        direccion = VALUES(direccion),
+        expires_at = VALUES(expires_at),
+        used_at = NULL,
+        created_at = NOW()`,
+      [
+        input.tokenHash,
+        input.nombres,
+        input.apellidos,
+        input.dpi,
+        input.correo,
+        input.passwordHash,
+        input.telefono,
+        input.fechaNacimiento,
+        input.direccion,
+        input.expiresAt,
+      ]
+    );
+    return result.insertId;
+  }
+
+  async findPendingRegistrationByHash(
+    tokenHash: string
+  ): Promise<PendingUserRegistrationRow | null> {
+    await this.ensurePendingRegistrationsTable();
+    const [rows] = await pool.query<PendingUserRegistrationDbRow[]>(
+      `SELECT
+        id, token_hash, nombres, apellidos, dpi, correo, password_hash,
+        telefono, fecha_nacimiento, direccion, expires_at, used_at, created_at
+       FROM pending_user_registrations
+       WHERE token_hash = ?
+       LIMIT 1`,
+      [tokenHash]
+    );
+    return rows[0] ?? null;
+  }
+
+  async findPendingRegistrationByHashForUpdate(
+    conn: PoolConnection,
+    tokenHash: string
+  ): Promise<PendingUserRegistrationRow | null> {
+    await this.ensurePendingRegistrationsTable();
+    const [rows] = await conn.query<PendingUserRegistrationDbRow[]>(
+      `SELECT
+        id, token_hash, nombres, apellidos, dpi, correo, password_hash,
+        telefono, fecha_nacimiento, direccion, expires_at, used_at, created_at
+       FROM pending_user_registrations
+       WHERE token_hash = ?
+       LIMIT 1
+       FOR UPDATE`,
+      [tokenHash]
+    );
+    return rows[0] ?? null;
+  }
+
+  async markPendingRegistrationUsed(id: number, conn?: PoolConnection): Promise<number> {
+    await this.ensurePendingRegistrationsTable();
+    const db = conn ?? pool;
+    const [res] = await db.execute<ResultSetHeader>(
+      `UPDATE pending_user_registrations
+       SET used_at = NOW()
+       WHERE id = ? AND used_at IS NULL
+       LIMIT 1`,
+      [id]
+    );
+    return res.affectedRows;
   }
 
   async updateLastLogin(id: number): Promise<void> {

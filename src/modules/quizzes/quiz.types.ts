@@ -1,4 +1,5 @@
 export type QuizStatus = "borrador" | "publicado" | "cerrado";
+export type QuizVariant = "A" | "B" | "C" | "D";
 
 export type Quiz = {
   id: number;
@@ -31,6 +32,10 @@ export type QuizQuestion = {
   opcion_c: string | null;
   opcion_d: string | null;
   respuesta_correcta: string;
+  respuesta_correcta_a: string | null;
+  respuesta_correcta_b: string | null;
+  respuesta_correcta_c: string | null;
+  respuesta_correcta_d: string | null;
   explicacion: string | null;
   puntos: string; // decimal
   orden: number;
@@ -39,7 +44,10 @@ export type QuizQuestion = {
   updated_at: string;
 };
 
-export type QuizQuestionPublic = Omit<QuizQuestion, "respuesta_correcta">;
+export type QuizQuestionPublic = Omit<
+  QuizQuestion,
+  "respuesta_correcta" | "respuesta_correcta_a" | "respuesta_correcta_b" | "respuesta_correcta_c" | "respuesta_correcta_d"
+>;
 
 export type CreateQuizInput = Partial<{
   modulo_id: number | null;
@@ -76,6 +84,10 @@ export type CreateQuestionInput = {
   opcion_c?: string | null;
   opcion_d?: string | null;
   respuesta_correcta: string;
+  respuesta_correcta_a?: string | null;
+  respuesta_correcta_b?: string | null;
+  respuesta_correcta_c?: string | null;
+  respuesta_correcta_d?: string | null;
   explicacion?: string | null;
   puntos?: number;
   orden?: number;
@@ -90,6 +102,10 @@ export type UpdateQuestionInput = Partial<{
   opcion_c: string | null;
   opcion_d: string | null;
   respuesta_correcta: string;
+  respuesta_correcta_a: string | null;
+  respuesta_correcta_b: string | null;
+  respuesta_correcta_c: string | null;
+  respuesta_correcta_d: string | null;
   explicacion: string | null;
   puntos: number;
   orden: number;
@@ -101,6 +117,7 @@ export type Attempt = {
   quiz_id: number;
   estudiante_id: number;
   numero_intento: number;
+  variante: QuizVariant | null;
   puntaje_obtenido: string | null;
   completado: 0 | 1;
   fecha_inicio: string;
@@ -132,4 +149,3 @@ export type AttemptResult = {
     explicacion?: string | null;
   }>;
 };
-

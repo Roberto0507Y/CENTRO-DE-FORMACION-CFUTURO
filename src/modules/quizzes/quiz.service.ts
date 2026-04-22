@@ -9,6 +9,7 @@ import type {
   Quiz,
   QuizQuestion,
   QuizQuestionPublic,
+  QuizVariant,
   QuestionStatus,
   QuizStatus,
   SubmitQuizInput,
@@ -57,8 +58,19 @@ function resolvedCorrectAnswer(question: {
   opcion_c: string | null;
   opcion_d: string | null;
   respuesta_correcta: string;
-}): string {
-  if (question.tipo !== "opcion_unica") return question.respuesta_correcta;
+  respuesta_correcta_a?: string | null;
+  respuesta_correcta_b?: string | null;
+  respuesta_correcta_c?: string | null;
+  respuesta_correcta_d?: string | null;
+}, variant?: QuizVariant | null): string {
+  const variantAnswers: Record<QuizVariant, string | null | undefined> = {
+    A: question.respuesta_correcta_a,
+    B: question.respuesta_correcta_b,
+    C: question.respuesta_correcta_c,
+    D: question.respuesta_correcta_d,
+  };
+  const rawAnswer = variant ? variantAnswers[variant]?.trim() || question.respuesta_correcta : question.respuesta_correcta;
+  if (question.tipo !== "opcion_unica") return rawAnswer;
 
   const byLetter: Record<string, string | null> = {
     a: question.opcion_a,
@@ -67,8 +79,30 @@ function resolvedCorrectAnswer(question: {
     d: question.opcion_d,
   };
 
-  const correct = normalizeAnswer(question.respuesta_correcta);
-  return byLetter[correct]?.trim() || question.respuesta_correcta;
+  const correct = normalizeAnswer(rawAnswer);
+  return byLetter[correct]?.trim() || rawAnswer;
+}
+
+function randomVariant(): QuizVariant {
+  const variants: QuizVariant[] = ["A", "B", "C", "D"];
+  return variants[Math.floor(Math.random() * variants.length)] ?? "A";
+}
+
+function hasAnyVariantAnswer(input: Pick<
+  CreateQuestionInput,
+  "respuesta_correcta_a" | "respuesta_correcta_b" | "respuesta_correcta_c" | "respuesta_correcta_d"
+>): boolean {
+  return [
+    input.respuesta_correcta_a,
+    input.respuesta_correcta_b,
+    input.respuesta_correcta_c,
+    input.respuesta_correcta_d,
+  ].some((value) => (value ?? "").trim().length > 0);
+}
+
+function normalizeOptionalAnswer(value: string | null | undefined): string | null | undefined {
+  if (value === undefined) return undefined;
+  return value?.trim() || null;
 }
 
 export class QuizService {
@@ -187,6 +221,7 @@ export class QuizService {
   }
 
   async listQuestions(requester: AuthContext, courseId: number, quizId: number): Promise<QuizQuestion[]> {
+    await this.repo.ensureVariantSchema();
     const quiz = await this.getQuiz(requester, courseId, quizId);
     // estudiantes no deben ver respuestas_correcta
     if (requester.role === "estudiante") throw forbidden("No autorizado");
@@ -194,6 +229,7 @@ export class QuizService {
   }
 
   async createQuestion(requester: AuthContext, courseId: number, quizId: number, input: CreateQuestionInput): Promise<QuizQuestion> {
+    await this.repo.ensureVariantSchema();
     const [course, quiz] = await Promise.all([
       this.repo.findCourse(courseId),
       this.repo.findQuizById(courseId, quizId),
@@ -215,6 +251,10 @@ export class QuizService {
         opcion_c: input.opcion_c ?? null,
         opcion_d: input.opcion_d ?? null,
         respuesta_correcta: input.respuesta_correcta.trim(),
+        respuesta_correcta_a: input.respuesta_correcta_a?.trim() || null,
+        respuesta_correcta_b: input.respuesta_correcta_b?.trim() || null,
+        respuesta_correcta_c: input.respuesta_correcta_c?.trim() || null,
+        respuesta_correcta_d: input.respuesta_correcta_d?.trim() || null,
         explicacion: input.explicacion ?? null,
         puntos: String(input.puntos ?? 1),
         orden: input.orden ?? 1,
@@ -237,6 +277,7 @@ export class QuizService {
     questionId: number,
     input: UpdateQuestionInput
   ): Promise<QuizQuestion> {
+    await this.repo.ensureVariantSchema();
     const [course, quiz, current] = await Promise.all([
       this.repo.findCourse(courseId),
       this.repo.findQuizById(courseId, quizId),
@@ -255,6 +296,10 @@ export class QuizService {
       opcion_c: input.opcion_c ?? current.opcion_c,
       opcion_d: input.opcion_d ?? current.opcion_d,
       respuesta_correcta: input.respuesta_correcta ?? current.respuesta_correcta,
+      respuesta_correcta_a: input.respuesta_correcta_a ?? current.respuesta_correcta_a,
+      respuesta_correcta_b: input.respuesta_correcta_b ?? current.respuesta_correcta_b,
+      respuesta_correcta_c: input.respuesta_correcta_c ?? current.respuesta_correcta_c,
+      respuesta_correcta_d: input.respuesta_correcta_d ?? current.respuesta_correcta_d,
       explicacion: input.explicacion ?? current.explicacion,
       puntos: input.puntos ?? Number(current.puntos),
       orden: input.orden ?? current.orden,
@@ -269,6 +314,10 @@ export class QuizService {
         ...input,
         enunciado: input.enunciado?.trim(),
         respuesta_correcta: input.respuesta_correcta?.trim(),
+        respuesta_correcta_a: normalizeOptionalAnswer(input.respuesta_correcta_a),
+        respuesta_correcta_b: normalizeOptionalAnswer(input.respuesta_correcta_b),
+        respuesta_correcta_c: normalizeOptionalAnswer(input.respuesta_correcta_c),
+        respuesta_correcta_d: normalizeOptionalAnswer(input.respuesta_correcta_d),
         puntos: input.puntos === undefined ? undefined : String(input.puntos),
       } as unknown as Partial<Omit<QuizQuestion, "id" | "quiz_id" | "created_at" | "updated_at">>);
       if (affected === 0) throw notFound("Pregunta no encontrada");
@@ -293,8 +342,9 @@ export class QuizService {
     requester: AuthContext,
     courseId: number,
     quizId: number
-  ): Promise<{ intento_id: number; quiz: Quiz; preguntas: QuizQuestionPublic[]; numero_intento: number }> {
+  ): Promise<{ intento_id: number; quiz: Quiz; preguntas: QuizQuestionPublic[]; numero_intento: number; variante: QuizVariant | null }> {
     if (requester.role !== "estudiante") throw forbidden("No autorizado");
+    await this.repo.ensureVariantSchema();
 
     const course = await this.repo.findCourse(courseId);
     if (!course) throw notFound("Curso no encontrado");
@@ -311,16 +361,17 @@ export class QuizService {
 
     const preguntas = await this.repo.listActiveQuestionsPublic(quizId);
     if (preguntas.length === 0) throw badRequest("Este quiz no tiene preguntas activas");
+    const variante = (await this.repo.quizHasVariants(quizId)) ? randomVariant() : null;
 
     const { intentoId, numeroIntento } = await withTransaction(async (conn) => {
       const used = await this.repo.countAttempts(conn, quizId, requester.userId);
       if (used >= quiz.intentos_permitidos) throw forbidden("Ya alcanzaste el límite de intentos");
       const numero = used + 1;
-      const id = await this.repo.createAttempt(conn, quizId, requester.userId, numero);
+      const id = await this.repo.createAttempt(conn, quizId, requester.userId, numero, variante);
       return { intentoId: id, numeroIntento: numero };
     });
 
-    return { intento_id: intentoId, quiz, preguntas: preguntas as QuizQuestionPublic[], numero_intento: numeroIntento };
+    return { intento_id: intentoId, quiz, preguntas: preguntas as QuizQuestionPublic[], numero_intento: numeroIntento, variante };
   }
 
   async submitQuiz(
@@ -331,6 +382,7 @@ export class QuizService {
     input: SubmitQuizInput
   ): Promise<AttemptResult> {
     if (requester.role !== "estudiante") throw forbidden("No autorizado");
+    await this.repo.ensureVariantSchema();
 
     const course = await this.repo.findCourse(courseId);
     if (!course) throw notFound("Curso no encontrado");
@@ -370,7 +422,7 @@ export class QuizService {
 
       for (const c of checks) {
         const user = answersByQuestion.get(c.pregunta_id) ?? null;
-        const answerKey = resolvedCorrectAnswer(c);
+        const answerKey = resolvedCorrectAnswer(c, intento.variante);
         const correct = normalizeAnswer(user) === normalizeAnswer(answerKey);
         const puntosPregunta = Number(c.puntos);
         const puntosObtenidos = correct ? puntosPregunta : 0;
@@ -411,24 +463,52 @@ export class QuizService {
   }
 
   private validateQuestion(input: CreateQuestionInput) {
-    if (input.tipo === "verdadero_falso") {
-      const v = normalizeAnswer(input.respuesta_correcta);
-      if (v !== "verdadero" && v !== "falso") {
-        throw badRequest("Para verdadero/falso, respuesta_correcta debe ser 'verdadero' o 'falso'");
+    const validateVariantAnswers = (validateAnswer: (answer: string, label: string) => void) => {
+      if (!hasAnyVariantAnswer(input)) return;
+
+      const variants: Array<[QuizVariant, string | null | undefined]> = [
+        ["A", input.respuesta_correcta_a],
+        ["B", input.respuesta_correcta_b],
+        ["C", input.respuesta_correcta_c],
+        ["D", input.respuesta_correcta_d],
+      ];
+
+      for (const [variant, answer] of variants) {
+        if (!answer?.trim()) {
+          throw badRequest("Para usar variantes, completa la respuesta correcta de A, B, C y D.");
+        }
+        validateAnswer(answer, `respuesta_correcta_${variant.toLowerCase()}`);
       }
+    };
+
+    if (input.tipo === "verdadero_falso") {
+      const validate = (answer: string, label: string) => {
+        const v = normalizeAnswer(answer);
+        if (v !== "verdadero" && v !== "falso") {
+          throw badRequest(`Para verdadero/falso, ${label} debe ser 'verdadero' o 'falso'`);
+        }
+      };
+      validate(input.respuesta_correcta, "respuesta_correcta");
+      validateVariantAnswers(validate);
     }
     if (input.tipo === "opcion_unica") {
       const opts = [input.opcion_a, input.opcion_b, input.opcion_c, input.opcion_d].filter((x) => (x ?? "").trim().length > 0);
       if (opts.length < 2) throw badRequest("La pregunta de opción única requiere al menos 2 opciones");
-      const rc = normalizeAnswer(input.respuesta_correcta);
       const normalized = new Set(opts.map((o) => normalizeAnswer(o)));
-      if (!normalized.has(rc)) {
-        // también permitimos "A/B/C/D"
-        if (!["a", "b", "c", "d"].includes(rc)) throw badRequest("respuesta_correcta debe coincidir con una opción");
-      }
+      const validate = (answer: string, label: string) => {
+        const rc = normalizeAnswer(answer);
+        if (!normalized.has(rc) && !["a", "b", "c", "d"].includes(rc)) {
+          throw badRequest(`${label} debe coincidir con una opción`);
+        }
+      };
+      validate(input.respuesta_correcta, "respuesta_correcta");
+      validateVariantAnswers(validate);
     }
     if (input.tipo === "respuesta_corta") {
       if (input.respuesta_correcta.trim().length === 0) throw badRequest("respuesta_correcta es requerida");
+      validateVariantAnswers((answer, label) => {
+        if (answer.trim().length === 0) throw badRequest(`${label} es requerida`);
+      });
     }
   }
 

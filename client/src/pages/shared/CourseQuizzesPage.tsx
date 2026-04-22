@@ -9,7 +9,7 @@ import { Spinner } from "../../components/ui/Spinner";
 import { ConfirmDeleteModal } from "../../components/ui/ConfirmDeleteModal";
 import { useAuth } from "../../hooks/useAuth";
 import type { ApiResponse } from "../../types/api";
-import type { Quiz, QuizQuestion, QuizStatus, QuestionType, QuestionStatus } from "../../types/quiz";
+import type { Quiz, QuizQuestion, QuizStatus, QuestionType, QuestionStatus, QuizVariant } from "../../types/quiz";
 import { getApiErrorMessage } from "../../utils/apiError";
 import type { CourseManageOutletContext } from "./courseManage.types";
 
@@ -53,6 +53,22 @@ function formatPoints(value: number) {
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(3).replace(/\.?0+$/, "");
 }
 
+function normalizeAnswerInput(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function hasQuestionVariants(question: Pick<
+  QuizQuestion,
+  "respuesta_correcta_a" | "respuesta_correcta_b" | "respuesta_correcta_c" | "respuesta_correcta_d"
+>) {
+  return [
+    question.respuesta_correcta_a,
+    question.respuesta_correcta_b,
+    question.respuesta_correcta_c,
+    question.respuesta_correcta_d,
+  ].some((answer) => (answer ?? "").trim().length > 0);
+}
+
 type QuizForm = {
   titulo: string;
   descripcion: string;
@@ -74,6 +90,10 @@ type QuestionForm = {
   opcion_c: string;
   opcion_d: string;
   respuesta_correcta: string;
+  respuesta_correcta_a: string;
+  respuesta_correcta_b: string;
+  respuesta_correcta_c: string;
+  respuesta_correcta_d: string;
   explicacion: string;
   puntos: string;
   orden: string;
@@ -101,6 +121,10 @@ const emptyQuestionForm: QuestionForm = {
   opcion_c: "",
   opcion_d: "",
   respuesta_correcta: "",
+  respuesta_correcta_a: "",
+  respuesta_correcta_b: "",
+  respuesta_correcta_c: "",
+  respuesta_correcta_d: "",
   explicacion: "",
   puntos: "1",
   orden: "1",
@@ -263,6 +287,14 @@ export function CourseQuizzesPage() {
       errors.orden = "El orden debe ser mayor a 0.";
     }
 
+    const variantAnswers: Array<[QuizVariant, string]> = [
+      ["A", qForm.respuesta_correcta_a],
+      ["B", qForm.respuesta_correcta_b],
+      ["C", qForm.respuesta_correcta_c],
+      ["D", qForm.respuesta_correcta_d],
+    ];
+    const hasVariants = variantAnswers.some(([, answer]) => answer.trim().length > 0);
+
     if (qForm.tipo === "opcion_unica") {
       const options = [
         qForm.opcion_a.trim(),
@@ -278,13 +310,39 @@ export function CourseQuizzesPage() {
       if (!["a", "b", "c", "d"].includes(qForm.respuesta_correcta.trim().toLowerCase())) {
         errors.respuesta_correcta = "Selecciona cuál opción es la correcta.";
       }
+
+      if (hasVariants) {
+        variantAnswers.forEach(([variant, answer]) => {
+          if (!["a", "b", "c", "d"].includes(answer.trim().toLowerCase())) {
+            errors[`respuesta_correcta_${variant.toLowerCase()}`] =
+              `Selecciona la respuesta de la variante ${variant}.`;
+          }
+        });
+      }
     } else if (qForm.tipo === "verdadero_falso") {
       const answer = qForm.respuesta_correcta.trim().toLowerCase();
       if (answer !== "verdadero" && answer !== "falso") {
         errors.respuesta_correcta = "Selecciona si la respuesta correcta es verdadero o falso.";
       }
+
+      if (hasVariants) {
+        variantAnswers.forEach(([variant, value]) => {
+          const normalized = value.trim().toLowerCase();
+          if (normalized !== "verdadero" && normalized !== "falso") {
+            errors[`respuesta_correcta_${variant.toLowerCase()}`] =
+              `Selecciona verdadero o falso para la variante ${variant}.`;
+          }
+        });
+      }
     } else if (!qForm.respuesta_correcta.trim()) {
       errors.respuesta_correcta = "La respuesta correcta es obligatoria.";
+    } else if (hasVariants) {
+      variantAnswers.forEach(([variant, answer]) => {
+        if (!answer.trim()) {
+          errors[`respuesta_correcta_${variant.toLowerCase()}`] =
+            `Escribe la respuesta de la variante ${variant}.`;
+        }
+      });
     }
 
     const editingContribution =
@@ -381,6 +439,10 @@ export function CourseQuizzesPage() {
       opcion_c: q.opcion_c ?? "",
       opcion_d: q.opcion_d ?? "",
       respuesta_correcta: q.respuesta_correcta ?? "",
+      respuesta_correcta_a: q.respuesta_correcta_a ?? "",
+      respuesta_correcta_b: q.respuesta_correcta_b ?? "",
+      respuesta_correcta_c: q.respuesta_correcta_c ?? "",
+      respuesta_correcta_d: q.respuesta_correcta_d ?? "",
       explicacion: q.explicacion ?? "",
       puntos: String(q.puntos ?? "1"),
       orden: String(q.orden ?? 1),
@@ -406,7 +468,19 @@ export function CourseQuizzesPage() {
         opcion_b: qForm.opcion_b.trim() ? qForm.opcion_b.trim() : null,
         opcion_c: qForm.opcion_c.trim() ? qForm.opcion_c.trim() : null,
         opcion_d: qForm.opcion_d.trim() ? qForm.opcion_d.trim() : null,
-        respuesta_correcta: qForm.respuesta_correcta.trim().toLowerCase(),
+        respuesta_correcta: normalizeAnswerInput(qForm.respuesta_correcta),
+        respuesta_correcta_a: qForm.respuesta_correcta_a.trim()
+          ? normalizeAnswerInput(qForm.respuesta_correcta_a)
+          : null,
+        respuesta_correcta_b: qForm.respuesta_correcta_b.trim()
+          ? normalizeAnswerInput(qForm.respuesta_correcta_b)
+          : null,
+        respuesta_correcta_c: qForm.respuesta_correcta_c.trim()
+          ? normalizeAnswerInput(qForm.respuesta_correcta_c)
+          : null,
+        respuesta_correcta_d: qForm.respuesta_correcta_d.trim()
+          ? normalizeAnswerInput(qForm.respuesta_correcta_d)
+          : null,
         explicacion: qForm.explicacion.trim() ? qForm.explicacion.trim() : null,
         puntos: Number(qForm.puntos || "1"),
         orden: Number(qForm.orden || "1"),
@@ -796,6 +870,7 @@ export function CourseQuizzesPage() {
                             {questionBadge(q.estado)}
                             <Badge variant="blue">{q.tipo}</Badge>
                             <Badge variant="slate">{q.puntos} pts</Badge>
+                            {hasQuestionVariants(q) ? <Badge variant="amber">Variantes A-D</Badge> : null}
                           </div>
                           <div className="mt-3 text-sm font-semibold text-slate-900 whitespace-pre-wrap">
                             {q.enunciado}
@@ -929,6 +1004,15 @@ function QuestionModal({
     { value: "c", label: value.opcion_c.trim() ? `C · ${value.opcion_c.trim()}` : "C", enabled: value.opcion_c.trim().length > 0 },
     { value: "d", label: value.opcion_d.trim() ? `D · ${value.opcion_d.trim()}` : "D", enabled: value.opcion_d.trim().length > 0 },
   ];
+  const variantFields: Array<{
+    variant: QuizVariant;
+    key: "respuesta_correcta_a" | "respuesta_correcta_b" | "respuesta_correcta_c" | "respuesta_correcta_d";
+  }> = [
+    { variant: "A", key: "respuesta_correcta_a" },
+    { variant: "B", key: "respuesta_correcta_b" },
+    { variant: "C", key: "respuesta_correcta_c" },
+    { variant: "D", key: "respuesta_correcta_d" },
+  ];
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4" role="dialog" aria-modal="true">
@@ -992,6 +1076,10 @@ function QuestionModal({
                             ? currentAnswer
                             : "a"
                           : "",
+                    respuesta_correcta_a: "",
+                    respuesta_correcta_b: "",
+                    respuesta_correcta_c: "",
+                    respuesta_correcta_d: "",
                   });
                 }}
                 className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none ring-blue-500 focus:ring-2"
@@ -1080,6 +1168,58 @@ function QuestionModal({
                 <Input inputMode="numeric" value={value.orden} onChange={(e) => onChange({ ...value, orden: e.target.value })} />
                 {errors.orden ? <div className="mt-2 text-xs font-bold text-rose-700">{errors.orden}</div> : null}
               </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-cyan-100 bg-cyan-50/60 p-4">
+            <div className="text-sm font-black text-slate-900">Variantes A/B/C/D (opcional)</div>
+            <div className="mt-1 text-xs font-semibold text-slate-600">
+              Si llenas estas respuestas, cada alumno recibirá una variante aleatoria al iniciar el quiz.
+              Para activar variantes debes completar A, B, C y D.
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              {variantFields.map(({ variant, key }) => (
+                <div key={variant}>
+                  <div className="text-xs font-extrabold text-slate-700">Variante {variant}</div>
+                  {showOptions ? (
+                    <select
+                      value={value[key].trim().toLowerCase()}
+                      onChange={(e) => onChange({ ...value, [key]: e.target.value })}
+                      className="mt-2 w-full rounded-xl border border-cyan-100 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none ring-cyan-500 focus:ring-2"
+                    >
+                      <option value="">Sin variante</option>
+                      {optionChoices
+                        .filter((item) => item.enabled)
+                        .map((item) => (
+                          <option key={item.value} value={item.value}>
+                            {item.label}
+                          </option>
+                        ))}
+                    </select>
+                  ) : showTF ? (
+                    <select
+                      value={value[key].trim().toLowerCase()}
+                      onChange={(e) => onChange({ ...value, [key]: e.target.value })}
+                      className="mt-2 w-full rounded-xl border border-cyan-100 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none ring-cyan-500 focus:ring-2"
+                    >
+                      <option value="">Sin variante</option>
+                      <option value="verdadero">Verdadero</option>
+                      <option value="falso">Falso</option>
+                    </select>
+                  ) : (
+                    <Input
+                      value={value[key]}
+                      onChange={(e) => onChange({ ...value, [key]: e.target.value })}
+                      placeholder={`Respuesta variante ${variant}`}
+                    />
+                  )}
+                  {errors[`respuesta_correcta_${variant.toLowerCase()}`] ? (
+                    <div className="mt-2 text-xs font-bold text-rose-700">
+                      {errors[`respuesta_correcta_${variant.toLowerCase()}`]}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
             </div>
           </div>
 

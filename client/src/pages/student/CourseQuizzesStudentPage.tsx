@@ -8,7 +8,7 @@ import { Input } from "../../components/ui/Input";
 import { Spinner } from "../../components/ui/Spinner";
 import { useAuth } from "../../hooks/useAuth";
 import type { ApiResponse } from "../../types/api";
-import type { AttemptResult, Quiz, QuizQuestionPublic, StartQuizResponse } from "../../types/quiz";
+import type { AttemptResult, Quiz, QuizQuestionPublic, QuizVariant, StartQuizResponse } from "../../types/quiz";
 import { getApiErrorMessage } from "../../utils/apiError";
 
 type Banner = { tone: "success" | "error"; text: string } | null;
@@ -44,6 +44,7 @@ export function CourseQuizzesStudentPage() {
   const [stage, setStage] = useState<Stage>("list");
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   const [attemptId, setAttemptId] = useState<number | null>(null);
+  const [variant, setVariant] = useState<QuizVariant | null>(null);
   const [questions, setQuestions] = useState<QuizQuestionPublic[]>([]);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -89,6 +90,7 @@ export function CourseQuizzesStudentPage() {
       const res = await api.post<ApiResponse<StartQuizResponse>>(`/courses/${id}/quizzes/${quiz.id}/start`, {});
       setActiveQuiz(res.data.data.quiz);
       setAttemptId(res.data.data.intento_id);
+      setVariant(res.data.data.variante);
       setQuestions(res.data.data.preguntas);
       setAnswers({});
       setResult(null);
@@ -199,6 +201,7 @@ export function CourseQuizzesStudentPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {variant ? <Badge variant="blue">Variante {variant}</Badge> : null}
               {timeLeft !== null ? <Badge variant="amber">Tiempo: {mmss(Math.max(0, timeLeft))}</Badge> : <Badge variant="slate">Sin tiempo</Badge>}
               <Button onClick={() => void submit()} disabled={submitting}>
                 {submitting ? "Enviando…" : "Enviar"}
@@ -278,6 +281,11 @@ export function CourseQuizzesStudentPage() {
                   {result.puntaje_obtenido} / {result.puntaje_total}
                 </span>
               </div>
+              {result.intento.variante ? (
+                <div className="mt-2">
+                  <Badge variant="blue">Variante {result.intento.variante}</Badge>
+                </div>
+              ) : null}
               {result.mostrar_resultado && result.detalle ? (
                 <div className="mt-6 grid gap-3">
                   {result.detalle.map((d) => (
@@ -317,6 +325,7 @@ export function CourseQuizzesStudentPage() {
                 setStage("list");
                 setActiveQuiz(null);
                 setAttemptId(null);
+                setVariant(null);
                 setQuestions([]);
                 setAnswers({});
                 setResult(null);
@@ -334,4 +343,3 @@ export function CourseQuizzesStudentPage() {
     </div>
   );
 }
-

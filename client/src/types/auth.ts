@@ -36,7 +36,11 @@ export type WebAuthResponse = {
 };
 
 export type RegisterResponse = {
-  user: User;
+  pendingUser: {
+    nombres: string;
+    apellidos: string;
+    correo: string;
+  };
   verification: {
     required: true;
     emailSent: boolean;

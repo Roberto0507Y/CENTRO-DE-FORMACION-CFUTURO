@@ -43,7 +43,11 @@ export type AuthResult = {
 };
 
 export type RegisterResult = {
-  user: AuthUserPublic;
+  pendingUser: {
+    nombres: string;
+    apellidos: string;
+    correo: string;
+  };
   verification: {
     required: true;
     emailSent: boolean;
@@ -95,6 +99,35 @@ export type EmailVerificationRow = {
   expires_at: string;
   used_at: string | null;
   created_at: string;
+};
+
+export type PendingUserRegistrationRow = {
+  id: number;
+  token_hash: string;
+  nombres: string;
+  apellidos: string;
+  dpi: string | null;
+  correo: string;
+  password_hash: string;
+  telefono: string | null;
+  fecha_nacimiento: string | null;
+  direccion: string | null;
+  expires_at: string;
+  used_at: string | null;
+  created_at: string;
+};
+
+export type CreatePendingUserRegistrationInput = {
+  tokenHash: string;
+  nombres: string;
+  apellidos: string;
+  dpi: string | null;
+  correo: string;
+  passwordHash: string;
+  telefono: string | null;
+  fechaNacimiento: string | null;
+  direccion: string | null;
+  expiresAt: Date;
 };
 
 export type CreateUserInput = {

@@ -92,7 +92,7 @@ export function RegisterPage() {
         fecha_nacimiento: fechaNacimiento,
         direccion: direccion.trim(),
       });
-      setSuccess({ correo: result.user.correo, emailSent: result.verification.emailSent });
+      setSuccess({ correo: result.pendingUser.correo, emailSent: result.verification.emailSent });
       setPassword("");
       setConfirmPassword("");
     } catch (err) {

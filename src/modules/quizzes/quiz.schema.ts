@@ -94,6 +94,10 @@ export const createQuestionBodySchema = z
     opcion_c: z.string().max(255).nullable().optional(),
     opcion_d: z.string().max(255).nullable().optional(),
     respuesta_correcta: z.string().min(1).max(255),
+    respuesta_correcta_a: z.string().max(255).nullable().optional(),
+    respuesta_correcta_b: z.string().max(255).nullable().optional(),
+    respuesta_correcta_c: z.string().max(255).nullable().optional(),
+    respuesta_correcta_d: z.string().max(255).nullable().optional(),
     explicacion: z.string().nullable().optional(),
     puntos: numberFromBody("puntos").pipe(z.number().min(0.01).max(10000)).optional(),
     orden: numberFromBody("orden").pipe(z.number().int().min(1).max(10000)).optional(),
@@ -110,6 +114,10 @@ export const updateQuestionBodySchema = z
     opcion_c: z.string().max(255).nullable().optional(),
     opcion_d: z.string().max(255).nullable().optional(),
     respuesta_correcta: z.string().min(1).max(255).optional(),
+    respuesta_correcta_a: z.string().max(255).nullable().optional(),
+    respuesta_correcta_b: z.string().max(255).nullable().optional(),
+    respuesta_correcta_c: z.string().max(255).nullable().optional(),
+    respuesta_correcta_d: z.string().max(255).nullable().optional(),
     explicacion: z.string().nullable().optional(),
     puntos: numberFromBody("puntos").pipe(z.number().min(0.01).max(10000)).optional(),
     orden: numberFromBody("orden").pipe(z.number().int().min(1).max(10000)).optional(),
@@ -134,4 +142,3 @@ export const submitQuizBodySchema = z
       .min(1, "Debes enviar respuestas"),
   })
   .strict();
-

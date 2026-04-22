@@ -32,46 +32,43 @@ export class AuthService {
     if (existing) throw conflict("El correo ya está registrado");
 
     const passwordHash = await bcrypt.hash(input.password, 12);
-
-    const userId = await this.repo.createUser({
-      nombres: input.nombres.trim(),
-      apellidos: input.apellidos.trim(),
-      dpi: input.dpi.trim(),
-      correo,
-      passwordHash,
-      telefono: input.telefono ?? null,
-      fotoUrl: input.foto_url ?? null,
-      fechaNacimiento: input.fecha_nacimiento ?? null,
-      direccion: input.direccion ?? null,
-      rol: "estudiante",
-      estado: "inactivo",
-    });
-
-    const user = await this.repo.findPublicById(userId);
-    if (!user) throw new Error("No se pudo crear el usuario");
-
     const verificationToken = this.generateResetToken();
     const tokenHash = this.hashToken(verificationToken);
     const expiresAt = new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS);
+    const pendingUser = {
+      nombres: input.nombres.trim(),
+      apellidos: input.apellidos.trim(),
+      correo,
+    };
 
     await withTransaction(async (conn) => {
-      const userLocked = await this.repo.lockUserById(conn, user.id);
-      if (!userLocked) throw new Error("No se pudo preparar la verificación de correo");
-
-      await this.repo.invalidateUnusedEmailVerificationsForUser(user.id, conn);
-      await this.repo.createEmailVerification(user.id, tokenHash, expiresAt, conn);
+      await this.repo.upsertPendingRegistration(
+        {
+          tokenHash,
+          nombres: pendingUser.nombres,
+          apellidos: pendingUser.apellidos,
+          dpi: input.dpi.trim(),
+          correo,
+          passwordHash,
+          telefono: input.telefono ?? null,
+          fechaNacimiento: input.fecha_nacimiento ?? null,
+          direccion: input.direccion ?? null,
+          expiresAt,
+        },
+        conn
+      );
     });
 
     const emailSent = this.canQueueAccountVerificationEmail();
     if (emailSent) {
-      void this.sendAccountVerificationEmail(user, verificationToken);
+      void this.sendAccountVerificationEmail(pendingUser, verificationToken);
     } else {
       // eslint-disable-next-line no-console
       console.error("[auth] SMTP/FRONTEND_URL incompleto; no se pudo encolar correo de confirmación.");
     }
 
     return {
-      user,
+      pendingUser,
       verification: {
         required: true,
         emailSent,
@@ -327,6 +324,52 @@ export class AuthService {
   async verifyEmail(input: VerifyEmailInput): Promise<{ ok: true }> {
     const token = input.token.trim();
     const tokenHash = this.hashToken(token);
+
+    const pendingPreRow = await this.repo.findPendingRegistrationByHash(tokenHash);
+    if (pendingPreRow) {
+      if (pendingPreRow.used_at) throw badRequest("Token ya fue utilizado");
+
+      const pendingExpires = new Date(pendingPreRow.expires_at);
+      if (Number.isNaN(pendingExpires.getTime()) || pendingExpires.getTime() < Date.now()) {
+        throw badRequest("Token inválido o expirado");
+      }
+
+      await withTransaction(async (conn) => {
+        const row = await this.repo.findPendingRegistrationByHashForUpdate(conn, tokenHash);
+        if (!row) throw badRequest("Token inválido o expirado");
+        if (row.used_at) throw badRequest("Token ya fue utilizado");
+
+        const expires = new Date(row.expires_at);
+        if (Number.isNaN(expires.getTime()) || expires.getTime() < Date.now()) {
+          throw badRequest("Token inválido o expirado");
+        }
+
+        const existingUser = await this.repo.findByEmail(row.correo, conn);
+        if (existingUser) throw badRequest("El correo ya fue activado o registrado");
+
+        await this.repo.createUser(
+          {
+            nombres: row.nombres,
+            apellidos: row.apellidos,
+            dpi: row.dpi,
+            correo: row.correo,
+            passwordHash: row.password_hash,
+            telefono: row.telefono,
+            fotoUrl: null,
+            fechaNacimiento: row.fecha_nacimiento,
+            direccion: row.direccion,
+            rol: "estudiante",
+            estado: "activo",
+          },
+          conn
+        );
+
+        const tokenUsed = await this.repo.markPendingRegistrationUsed(row.id, conn);
+        if (tokenUsed === 0) throw badRequest("Token inválido o expirado");
+      });
+
+      return { ok: true };
+    }
 
     const preRow = await this.repo.findEmailVerificationByHash(tokenHash);
     if (!preRow) throw badRequest("Token inválido o expirado");
