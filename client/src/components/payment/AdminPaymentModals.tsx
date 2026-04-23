@@ -3,7 +3,7 @@ import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { EmptyState } from "../ui/EmptyState";
 import { Spinner } from "../ui/Spinner";
-import type { PaymentDetail, PaymentMethod, PaymentStatus } from "../../types/payment";
+import type { PaymentConcept, PaymentDetail, PaymentMethod, PaymentStatus } from "../../types/payment";
 
 function formatMoney(amount: string, currency: string) {
   const n = Number(amount);
@@ -51,6 +51,18 @@ function methodLabel(m: PaymentMethod) {
   return "Manual";
 }
 
+function detailTitle(concepto: PaymentConcept) {
+  return concepto === "admision" ? "Detalle de examen de admisión" : "Detalle de curso";
+}
+
+function detailSectionTitle(concepto: PaymentConcept) {
+  return concepto === "admision" ? "Detalle del examen de admisión" : "Detalle del curso";
+}
+
+function conceptBadgeLabel(concepto: PaymentConcept) {
+  return concepto === "admision" ? "Admisión" : "Curso";
+}
+
 export function PaymentDetailModal({
   isLoading,
   payment,
@@ -77,7 +89,9 @@ export function PaymentDetailModal({
             <div className="border-b border-slate-200 bg-white px-6 py-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-sm font-black text-slate-900">Detalle de pago</div>
+                  <div className="text-sm font-black text-slate-900">
+                    {payment ? detailTitle(payment.concepto) : "Detalle de pago"}
+                  </div>
                   <div className="mt-1 text-sm text-slate-600">
                     {payment ? `Pago #${payment.id}` : "Cargando…"}
                   </div>
@@ -97,7 +111,7 @@ export function PaymentDetailModal({
                 <EmptyState title="No se pudo cargar el pago" description="Intenta de nuevo." />
               ) : (
                 <div className="space-y-6">
-                  <div className="grid gap-3 md:grid-cols-3">
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <div className="text-xs font-extrabold text-slate-500">Estado</div>
                       <div className="mt-2">{s ? <Badge variant={s.variant}>{s.label}</Badge> : null}</div>
@@ -112,6 +126,14 @@ export function PaymentDetailModal({
                       <div className="text-xs font-extrabold text-slate-500">Método</div>
                       <div className="mt-1 text-base font-black text-slate-900">
                         {methodLabel(payment.metodo_pago)}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="text-xs font-extrabold text-slate-500">Tipo</div>
+                      <div className="mt-2">
+                        <Badge variant={payment.concepto === "admision" ? "amber" : "blue"}>
+                          {conceptBadgeLabel(payment.concepto)}
+                        </Badge>
                       </div>
                     </div>
                   </div>
@@ -158,7 +180,9 @@ export function PaymentDetailModal({
                   </div>
 
                   <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <div className="text-xs font-extrabold text-slate-500">Detalle por curso</div>
+                    <div className="text-xs font-extrabold text-slate-500">
+                      {detailSectionTitle(payment.concepto)}
+                    </div>
                     <div className="mt-3 space-y-2">
                       {payment.items.length === 0 ? (
                         <div className="text-sm text-slate-600">Sin items.</div>
@@ -169,8 +193,15 @@ export function PaymentDetailModal({
                             className="flex flex-col justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center"
                           >
                             <div className="min-w-0">
-                              <div className="truncate text-sm font-black text-slate-900">{it.curso.titulo}</div>
-                              <div className="mt-1 text-xs text-slate-500">Curso ID: {it.curso.id}</div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <div className="truncate text-sm font-black text-slate-900">{it.curso.titulo}</div>
+                                <Badge variant={it.concepto === "admision" ? "amber" : "blue"}>
+                                  {conceptBadgeLabel(it.concepto)}
+                                </Badge>
+                              </div>
+                              <div className="mt-1 text-xs text-slate-500">
+                                {it.concepto === "admision" ? "Examen ID" : "Curso ID"}: {it.curso.id}
+                              </div>
                             </div>
                             <div className="text-sm font-black text-slate-900">
                               {formatMoney(it.subtotal, payment.moneda)}

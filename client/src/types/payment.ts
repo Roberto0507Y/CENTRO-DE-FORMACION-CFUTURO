@@ -6,6 +6,7 @@ export type PaymentStatus =
   | "reembolsado";
 
 export type PaymentMethod = "bi_pay" | "transferencia" | "deposito" | "efectivo" | "manual";
+export type PaymentConcept = "curso" | "admision";
 
 export type PaymentUserSummary = {
   id: number;
@@ -17,6 +18,7 @@ export type PaymentUserSummary = {
 export type PaymentListItem = {
   id: number;
   referencia_pago: string;
+  concepto: PaymentConcept;
   usuario: PaymentUserSummary;
   cursos: string | null;
   monto_total: string;
@@ -30,6 +32,7 @@ export type PaymentListItem = {
 
 export type PaymentDetailItem = {
   id: number;
+  concepto: PaymentConcept;
   curso: { id: number; titulo: string };
   precio_unitario: string;
   descuento: string;

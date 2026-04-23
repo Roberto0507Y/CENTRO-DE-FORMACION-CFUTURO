@@ -10,6 +10,7 @@ import { Spinner } from "../../components/ui/Spinner";
 import { useAuth } from "../../hooks/useAuth";
 import type { ApiResponse } from "../../types/api";
 import type {
+  PaymentConcept,
   PaymentDetail,
   PaymentListItem,
   PaymentMethod,
@@ -96,6 +97,14 @@ function methodLabel(m: PaymentMethod) {
   return "Manual";
 }
 
+function paymentConceptLabel(concepto: PaymentConcept) {
+  return concepto === "admision" ? "Examen de admisión" : "Curso";
+}
+
+function paymentDetailLabel(concepto: PaymentConcept) {
+  return concepto === "admision" ? "Detalle admisión" : "Detalle curso";
+}
+
 function initials(name: string) {
   return name
     .split(/\s+/)
@@ -118,7 +127,7 @@ function downloadCsv(rows: PaymentListItem[]) {
     p.referencia_pago,
     `${p.usuario.nombres} ${p.usuario.apellidos}`,
     p.usuario.correo,
-    p.cursos ?? "",
+    `${paymentConceptLabel(p.concepto)} · ${p.cursos ?? ""}`,
     formatMoney(p.monto_total, p.moneda),
     methodLabel(p.metodo_pago),
     statusUi(p.estado).label,
@@ -718,7 +727,12 @@ export function AdminPaymentsPage() {
                             </div>
                           </td>
                           <td>
-                            <div className="cf-payments-course">{p.cursos ?? "—"}</div>
+                            <div className="cf-payments-course">
+                              <div>{p.cursos ?? "—"}</div>
+                              <div className="mt-1 text-xs font-semibold text-slate-500">
+                                {paymentConceptLabel(p.concepto)}
+                              </div>
+                            </div>
                           </td>
                           <td>
                             <div className="cf-payments-amount">{formatMoney(p.monto_total, p.moneda)}</div>
@@ -746,7 +760,7 @@ export function AdminPaymentsPage() {
                           <td>
                             <div className="cf-payments-row-actions">
                               <Button size="sm" variant="ghost" onClick={() => void openDetail(p.id)}>
-                                Detalle
+                                {paymentDetailLabel(p.concepto)}
                               </Button>
                               {p.estado === "pendiente" ? (
                                 <>

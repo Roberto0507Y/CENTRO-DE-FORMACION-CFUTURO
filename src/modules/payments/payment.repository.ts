@@ -17,6 +17,7 @@ import type { PaymentMethod, PaymentStatus } from "./payment.types";
 type PaymentListRow = RowDataPacket & {
   id: number;
   referencia_pago: string;
+  concepto: "curso" | "admision" | string;
   usuario_id: number;
   nombres: string;
   apellidos: string;
@@ -41,6 +42,7 @@ type PaymentDetailRow = RowDataPacket & Omit<PaymentDetail, "usuario" | "items" 
 
 type PaymentItemRow = RowDataPacket & {
   id: number;
+  concepto: "curso" | "admision" | string;
   curso_id: number;
   titulo: string;
   precio_unitario: string;
@@ -252,6 +254,11 @@ export class PaymentRepository {
         `SELECT
           p.id,
           p.referencia_pago,
+          CASE
+            WHEN SUM(CASE WHEN COALESCE(dp.concepto, 'curso') = 'admision' THEN 1 ELSE 0 END) > 0
+              THEN 'admision'
+            ELSE 'curso'
+          END AS concepto,
           p.usuario_id,
           u.nombres,
           u.apellidos,
@@ -283,6 +290,7 @@ export class PaymentRepository {
     const items: PaymentListItem[] = rows.map((r) => ({
       id: r.id,
       referencia_pago: r.referencia_pago,
+      concepto: r.concepto === "admision" ? "admision" : "curso",
       usuario: { id: r.usuario_id, nombres: r.nombres, apellidos: r.apellidos, correo: r.correo },
       cursos: r.cursos,
       monto_total: r.monto_total,
@@ -302,6 +310,11 @@ export class PaymentRepository {
       `SELECT
         p.id,
         p.referencia_pago,
+        CASE
+          WHEN SUM(CASE WHEN COALESCE(dp.concepto, 'curso') = 'admision' THEN 1 ELSE 0 END) > 0
+            THEN 'admision'
+          ELSE 'curso'
+        END AS concepto,
         p.usuario_id,
         u.nombres,
         u.apellidos,
@@ -331,6 +344,7 @@ export class PaymentRepository {
     const [itemRows] = await pool.query<PaymentItemRow[]>(
       `SELECT
         dp.id,
+        COALESCE(dp.concepto, 'curso') AS concepto,
         dp.curso_id,
         c.titulo,
         dp.precio_unitario,
@@ -345,6 +359,7 @@ export class PaymentRepository {
 
     const items: PaymentDetailItem[] = itemRows.map((it) => ({
       id: it.id,
+      concepto: it.concepto === "admision" ? "admision" : "curso",
       curso: { id: it.curso_id, titulo: it.titulo },
       precio_unitario: it.precio_unitario,
       descuento: it.descuento,
@@ -354,6 +369,7 @@ export class PaymentRepository {
     return {
       id: base.id,
       referencia_pago: base.referencia_pago,
+      concepto: base.concepto === "admision" ? "admision" : "curso",
       usuario: {
         id: base.usuario_id,
         nombres: base.nombres,

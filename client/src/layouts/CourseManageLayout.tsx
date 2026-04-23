@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { NavLink, Outlet, useLocation, useParams } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { Spinner } from "../components/ui/Spinner";
@@ -15,6 +15,13 @@ type CourseNavItem = {
   label: string;
   iconPath: string;
   end?: boolean;
+};
+
+type AdmissionStatusLite = {
+  enabled: boolean;
+  passed: boolean;
+  can_take_exam: boolean;
+  quiz: { id: number } | null;
 };
 
 function courseContextTone(estado?: CourseDetail["estado"]) {
@@ -213,18 +220,37 @@ export function CourseManageLayout({ base }: { base: "admin" | "teacher" | "stud
   const { courseId } = useParams();
   const id = Number(courseId);
   const { pathname } = useLocation();
+  const navigate = useNavigate();
 
   const [course, setCourse] = useState<CourseDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [admissionOnly, setAdmissionOnly] = useState(false);
+  const [admissionStatusLoading, setAdmissionStatusLoading] = useState(base === "student");
 
-  const backTo =
-    base === "admin" ? "/admin/courses" : base === "teacher" ? "/teacher/courses" : "/student/my-courses";
+  const backTo = useMemo(() => {
+    if (base === "admin") return "/admin/courses";
+    if (base === "teacher") return "/teacher/courses";
+    if (admissionOnly) {
+      return course?.slug ? `/courses/${course.slug}` : "/courses";
+    }
+    return "/student/my-courses";
+  }, [admissionOnly, base, course?.slug]);
 
   const sidebarSubtitle = base === "student" ? "Curso" : "Gestión del curso";
 
   const items = useMemo<CourseNavItem[]>(() => {
     if (base === "student") {
+      if (admissionOnly || admissionStatusLoading) {
+        return [
+          {
+            to: `/${base}/course/${id}/quizzes`,
+            label: "Examen de admisión",
+            iconPath: "M9 11h6M9 15h6M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z",
+          },
+        ];
+      }
+
       return [
         {
           to: `/${base}/course/${id}/home`,
@@ -307,7 +333,7 @@ export function CourseManageLayout({ base }: { base: "admin" | "teacher" | "stud
         iconPath: "M9 11h6M9 15h6M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z",
       },
     ];
-  }, [base, id]);
+  }, [admissionOnly, admissionStatusLoading, base, id]);
 
   const contentItems = useMemo(
     () => items.filter((it) => !["Asistencia", "Estudiantes"].includes(it.label)),
@@ -332,9 +358,53 @@ export function CourseManageLayout({ base }: { base: "admin" | "teacher" | "stud
     })();
   }, [api, id]);
 
+  useEffect(() => {
+    if (base !== "student" || !Number.isFinite(id) || id <= 0) {
+      setAdmissionOnly(false);
+      setAdmissionStatusLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        setAdmissionStatusLoading(true);
+        const res = await api.get<ApiResponse<AdmissionStatusLite>>(`/courses/${id}/quizzes/admission/status`);
+        if (cancelled) return;
+        const status = res.data.data;
+        setAdmissionOnly(Boolean(status.enabled && status.quiz && status.can_take_exam && !status.passed));
+      } catch {
+        if (cancelled) return;
+        setAdmissionOnly(false);
+      } finally {
+        if (!cancelled) {
+          setAdmissionStatusLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [api, base, id]);
+
+  useEffect(() => {
+    if (base !== "student" || !admissionOnly || !Number.isFinite(id) || id <= 0) return;
+    const quizPath = `/student/course/${id}/quizzes`;
+    if (pathname !== quizPath) {
+      navigate(quizPath, { replace: true });
+    }
+  }, [admissionOnly, base, id, navigate, pathname]);
+
   const outletCtx: CourseManageOutletContext = useMemo(
-    () => ({ courseId: id, courseTitle: course?.titulo ?? `Curso #${id}` }),
-    [course?.titulo, id],
+    () => ({
+      courseId: id,
+      courseTitle: course?.titulo ?? `Curso #${id}`,
+      courseSlug: course?.slug,
+      admissionOnly,
+    }),
+    [admissionOnly, course?.slug, course?.titulo, id],
   );
 
   return (

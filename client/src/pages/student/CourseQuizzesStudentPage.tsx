@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useOutletContext, useParams } from "react-router-dom";
 import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
@@ -7,6 +7,7 @@ import { EmptyState } from "../../components/ui/EmptyState";
 import { Input } from "../../components/ui/Input";
 import { Spinner } from "../../components/ui/Spinner";
 import { useAuth } from "../../hooks/useAuth";
+import type { CourseManageOutletContext } from "../shared/courseManage.types";
 import type { ApiResponse } from "../../types/api";
 import type { AttemptResult, Quiz, QuizQuestionPublic, QuizVariant, StartQuizResponse } from "../../types/quiz";
 import { getApiErrorMessage } from "../../utils/apiError";
@@ -34,8 +35,15 @@ function mmss(sec: number) {
 
 export function CourseQuizzesStudentPage() {
   const { api } = useAuth();
+  const outletCtx = useOutletContext<CourseManageOutletContext>();
   const { courseId } = useParams();
-  const id = Number(courseId);
+  const id = Number.isFinite(outletCtx?.courseId) ? outletCtx.courseId : Number(courseId);
+  const admissionOnly = Boolean(outletCtx?.admissionOnly);
+  const backHref = admissionOnly
+    ? outletCtx?.courseSlug
+      ? `/courses/${outletCtx.courseSlug}`
+      : "/courses"
+    : `/student/course/${id}`;
 
   const [banner, setBanner] = useState<Banner>(null);
   const [loading, setLoading] = useState(true);
@@ -146,12 +154,18 @@ export function CourseQuizzesStudentPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <div className="text-lg font-black tracking-tight text-slate-900">Quizzes</div>
-          <div className="mt-1 text-sm text-slate-600">Responde quizzes publicados del curso.</div>
+          <div className="text-lg font-black tracking-tight text-slate-900">
+            {admissionOnly ? "Examen de admisión" : "Quizzes"}
+          </div>
+          <div className="mt-1 text-sm text-slate-600">
+            {admissionOnly
+              ? "Completa el examen para continuar con el proceso de admisión."
+              : "Responde quizzes publicados del curso."}
+          </div>
         </div>
-        <Link to={`/student/course/${id}`}>
+        <Link to={backHref}>
           <Button variant="secondary" size="sm">
-            Volver al curso
+            {admissionOnly ? "Volver al detalle" : "Volver al curso"}
           </Button>
         </Link>
       </div>
@@ -169,7 +183,14 @@ export function CourseQuizzesStudentPage() {
 
       {stage === "list" ? (
         items.length === 0 ? (
-          <EmptyState title="Sin quizzes" description="Cuando tu docente publique quizzes, aparecerán aquí." />
+          <EmptyState
+            title={admissionOnly ? "Examen no disponible" : "Sin quizzes"}
+            description={
+              admissionOnly
+                ? "Todavía no tienes un examen de admisión habilitado para este curso."
+                : "Cuando tu docente publique quizzes, aparecerán aquí."
+            }
+          />
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
             {items.map((q) => (
@@ -363,10 +384,10 @@ export function CourseQuizzesStudentPage() {
                 setTimeLeft(null);
               }}
             >
-              Volver a quizzes
+              {admissionOnly ? "Volver al examen" : "Volver a quizzes"}
             </Button>
-            <Link to={`/student/course/${id}`}>
-              <Button variant="ghost">Volver al curso</Button>
+            <Link to={backHref}>
+              <Button variant="ghost">{admissionOnly ? "Volver al detalle" : "Volver al curso"}</Button>
             </Link>
           </div>
         </Card>
