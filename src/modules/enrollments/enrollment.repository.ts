@@ -65,7 +65,66 @@ type CourseStudentRow = RowDataPacket & {
   fecha_inscripcion: string;
 };
 
+type AdmissionQuizRow = RowDataPacket & {
+  id: number;
+  puntaje_total: string;
+  porcentaje_aprobacion: string;
+};
+
+type AdmissionScoreRow = RowDataPacket & { best_score: string | number | null };
+type ColumnExistsRow = RowDataPacket & { cnt: number };
+
 export class EnrollmentRepository {
+  private static columnCache = new Map<string, boolean>();
+  private static admissionEnsured = false;
+
+  private static async hasColumn(table: string, column: string): Promise<boolean> {
+    const key = `${table}.${column}`;
+    const cached = EnrollmentRepository.columnCache.get(key);
+    if (cached !== undefined) return cached;
+
+    const [rows] = await pool.query<ColumnExistsRow[]>(
+      `SELECT COUNT(*) AS cnt
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = ?
+         AND COLUMN_NAME = ?`,
+      [table, column]
+    );
+
+    const exists = Number(rows[0]?.cnt ?? 0) > 0;
+    EnrollmentRepository.columnCache.set(key, exists);
+    return exists;
+  }
+
+  private static async addColumnIfMissing(table: string, column: string, ddl: string): Promise<void> {
+    if (await EnrollmentRepository.hasColumn(table, column)) return;
+    await pool.execute(ddl);
+    EnrollmentRepository.columnCache.set(`${table}.${column}`, true);
+  }
+
+  private static async ensureAdmissionColumns(): Promise<void> {
+    if (EnrollmentRepository.admissionEnsured) return;
+
+    await EnrollmentRepository.addColumnIfMissing(
+      "quizzes",
+      "tipo",
+      "ALTER TABLE quizzes ADD COLUMN tipo VARCHAR(20) NOT NULL DEFAULT 'regular' AFTER instrucciones"
+    );
+    await EnrollmentRepository.addColumnIfMissing(
+      "quizzes",
+      "porcentaje_aprobacion",
+      "ALTER TABLE quizzes ADD COLUMN porcentaje_aprobacion DECIMAL(5,2) NOT NULL DEFAULT 60.00 AFTER puntaje_total"
+    );
+    await EnrollmentRepository.addColumnIfMissing(
+      "detalle_pagos",
+      "concepto",
+      "ALTER TABLE detalle_pagos ADD COLUMN concepto VARCHAR(20) NOT NULL DEFAULT 'curso' AFTER curso_id"
+    );
+
+    EnrollmentRepository.admissionEnsured = true;
+  }
+
   async findCourseById(courseId: number): Promise<CourseRow | null> {
     const [rows] = await pool.query<CourseRow[]>(
       `SELECT id, docente_id, tipo_acceso, estado
@@ -108,6 +167,7 @@ export class EnrollmentRepository {
   }
 
   async paymentExistsForUserAndCourse(userId: number, courseId: number): Promise<boolean> {
+    await EnrollmentRepository.ensureAdmissionColumns();
     const [rows] = await pool.query<RowDataPacket[]>(
       `SELECT 1
        FROM pagos p
@@ -115,10 +175,37 @@ export class EnrollmentRepository {
        WHERE p.usuario_id = ?
          AND p.estado = 'pagado'
          AND dp.curso_id = ?
+         AND dp.concepto = 'curso'
        LIMIT 1`,
       [userId, courseId]
     );
     return rows.length > 0;
+  }
+
+  async admissionPassedForUserCourse(userId: number, courseId: number): Promise<boolean> {
+    await EnrollmentRepository.ensureAdmissionColumns();
+    const [quizRows] = await pool.query<AdmissionQuizRow[]>(
+      `SELECT id, puntaje_total, porcentaje_aprobacion
+       FROM quizzes
+       WHERE curso_id = ? AND tipo = 'admision' AND estado = 'publicado'
+       ORDER BY created_at DESC, id DESC
+       LIMIT 1`,
+      [courseId]
+    );
+    const quiz = quizRows[0];
+    if (!quiz) return true;
+
+    const [scoreRows] = await pool.query<AdmissionScoreRow[]>(
+      `SELECT MAX(puntaje_obtenido) AS best_score
+       FROM intentos_quiz
+       WHERE quiz_id = ? AND estudiante_id = ? AND completado = 1`,
+      [quiz.id, userId]
+    );
+    const best = scoreRows[0]?.best_score;
+    if (best === null || best === undefined) return false;
+    const total = Number(quiz.puntaje_total);
+    const threshold = Number(quiz.porcentaje_aprobacion);
+    return total > 0 && (Number(best) / total) * 100 >= threshold;
   }
 
   async listMyActiveCourses(userId: number): Promise<MyEnrollmentItem[]> {

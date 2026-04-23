@@ -26,6 +26,12 @@ export class PaymentController {
     res.status(200).json({ ok: true, data });
   };
 
+  myAdmissionPayment = async (req: AuthedRequest, res: Response) => {
+    const courseId = Number(req.params.courseId);
+    const data = await this.service.myAdmissionPayment(req.auth!, courseId);
+    res.status(200).json({ ok: true, data });
+  };
+
   myCoursePaymentHistory = async (req: AuthedRequest, res: Response) => {
     const courseId = Number(req.params.courseId);
     const data = await this.service.myCoursePaymentHistory(req.auth!, courseId);
@@ -37,6 +43,14 @@ export class PaymentController {
     const body = req.body as ManualCoursePaymentInput;
     const file = req.file!;
     const data = await this.service.createManualCoursePayment(req.auth!, courseId, body, file);
+    res.status(201).json({ ok: true, data });
+  };
+
+  createManualAdmissionPayment = async (req: UploadRequest, res: Response) => {
+    const courseId = Number(req.params.courseId);
+    const body = req.body as ManualCoursePaymentInput;
+    const file = req.file!;
+    const data = await this.service.createManualAdmissionPayment(req.auth!, courseId, body, file);
     res.status(201).json({ ok: true, data });
   };
 

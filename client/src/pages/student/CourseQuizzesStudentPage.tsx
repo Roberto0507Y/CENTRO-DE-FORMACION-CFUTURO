@@ -174,10 +174,19 @@ export function CourseQuizzesStudentPage() {
                     <div className="text-base font-black text-slate-900">{q.titulo}</div>
                     <div className="mt-1 text-sm text-slate-600 line-clamp-2">{q.descripcion ?? "—"}</div>
                     <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                      {q.tipo === "admision" ? <Badge variant="amber">Examen de admisión</Badge> : null}
                       <Badge variant="blue">Intentos: {q.intentos_permitidos}</Badge>
+                      {q.tipo === "admision" ? (
+                        <Badge variant="green">Aprobación: {q.porcentaje_aprobacion}%</Badge>
+                      ) : null}
                       {q.tiempo_limite_minutos ? <Badge variant="amber">Tiempo: {q.tiempo_limite_minutos} min</Badge> : <Badge variant="slate">Sin tiempo</Badge>}
                       <Badge variant="green">Publicado</Badge>
                     </div>
+                    {q.tipo === "admision" && q.requiere_pago_reintento === 1 ? (
+                      <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+                        Si agotas tus oportunidades sin aprobar, deberás realizar un nuevo pago para habilitar más intentos.
+                      </div>
+                    ) : null}
                     <div className="mt-2 text-xs text-slate-500">
                       Apertura: {formatDate(q.fecha_apertura)} · Cierre: {formatDate(q.fecha_cierre)}
                     </div>
@@ -284,6 +293,23 @@ export function CourseQuizzesStudentPage() {
               {result.intento.variante ? (
                 <div className="mt-2">
                   <Badge variant="blue">Variante {result.intento.variante}</Badge>
+                </div>
+              ) : null}
+              {result.aprobado !== null ? (
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={result.aprobado ? "green" : "rose"}>
+                      {result.aprobado ? "Admisión aprobada" : "Admisión no aprobada"}
+                    </Badge>
+                    <Badge variant="slate">
+                      {result.porcentaje_obtenido}% / mínimo {result.porcentaje_aprobacion}%
+                    </Badge>
+                  </div>
+                  <div className="mt-2 text-sm text-slate-600">
+                    {result.aprobado
+                      ? "Cumpliste con el porcentaje requerido para aprobar el examen de admisión."
+                      : "No alcanzaste el porcentaje requerido. Si ya no tienes intentos, necesitarás seguir el proceso de pago indicado por la plataforma."}
+                  </div>
                 </div>
               ) : null}
               {result.mostrar_resultado && result.detalle ? (

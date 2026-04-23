@@ -35,6 +35,11 @@ router.get(
   asyncHandler(controller.myCoursePayment)
 );
 router.get(
+  "/my/course/:courseId/admission",
+  validate({ params: courseIdParamsSchema }),
+  asyncHandler(controller.myAdmissionPayment)
+);
+router.get(
   "/my/course/:courseId/history",
   validate({ params: courseIdParamsSchema }),
   asyncHandler(controller.myCoursePaymentHistory)
@@ -49,6 +54,17 @@ router.post(
   }),
   validate({ params: courseIdParamsSchema, body: manualPaymentBodySchema }),
   asyncHandler(controller.createManualCoursePayment)
+);
+router.post(
+  "/manual/course/:courseId/admission",
+  paymentProofUploadRateLimit,
+  optionalUploadSingle({
+    fieldName: "file",
+    allowed: ALLOWED_PAYMENT_PROOFS,
+    required: true,
+  }),
+  validate({ params: courseIdParamsSchema, body: manualPaymentBodySchema }),
+  asyncHandler(controller.createManualAdmissionPayment)
 );
 router.get(
   "/:id/proof/download",

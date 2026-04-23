@@ -121,8 +121,79 @@ type MyPaymentsCourseRow = RowDataPacket & {
 };
 
 type UserNameRow = RowDataPacket & { nombres: string; apellidos: string };
+type ColumnExistsRow = RowDataPacket & { cnt: number };
+type AdmissionQuizPaymentRow = RowDataPacket & {
+  id: number;
+  titulo: string;
+  puntaje_total: string;
+  porcentaje_aprobacion: string;
+  precio_admision: string;
+  payment_link_admision: string | null;
+  estado: "borrador" | "publicado" | "cerrado";
+};
+type AdmissionScoreRow = RowDataPacket & { best_score: string | number | null };
+type PaymentCourseConceptRow = RowDataPacket & { curso_id: number; concepto: "curso" | "admision" | string };
 
 export class PaymentRepository {
+  private static columnCache = new Map<string, boolean>();
+  private static paymentConceptEnsured = false;
+
+  private static async hasColumn(table: string, column: string): Promise<boolean> {
+    const key = `${table}.${column}`;
+    const cached = PaymentRepository.columnCache.get(key);
+    if (cached !== undefined) return cached;
+
+    const [rows] = await pool.query<ColumnExistsRow[]>(
+      `SELECT COUNT(*) AS cnt
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = ?
+         AND COLUMN_NAME = ?`,
+      [table, column]
+    );
+
+    const exists = Number(rows[0]?.cnt ?? 0) > 0;
+    PaymentRepository.columnCache.set(key, exists);
+    return exists;
+  }
+
+  private static async ensurePaymentConceptColumn(): Promise<void> {
+    if (PaymentRepository.paymentConceptEnsured) return;
+    await PaymentRepository.addColumnIfMissing(
+      "quizzes",
+      "tipo",
+      "ALTER TABLE quizzes ADD COLUMN tipo VARCHAR(20) NOT NULL DEFAULT 'regular' AFTER instrucciones"
+    );
+    await PaymentRepository.addColumnIfMissing(
+      "quizzes",
+      "porcentaje_aprobacion",
+      "ALTER TABLE quizzes ADD COLUMN porcentaje_aprobacion DECIMAL(5,2) NOT NULL DEFAULT 60.00 AFTER puntaje_total"
+    );
+    await PaymentRepository.addColumnIfMissing(
+      "quizzes",
+      "precio_admision",
+      "ALTER TABLE quizzes ADD COLUMN precio_admision DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER porcentaje_aprobacion"
+    );
+    await PaymentRepository.addColumnIfMissing(
+      "quizzes",
+      "payment_link_admision",
+      "ALTER TABLE quizzes ADD COLUMN payment_link_admision VARCHAR(500) NULL AFTER precio_admision"
+    );
+    if (!(await PaymentRepository.hasColumn("detalle_pagos", "concepto"))) {
+      await pool.execute(
+        "ALTER TABLE detalle_pagos ADD COLUMN concepto VARCHAR(20) NOT NULL DEFAULT 'curso' AFTER curso_id"
+      );
+      PaymentRepository.columnCache.set("detalle_pagos.concepto", true);
+    }
+    PaymentRepository.paymentConceptEnsured = true;
+  }
+
+  private static async addColumnIfMissing(table: string, column: string, ddl: string): Promise<void> {
+    if (await PaymentRepository.hasColumn(table, column)) return;
+    await pool.execute(ddl);
+    PaymentRepository.columnCache.set(`${table}.${column}`, true);
+  }
+
   private proofDownloadPath(paymentId: number, proofValue: string | null): string | null {
     return proofValue ? `/api/payments/${paymentId}/proof/download` : null;
   }
@@ -382,6 +453,70 @@ export class PaymentRepository {
     return rows[0] ?? null;
   }
 
+  async findPublishedAdmissionQuizForPayment(courseId: number): Promise<AdmissionQuizPaymentRow | null> {
+    await PaymentRepository.ensurePaymentConceptColumn();
+    const [rows] = await pool.query<AdmissionQuizPaymentRow[]>(
+      `SELECT id, titulo, puntaje_total, porcentaje_aprobacion, precio_admision, payment_link_admision, estado
+       FROM quizzes
+       WHERE curso_id = ? AND tipo = 'admision' AND estado = 'publicado'
+       ORDER BY created_at DESC, id DESC
+       LIMIT 1`,
+      [courseId]
+    );
+    return rows[0] ?? null;
+  }
+
+  async myAdmissionPayment(userId: number, courseId: number): Promise<MyCoursePayment["payment"]> {
+    await PaymentRepository.ensurePaymentConceptColumn();
+    const [rows] = await pool.query<MyPaymentRow[]>(
+      `SELECT
+        p.id, p.estado, p.metodo_pago, p.monto_total, p.moneda, p.comprobante_url, p.observaciones,
+        p.created_at, p.fecha_pago
+       FROM pagos p
+       JOIN detalle_pagos dp ON dp.pago_id = p.id
+       WHERE p.usuario_id = ?
+         AND dp.curso_id = ?
+         AND dp.concepto = 'admision'
+       ORDER BY p.created_at DESC
+       LIMIT 1`,
+      [userId, courseId]
+    );
+    const p = rows[0];
+    return p
+      ? {
+          id: p.id,
+          estado: p.estado,
+          metodo_pago: p.metodo_pago,
+          monto_total: p.monto_total,
+          moneda: p.moneda,
+          comprobante_url: this.proofDownloadPath(p.id, p.comprobante_url),
+          observaciones: p.observaciones,
+          created_at: p.created_at,
+          fecha_pago: p.fecha_pago,
+        }
+      : null;
+  }
+
+  async admissionPassedForUserCourse(userId: number, courseId: number): Promise<boolean> {
+    const quiz = await this.findPublishedAdmissionQuizForPayment(courseId);
+    if (!quiz) return true;
+
+    const [rows] = await pool.query<AdmissionScoreRow[]>(
+      `SELECT MAX(i.puntaje_obtenido) AS best_score
+       FROM intentos_quiz i
+       WHERE i.quiz_id = ?
+         AND i.estudiante_id = ?
+         AND i.completado = 1`,
+      [quiz.id, userId]
+    );
+    const best = rows[0]?.best_score;
+    if (best === null || best === undefined) return false;
+    const score = Number(best);
+    const total = Number(quiz.puntaje_total);
+    const threshold = Number(quiz.porcentaje_aprobacion);
+    return total > 0 && (score / total) * 100 >= threshold;
+  }
+
   async findUserName(userId: number): Promise<{ nombres: string; apellidos: string } | null> {
     const [rows] = await pool.query<UserNameRow[]>(
       `SELECT nombres, apellidos
@@ -395,6 +530,7 @@ export class PaymentRepository {
   }
 
   async myCoursePayment(userId: number, courseId: number): Promise<MyCoursePayment> {
+    await PaymentRepository.ensurePaymentConceptColumn();
     const [[payRows], [enrRows]] = await Promise.all([
       pool.query<MyPaymentRow[]>(
         `SELECT
@@ -404,6 +540,7 @@ export class PaymentRepository {
          JOIN detalle_pagos dp ON dp.pago_id = p.id
          WHERE p.usuario_id = ?
            AND dp.curso_id = ?
+           AND dp.concepto = 'curso'
          ORDER BY p.created_at DESC
          LIMIT 1`,
         [userId, courseId]
@@ -441,6 +578,7 @@ export class PaymentRepository {
   }
 
   async myPaymentsCourses(userId: number): Promise<MyPaymentsCourseItem[]> {
+    await PaymentRepository.ensurePaymentConceptColumn();
     const [rows] = await pool.query<MyPaymentsCourseRow[]>(
       `SELECT
         c.id AS course_id,
@@ -471,6 +609,7 @@ export class PaymentRepository {
        JOIN cursos c ON c.id = dp.curso_id
        LEFT JOIN inscripciones i ON i.usuario_id = p.usuario_id AND i.curso_id = c.id
        WHERE p.usuario_id = ?
+         AND dp.concepto = 'curso'
        ORDER BY p.created_at DESC`,
       [userId]
     );
@@ -536,6 +675,7 @@ export class PaymentRepository {
   }
 
   async myCoursePaymentHistory(userId: number, courseId: number): Promise<MyPaymentHistoryItem[]> {
+    await PaymentRepository.ensurePaymentConceptColumn();
     const [rows] = await pool.query<MyPaymentRow[]>(
       `SELECT
         p.id, p.estado, p.metodo_pago, p.monto_total, p.moneda, p.comprobante_url, p.observaciones,
@@ -544,6 +684,7 @@ export class PaymentRepository {
        JOIN detalle_pagos dp ON dp.pago_id = p.id
        WHERE p.usuario_id = ?
          AND dp.curso_id = ?
+         AND dp.concepto = 'curso'
        ORDER BY p.created_at DESC
        LIMIT 50`,
       [userId, courseId]
@@ -565,8 +706,10 @@ export class PaymentRepository {
   async findPendingPaymentIdForUserCourse(
     conn: PoolConnection,
     userId: number,
-    courseId: number
+    courseId: number,
+    concepto: "curso" | "admision" = "curso"
   ): Promise<number | null> {
+    await PaymentRepository.ensurePaymentConceptColumn();
     const [rows] = await conn.query<PendingPaymentRow[]>(
       `SELECT p.id
        FROM pagos p
@@ -574,9 +717,10 @@ export class PaymentRepository {
        WHERE p.usuario_id = ?
          AND p.estado = 'pendiente'
          AND dp.curso_id = ?
+         AND dp.concepto = ?
        ORDER BY p.created_at DESC
        LIMIT 1`,
-      [userId, courseId]
+      [userId, courseId, concepto]
     );
     return rows[0]?.id ?? null;
   }
@@ -629,12 +773,13 @@ export class PaymentRepository {
 
   async createPaymentDetail(
     conn: PoolConnection,
-    input: { pago_id: number; curso_id: number; precio_unitario: string }
+    input: { pago_id: number; curso_id: number; precio_unitario: string; concepto?: "curso" | "admision" }
   ): Promise<void> {
+    await PaymentRepository.ensurePaymentConceptColumn();
     await conn.execute(
-      `INSERT INTO detalle_pagos (pago_id, curso_id, precio_unitario, descuento, subtotal, created_at, updated_at)
-       VALUES (?, ?, ?, 0.00, ?, NOW(), NOW())`,
-      [input.pago_id, input.curso_id, input.precio_unitario, input.precio_unitario]
+      `INSERT INTO detalle_pagos (pago_id, curso_id, concepto, precio_unitario, descuento, subtotal, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 0.00, ?, NOW(), NOW())`,
+      [input.pago_id, input.curso_id, input.concepto ?? "curso", input.precio_unitario, input.precio_unitario]
     );
   }
 
@@ -656,8 +801,10 @@ export class PaymentRepository {
   async hasPaidPaymentForUserCourse(
     conn: PoolConnection,
     userId: number,
-    courseId: number
+    courseId: number,
+    concepto: "curso" | "admision" = "curso"
   ): Promise<boolean> {
+    await PaymentRepository.ensurePaymentConceptColumn();
     const [rows] = await conn.query<PaidPaymentRow[]>(
       `SELECT p.id
        FROM pagos p
@@ -665,8 +812,9 @@ export class PaymentRepository {
        WHERE p.usuario_id = ?
          AND p.estado = 'pagado'
          AND dp.curso_id = ?
+         AND dp.concepto = ?
        LIMIT 1`,
-      [userId, courseId]
+      [userId, courseId, concepto]
     );
     return Boolean(rows[0]);
   }
@@ -757,5 +905,20 @@ export class PaymentRepository {
       [id]
     );
     return rows.map((r) => Number(r.curso_id));
+  }
+
+  async listCourseItemsByPaymentId(
+    conn: PoolConnection,
+    id: number
+  ): Promise<Array<{ curso_id: number; concepto: "curso" | "admision" | string }>> {
+    await PaymentRepository.ensurePaymentConceptColumn();
+    const [rows] = await conn.query<PaymentCourseConceptRow[]>(
+      `SELECT curso_id, concepto
+       FROM detalle_pagos
+       WHERE pago_id = ?
+       ORDER BY id ASC`,
+      [id]
+    );
+    return rows.map((r) => ({ curso_id: Number(r.curso_id), concepto: r.concepto }));
   }
 }

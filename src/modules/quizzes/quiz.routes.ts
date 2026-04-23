@@ -25,6 +25,12 @@ router.use(authMiddleware);
 // list quizzes (admin/docente: todos, estudiante: publicados)
 router.get("/", validate({ params: courseIdParamsSchema }), asyncHandler(controller.list));
 
+router.get(
+  "/admission/status",
+  validate({ params: courseIdParamsSchema }),
+  asyncHandler(controller.admissionStatus)
+);
+
 router.get("/:quizId", validate({ params: quizIdParamsSchema }), asyncHandler(controller.get));
 
 // admin/docente
@@ -88,4 +94,3 @@ router.post(
 );
 
 export default router;
-

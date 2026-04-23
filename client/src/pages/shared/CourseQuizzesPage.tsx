@@ -9,7 +9,7 @@ import { Spinner } from "../../components/ui/Spinner";
 import { ConfirmDeleteModal } from "../../components/ui/ConfirmDeleteModal";
 import { useAuth } from "../../hooks/useAuth";
 import type { ApiResponse } from "../../types/api";
-import type { Quiz, QuizQuestion, QuizStatus, QuestionType, QuestionStatus, QuizVariant } from "../../types/quiz";
+import type { Quiz, QuizKind, QuizQuestion, QuizStatus, QuestionType, QuestionStatus, QuizVariant } from "../../types/quiz";
 import { getApiErrorMessage } from "../../utils/apiError";
 import type { CourseManageOutletContext } from "./courseManage.types";
 
@@ -24,6 +24,10 @@ function quizBadge(s: QuizStatus) {
 
 function questionBadge(s: QuestionStatus) {
   return s === "activo" ? <Badge variant="green">Activa</Badge> : <Badge variant="slate">Inactiva</Badge>;
+}
+
+function quizKindBadge(kind: QuizKind) {
+  return kind === "admision" ? <Badge variant="amber">Admisión</Badge> : <Badge variant="blue">Quiz regular</Badge>;
 }
 
 function toLocalInputValue(mysqlDatetime: string | null) {
@@ -73,9 +77,14 @@ type QuizForm = {
   titulo: string;
   descripcion: string;
   instrucciones: string;
+  tipo: QuizKind;
   puntaje_total: string;
+  porcentaje_aprobacion: string;
+  precio_admision: string;
+  payment_link_admision: string;
   tiempo_limite_minutos: string;
   intentos_permitidos: string;
+  requiere_pago_reintento: boolean;
   fecha_apertura: string;
   fecha_cierre: string;
   mostrar_resultado_inmediato: boolean;
@@ -104,9 +113,14 @@ const emptyQuizForm: QuizForm = {
   titulo: "",
   descripcion: "",
   instrucciones: "",
+  tipo: "regular",
   puntaje_total: "100",
+  porcentaje_aprobacion: "60",
+  precio_admision: "0",
+  payment_link_admision: "",
   tiempo_limite_minutos: "",
   intentos_permitidos: "1",
+  requiere_pago_reintento: false,
   fecha_apertura: "",
   fecha_cierre: "",
   mostrar_resultado_inmediato: true,
@@ -230,9 +244,14 @@ export function CourseQuizzesPage() {
       titulo: selected.titulo,
       descripcion: selected.descripcion ?? "",
       instrucciones: selected.instrucciones ?? "",
+      tipo: selected.tipo ?? "regular",
       puntaje_total: String(selected.puntaje_total ?? "100"),
+      porcentaje_aprobacion: String(selected.porcentaje_aprobacion ?? "60"),
+      precio_admision: String(selected.precio_admision ?? "0"),
+      payment_link_admision: selected.payment_link_admision ?? "",
       tiempo_limite_minutos: selected.tiempo_limite_minutos ? String(selected.tiempo_limite_minutos) : "",
       intentos_permitidos: String(selected.intentos_permitidos ?? 1),
+      requiere_pago_reintento: selected.requiere_pago_reintento === 1,
       fecha_apertura: toLocalInputValue(selected.fecha_apertura),
       fecha_cierre: toLocalInputValue(selected.fecha_cierre),
       mostrar_resultado_inmediato: selected.mostrar_resultado_inmediato === 1,
@@ -381,9 +400,17 @@ export function CourseQuizzesPage() {
         titulo: form.titulo.trim(),
         descripcion: form.descripcion.trim() ? form.descripcion.trim() : null,
         instrucciones: form.instrucciones.trim() ? form.instrucciones.trim() : null,
+        tipo: form.tipo,
         puntaje_total: Number(form.puntaje_total || "100"),
+        porcentaje_aprobacion: Number(form.porcentaje_aprobacion || "60"),
+        precio_admision: form.tipo === "admision" ? Number(form.precio_admision || "0") : 0,
+        payment_link_admision:
+          form.tipo === "admision" && form.payment_link_admision.trim()
+            ? form.payment_link_admision.trim()
+            : null,
         tiempo_limite_minutos: form.tiempo_limite_minutos ? Number(form.tiempo_limite_minutos) : null,
         intentos_permitidos: Number(form.intentos_permitidos || "1"),
+        requiere_pago_reintento: form.requiere_pago_reintento,
         fecha_apertura: toMysqlDatetime(form.fecha_apertura),
         fecha_cierre: toMysqlDatetime(form.fecha_cierre),
         mostrar_resultado_inmediato: form.mostrar_resultado_inmediato,
@@ -599,6 +626,7 @@ export function CourseQuizzesPage() {
                     <div className="min-w-0">
                       <div className="truncate text-sm font-extrabold text-slate-900">{q.titulo}</div>
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-600">
+                        {quizKindBadge(q.tipo ?? "regular")}
                         <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1">
                           Intentos: <span className="text-slate-900">{q.intentos_permitidos}</span>
                         </span>
@@ -641,6 +669,7 @@ export function CourseQuizzesPage() {
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     {selected ? quizBadge(selected.estado) : quizBadge(form.estado)}
+                    {selected ? quizKindBadge(selected.tipo ?? "regular") : quizKindBadge(form.tipo)}
                     {selected ? <Badge variant="slate">ID: {selected.id}</Badge> : null}
                   </div>
                 </div>
@@ -743,8 +772,19 @@ export function CourseQuizzesPage() {
               {/* Configuración */}
               <div className="rounded-2xl border border-slate-200 bg-white p-5">
                 <div className="text-sm font-black text-slate-900">Configuración</div>
-                <div className="mt-1 text-sm text-slate-600">Puntaje, intentos, tiempo y resultado.</div>
+                <div className="mt-1 text-sm text-slate-600">Tipo, puntaje, intentos, tiempo y resultado.</div>
                 <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <div>
+                    <div className="text-xs font-extrabold text-slate-700">Tipo de evaluación</div>
+                    <select
+                      value={form.tipo}
+                      onChange={(e) => setForm((p) => ({ ...p, tipo: e.target.value as QuizKind }))}
+                      className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none ring-blue-500 focus:ring-2"
+                    >
+                      <option value="regular">Quiz regular</option>
+                      <option value="admision">Examen de admisión</option>
+                    </select>
+                  </div>
                   <div>
                     <div className="text-xs font-extrabold text-slate-700">Puntaje total</div>
                     <div className="mt-2">
@@ -772,6 +812,57 @@ export function CourseQuizzesPage() {
                     Mostrar resultado inmediato
                   </label>
                 </div>
+                {form.tipo === "admision" ? (
+                  <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+                    <div className="text-sm font-black text-amber-950">Reglas de admisión</div>
+                    <div className="mt-1 text-xs font-semibold leading-5 text-amber-900">
+                      El alumno debe alcanzar el porcentaje mínimo configurado. Si agota sus oportunidades sin aprobar, el sistema puede bloquear nuevos intentos e indicar que debe pagar nuevamente.
+                    </div>
+                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+                      <div>
+                        <div className="text-xs font-extrabold text-slate-700">Porcentaje para aprobar</div>
+                        <div className="mt-2">
+                          <Input
+                            inputMode="numeric"
+                            value={form.porcentaje_aprobacion}
+                            onChange={(e) => setForm((p) => ({ ...p, porcentaje_aprobacion: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs font-extrabold text-slate-700">Precio del examen</div>
+                        <div className="mt-2">
+                          <Input
+                            inputMode="decimal"
+                            value={form.precio_admision}
+                            onChange={(e) => setForm((p) => ({ ...p, precio_admision: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+                      <div className="md:col-span-2">
+                        <div className="text-xs font-extrabold text-slate-700">Botón o enlace de pago BI Pay</div>
+                        <div className="mt-2">
+                          <Input
+                            value={form.payment_link_admision}
+                            onChange={(e) => setForm((p) => ({ ...p, payment_link_admision: e.target.value }))}
+                            placeholder="https://link.ebi.com.gt/... o iframe de BI Pay"
+                          />
+                        </div>
+                        <div className="mt-1 text-xs font-semibold text-amber-900">
+                          Si el precio es 0, el alumno podrá intentar el examen sin comprobante previo.
+                        </div>
+                      </div>
+                      <label className="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={form.requiere_pago_reintento}
+                          onChange={(e) => setForm((p) => ({ ...p, requiere_pago_reintento: e.target.checked }))}
+                        />
+                        Si no aprueba, debe pagar de nuevo
+                      </label>
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               {/* Fechas */}

@@ -1,5 +1,6 @@
 export type QuizStatus = "borrador" | "publicado" | "cerrado";
 export type QuizVariant = "A" | "B" | "C" | "D";
+export type QuizKind = "regular" | "admision";
 
 export type Quiz = {
   id: number;
@@ -8,9 +9,14 @@ export type Quiz = {
   titulo: string;
   descripcion: string | null;
   instrucciones: string | null;
+  tipo: QuizKind;
   puntaje_total: string; // decimal
+  porcentaje_aprobacion: string; // decimal percentage
+  precio_admision: string; // decimal
+  payment_link_admision: string | null;
   tiempo_limite_minutos: number | null;
   intentos_permitidos: number;
+  requiere_pago_reintento: 0 | 1;
   fecha_apertura: string | null;
   fecha_cierre: string | null;
   mostrar_resultado_inmediato: 0 | 1;
@@ -54,9 +60,14 @@ export type CreateQuizInput = Partial<{
   titulo: string;
   descripcion: string | null;
   instrucciones: string | null;
+  tipo: QuizKind;
   puntaje_total: number;
+  porcentaje_aprobacion: number;
+  precio_admision: number;
+  payment_link_admision: string | null;
   tiempo_limite_minutos: number | null;
   intentos_permitidos: number;
+  requiere_pago_reintento: boolean;
   fecha_apertura: string | null; // DATETIME
   fecha_cierre: string | null; // DATETIME
   mostrar_resultado_inmediato: boolean;
@@ -68,9 +79,14 @@ export type UpdateQuizInput = Partial<{
   titulo: string;
   descripcion: string | null;
   instrucciones: string | null;
+  tipo: QuizKind;
   puntaje_total: number;
+  porcentaje_aprobacion: number;
+  precio_admision: number;
+  payment_link_admision: string | null;
   tiempo_limite_minutos: number | null;
   intentos_permitidos: number;
+  requiere_pago_reintento: boolean;
   fecha_apertura: string | null;
   fecha_cierre: string | null;
   mostrar_resultado_inmediato: boolean;
@@ -140,6 +156,9 @@ export type AttemptResult = {
   mostrar_resultado: boolean;
   puntaje_obtenido: number;
   puntaje_total: number;
+  porcentaje_obtenido: number;
+  porcentaje_aprobacion: number | null;
+  aprobado: boolean | null;
   detalle?: Array<{
     pregunta_id: number;
     respuesta_usuario: string | null;

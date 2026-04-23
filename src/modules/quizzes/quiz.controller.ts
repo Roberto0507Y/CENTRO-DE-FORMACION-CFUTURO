@@ -19,6 +19,12 @@ export class QuizController {
     res.status(200).json({ ok: true, data });
   };
 
+  admissionStatus = async (req: AuthedRequest, res: Response) => {
+    const courseId = Number(req.params.courseId);
+    const data = await this.service.getAdmissionStatus(req.auth!, courseId);
+    res.status(200).json({ ok: true, data });
+  };
+
   create = async (req: AuthedRequest, res: Response) => {
     const courseId = Number(req.params.courseId);
     const data = await this.service.createQuiz(req.auth!, courseId, req.body as CreateQuizInput);
@@ -91,4 +97,3 @@ export class QuizController {
     res.status(200).json({ ok: true, data });
   };
 }
-

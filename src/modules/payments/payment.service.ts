@@ -88,6 +88,10 @@ export class PaymentService {
     return this.repo.myCoursePayment(requester.userId, courseId);
   }
 
+  async myAdmissionPayment(requester: AuthContext, courseId: number): Promise<MyCoursePayment["payment"]> {
+    return this.repo.myAdmissionPayment(requester.userId, courseId);
+  }
+
   async myPaymentsCourses(requester: AuthContext): Promise<MyPaymentsCourseItem[]> {
     return this.repo.myPaymentsCourses(requester.userId);
   }
@@ -106,6 +110,10 @@ export class PaymentService {
     if (!course) throw notFound("Curso no encontrado");
     if (course.estado !== "publicado") throw notFound("Curso no encontrado");
     if (course.tipo_acceso !== "pago") throw badRequest("Este curso no es de pago");
+    const admissionPassed = await this.repo.admissionPassedForUserCourse(requester.userId, courseId);
+    if (!admissionPassed) {
+      throw forbidden("Debes aprobar el examen de admisión antes de comprar este curso");
+    }
 
     const monto = String(course.precio);
     const moneda = "GTQ";
@@ -173,6 +181,87 @@ export class PaymentService {
     return result;
   }
 
+  async createManualAdmissionPayment(
+    requester: AuthContext,
+    courseId: number,
+    input: ManualCoursePaymentInput,
+    file: Express.Multer.File
+  ): Promise<MyCoursePayment["payment"]> {
+    const course = await this.repo.findCourseForManualPayment(courseId);
+    if (!course) throw notFound("Curso no encontrado");
+    if (course.estado !== "publicado") throw notFound("Curso no encontrado");
+
+    const admissionQuiz = await this.repo.findPublishedAdmissionQuizForPayment(courseId);
+    if (!admissionQuiz) throw notFound("Examen de admisión no disponible");
+
+    const passed = await this.repo.admissionPassedForUserCourse(requester.userId, courseId);
+    if (passed) throw conflict("Ya aprobaste el examen de admisión");
+
+    const monto = String(admissionQuiz.precio_admision);
+    if (Number(monto) <= 0) throw badRequest("Este examen de admisión no requiere pago");
+
+    const metodo = input.metodo_pago ?? "manual";
+    const uploaded = await this.storage.uploadMulterFile({
+      module: "payments",
+      keyPrefix: `payments/proofs/user-${requester.userId}/course-${courseId}/admission`,
+      file,
+      allowed: ALLOWED_PAYMENT_PROOFS,
+    });
+
+    let previousProofToDelete: string | null = null;
+    try {
+      await withTransaction(async (conn) => {
+        const pendingPaymentId = await this.repo.findPendingPaymentIdForUserCourse(
+          conn,
+          requester.userId,
+          courseId,
+          "admision"
+        );
+        if (pendingPaymentId) {
+          previousProofToDelete = await this.repo.updatePendingPaymentProof(conn, pendingPaymentId, metodo, uploaded.key);
+        } else {
+          const paymentId = await this.repo.createManualPayment(conn, {
+            userId: requester.userId,
+            referencia: this.generateReference(),
+            metodo,
+            monto_total: monto,
+            moneda: "GTQ",
+            comprobanteUrl: uploaded.key,
+          });
+          await this.repo.createPaymentDetail(conn, {
+            pago_id: paymentId,
+            curso_id: courseId,
+            precio_unitario: monto,
+            concepto: "admision",
+          });
+        }
+      });
+    } catch (err) {
+      await this.deleteProofReference(uploaded.key);
+      throw err;
+    }
+
+    if (previousProofToDelete && previousProofToDelete !== uploaded.key) {
+      await this.deleteProofReference(previousProofToDelete);
+    }
+
+    const result = await this.repo.myAdmissionPayment(requester.userId, courseId);
+
+    if (result && result.estado === "pendiente") {
+      const u = await this.repo.findUserName(requester.userId);
+      const studentName = u ? `${u.nombres} ${u.apellidos}`.trim() : `Usuario #${requester.userId}`;
+      void this.notifications.notifyAdminsPaymentPending({
+        paymentId: result.id,
+        courseId,
+        courseTitle: `${course.titulo} · examen de admisión`,
+        studentName,
+      });
+    }
+
+    PaymentService.clearAdminCaches();
+    return result;
+  }
+
   async updateStatus(
     requester: AuthContext,
     id: number,
@@ -189,8 +278,9 @@ export class PaymentService {
       if (affected === 0) throw notFound("Pago no encontrado");
 
       if (estado === "pagado" || estado === "rechazado" || estado === "reembolsado") {
-        const courseIds = await this.repo.listCourseIdsByPaymentId(conn, id);
-        for (const courseId of courseIds) {
+        const courseItems = await this.repo.listCourseItemsByPaymentId(conn, id);
+        for (const { curso_id: courseId, concepto } of courseItems) {
+          if (concepto !== "curso") continue;
           const enr = await this.repo.findEnrollmentForUserCourse(conn, userId, courseId);
           if (estado === "pagado") {
             if (!enr) await this.repo.createEnrollmentActivePaid(conn, userId, courseId);

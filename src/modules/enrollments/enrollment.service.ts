@@ -40,6 +40,8 @@ export class EnrollmentService {
 
     const paid = await this.repo.paymentExistsForUserAndCourse(requester.userId, courseId);
     if (!paid) throw forbidden("No hay un pago confirmado para este curso");
+    const admissionPassed = await this.repo.admissionPassedForUserCourse(requester.userId, courseId);
+    if (!admissionPassed) throw forbidden("Debes aprobar el examen de admisión antes de entrar al curso");
 
     const enrollmentId = await this.repo.createEnrollment({
       usuario_id: requester.userId,

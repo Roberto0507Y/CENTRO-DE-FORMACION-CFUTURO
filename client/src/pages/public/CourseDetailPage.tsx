@@ -46,6 +46,28 @@ type AccessCheck = {
   progreso: string | null;
 };
 
+type AdmissionStatus = {
+  enabled: boolean;
+  quiz: {
+    id: number;
+    titulo: string;
+    precio_admision: string;
+    payment_link_admision: string | null;
+    intentos_permitidos: number;
+    porcentaje_aprobacion: string;
+    requiere_pago_reintento: 0 | 1;
+  } | null;
+  requires_payment: boolean;
+  has_paid: boolean;
+  passed: boolean;
+  can_take_exam: boolean;
+  can_buy_course: boolean;
+  attempts_used: number;
+  attempts_remaining: number;
+  latest_paid_at: string | null;
+  message: string | null;
+};
+
 function statusBadge(estado: PaymentStatus) {
   if (estado === "pagado") return <Badge variant="green">Aprobado</Badge>;
   if (estado === "pendiente") return <Badge variant="amber">Pendiente</Badge>;
@@ -117,12 +139,18 @@ export function CourseDetailPage() {
   const [isEnrolling, setIsEnrolling] = useState(false);
   const [payInfo, setPayInfo] = useState<MyCoursePayment | null>(null);
   const [payLoading, setPayLoading] = useState(false);
+  const [admissionStatus, setAdmissionStatus] = useState<AdmissionStatus | null>(null);
+  const [admissionPayment, setAdmissionPayment] = useState<MyCoursePayment["payment"] | null>(null);
+  const [admissionLoading, setAdmissionLoading] = useState(false);
   const [accessInfo, setAccessInfo] = useState<AccessCheck | null>(null);
   const [accessLoading, setAccessLoading] = useState(false);
   const [uploadingProof, setUploadingProof] = useState(false);
   const [method, setMethod] = useState<"manual" | "bi_pay">("manual");
   const [proofFile, setProofFile] = useState<File | null>(null);
+  const [admissionProofFile, setAdmissionProofFile] = useState<File | null>(null);
+  const [uploadingAdmissionProof, setUploadingAdmissionProof] = useState(false);
   const proofInputRef = useRef<HTMLInputElement | null>(null);
+  const admissionProofInputRef = useRef<HTMLInputElement | null>(null);
 
   const [modules, setModules] = useState<CourseModule[]>([]);
   const [modulesLoading, setModulesLoading] = useState(false);
@@ -161,6 +189,8 @@ export function CourseDetailPage() {
     if (!token) {
       setPayInfo(null);
       setAccessInfo(null);
+      setAdmissionStatus(null);
+      setAdmissionPayment(null);
       return;
     }
 
@@ -169,6 +199,7 @@ export function CourseDetailPage() {
     (async () => {
       setAccessLoading(true);
       setPayLoading(course.tipo_acceso === "pago");
+      setAdmissionLoading(course.tipo_acceso === "pago");
 
       const accessRequest = api.get<ApiResponse<AccessCheck>>(
         `/enrollments/${course.id}/check-access`,
@@ -180,10 +211,24 @@ export function CourseDetailPage() {
               signal: controller.signal,
             })
           : Promise.resolve(null);
+      const admissionRequest =
+        course.tipo_acceso === "pago"
+          ? api.get<ApiResponse<AdmissionStatus>>(`/courses/${course.id}/quizzes/admission/status`, {
+              signal: controller.signal,
+            })
+          : Promise.resolve(null);
+      const admissionPaymentRequest =
+        course.tipo_acceso === "pago"
+          ? api.get<ApiResponse<MyCoursePayment["payment"]>>(`/payments/my/course/${course.id}/admission`, {
+              signal: controller.signal,
+            })
+          : Promise.resolve(null);
 
-      const [accessResult, paymentResult] = await Promise.allSettled([
+      const [accessResult, paymentResult, admissionResult, admissionPaymentResult] = await Promise.allSettled([
         accessRequest,
         paymentRequest,
+        admissionRequest,
+        admissionPaymentRequest,
       ]);
 
       if (controller.signal.aborted) return;
@@ -196,14 +241,33 @@ export function CourseDetailPage() {
 
       if (course.tipo_acceso !== "pago") {
         setPayInfo(null);
+        setAdmissionStatus(null);
+        setAdmissionPayment(null);
       } else if (paymentResult.status === "fulfilled" && paymentResult.value) {
         setPayInfo(paymentResult.value.data.data);
       } else {
         setPayInfo(null);
       }
 
+      if (course.tipo_acceso === "pago" && admissionResult.status === "fulfilled" && admissionResult.value) {
+        setAdmissionStatus(admissionResult.value.data.data);
+      } else if (course.tipo_acceso === "pago") {
+        setAdmissionStatus(null);
+      }
+
+      if (
+        course.tipo_acceso === "pago" &&
+        admissionPaymentResult.status === "fulfilled" &&
+        admissionPaymentResult.value
+      ) {
+        setAdmissionPayment(admissionPaymentResult.value.data.data);
+      } else if (course.tipo_acceso === "pago") {
+        setAdmissionPayment(null);
+      }
+
       setAccessLoading(false);
       setPayLoading(false);
+      setAdmissionLoading(false);
     })();
 
     return () => controller.abort();
@@ -312,6 +376,32 @@ export function CourseDetailPage() {
     }
   };
 
+  const uploadAdmissionProof = async (file: File) => {
+    if (!course) return;
+    if (!token) {
+      setActionError("Debes iniciar sesión para enviar comprobante.");
+      return;
+    }
+    try {
+      setUploadingAdmissionProof(true);
+      setActionError(null);
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("metodo_pago", method);
+      const res = await api.post<ApiResponse<MyCoursePayment["payment"]>>(
+        `/payments/manual/course/${course.id}/admission`,
+        fd
+      );
+      setAdmissionPayment(res.data.data);
+      const status = await api.get<ApiResponse<AdmissionStatus>>(`/courses/${course.id}/quizzes/admission/status`);
+      setAdmissionStatus(status.data.data);
+    } catch (err) {
+      setActionError(getApiErrorMessage(err, "No se pudo enviar el comprobante de admisión."));
+    } finally {
+      setUploadingAdmissionProof(false);
+    }
+  };
+
   const downloadProof = async (paymentId: number) => {
     try {
       setActionError(null);
@@ -339,6 +429,12 @@ export function CourseDetailPage() {
   const isPaid = course.tipo_acceso === "pago";
   const priceLabel = course.tipo_acceso === "gratis" ? "Gratis" : formatMoneyGTQ(course.precio);
   const safePaymentLink = normalizePaymentLinkInput(course.payment_link);
+  const admissionEnabled = Boolean(admissionStatus?.enabled && admissionStatus.quiz);
+  const admissionPassed = Boolean(admissionStatus?.passed || !admissionStatus?.enabled);
+  const admissionBlocksPurchase = Boolean(isPaid && admissionEnabled && !admissionPassed);
+  const admissionQuiz = admissionStatus?.quiz ?? null;
+  const admissionPriceLabel = admissionQuiz ? formatMoneyGTQ(admissionQuiz.precio_admision) : "";
+  const safeAdmissionPaymentLink = normalizePaymentLinkInput(admissionQuiz?.payment_link_admision);
   const needsPaymentSession = isPaid && !token;
   const authRedirect = encodeURIComponent(`/courses/${course.slug}`);
   const paymentLoginPath = `/auth/login?redirect=${authRedirect}`;
@@ -412,10 +508,16 @@ export function CourseDetailPage() {
               <div>
                 <div className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Instrucciones</div>
                 <div className="mt-1 text-base font-extrabold text-slate-900 dark:text-white">
-                  {isPaid ? "Completa tu pago sin errores" : "Acceso al curso"}
+                  {admissionBlocksPurchase
+                    ? "Primero completa admisión"
+                    : isPaid
+                      ? "Completa tu pago sin errores"
+                      : "Acceso al curso"}
                 </div>
                 <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                  {isPaid
+                  {admissionBlocksPurchase
+                    ? "Paga el examen de admisión si aplica, apruébalo y luego podrás comprar el curso."
+                    : isPaid
                     ? "Realiza el pago, descarga tu voucher y súbelo como comprobante para validar tu inscripción."
                     : "Este curso no requiere comprobante de pago para iniciar."}
                 </div>
@@ -432,9 +534,13 @@ export function CourseDetailPage() {
                 <div className="cf-course-detail-step-index cf-course-detail-step-index--blue">
                   <span>1</span>
                 </div>
-                <div className="mt-4 text-sm font-black text-slate-900 dark:text-white">Realiza el pago</div>
+                <div className="mt-4 text-sm font-black text-slate-900 dark:text-white">
+                  {admissionBlocksPurchase ? "Completa admisión" : "Realiza el pago"}
+                </div>
                 <div className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                  Usa el botón de BI Pay del panel derecho para completar el pago del curso.
+                  {admissionBlocksPurchase
+                    ? "El examen de admisión es el primer paso antes de habilitar la compra del curso."
+                    : "Usa el botón de BI Pay del panel derecho para completar el pago del curso."}
                 </div>
               </div>
 
@@ -442,9 +548,13 @@ export function CourseDetailPage() {
                 <div className="cf-course-detail-step-index cf-course-detail-step-index--amber">
                   <span>2</span>
                 </div>
-                <div className="mt-4 text-sm font-black text-slate-900 dark:text-white">Descarga el voucher</div>
+                <div className="mt-4 text-sm font-black text-slate-900 dark:text-white">
+                  {admissionBlocksPurchase ? "Aprueba el examen" : "Descarga el voucher"}
+                </div>
                 <div className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                  Antes de cerrar la ventana del banco, descarga o guarda el voucher/comprobante.
+                  {admissionBlocksPurchase
+                    ? "Cuando tu comprobante sea aprobado, podrás realizar tus oportunidades configuradas."
+                    : "Antes de cerrar la ventana del banco, descarga o guarda el voucher/comprobante."}
                 </div>
               </div>
 
@@ -452,9 +562,13 @@ export function CourseDetailPage() {
                 <div className="cf-course-detail-step-index cf-course-detail-step-index--green">
                   <span>3</span>
                 </div>
-                <div className="mt-4 text-sm font-black text-slate-900 dark:text-white">Sube el comprobante</div>
+                <div className="mt-4 text-sm font-black text-slate-900 dark:text-white">
+                  {admissionBlocksPurchase ? "Compra el curso" : "Sube el comprobante"}
+                </div>
                 <div className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                  Adjunta el voucher en el formulario de abajo para que un admin lo revise y apruebe.
+                  {admissionBlocksPurchase
+                    ? "Al aprobar admisión, se habilitará el pago del curso y su comprobante."
+                    : "Adjunta el voucher en el formulario de abajo para que un admin lo revise y apruebe."}
                 </div>
               </div>
             </div>
@@ -597,6 +711,125 @@ export function CourseDetailPage() {
       {/* Sidebar */}
       <div className="lg:col-span-4 space-y-4">
         <div className="lg:sticky lg:top-24 space-y-4">
+          {isPaid && token && admissionEnabled && admissionQuiz ? (
+            <Card className="p-5 md:p-6">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Examen de admisión
+                  </div>
+                  <div className="mt-1 text-base font-extrabold text-slate-900 dark:text-white">
+                    {admissionQuiz.titulo}
+                  </div>
+                  <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                    Aprueba con {admissionQuiz.porcentaje_aprobacion}% o más para habilitar la compra del curso.
+                  </div>
+                </div>
+                <div className="shrink-0">
+                  {admissionLoading ? (
+                    <Badge variant="slate">Verificando</Badge>
+                  ) : admissionStatus?.passed ? (
+                    <Badge variant="green">Aprobado</Badge>
+                  ) : admissionPayment?.estado ? (
+                    statusBadge(admissionPayment.estado)
+                  ) : (
+                    <Badge variant="amber">Requerido</Badge>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-3">
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-100">
+                  <div className="font-black">Oportunidades</div>
+                  <div className="mt-1">
+                    Usadas: {admissionStatus?.attempts_used ?? 0} · Disponibles: {admissionStatus?.attempts_remaining ?? admissionQuiz.intentos_permitidos}
+                  </div>
+                  {admissionStatus?.message ? <div className="mt-1 font-semibold">{admissionStatus.message}</div> : null}
+                </div>
+
+                {admissionStatus?.passed ? (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-100">
+                    Listo. Ya puedes continuar con la compra del curso.
+                  </div>
+                ) : admissionStatus?.can_take_exam ? (
+                  <Button className="w-full" onClick={() => navigate(`/student/course/${course.id}/quizzes`)}>
+                    Hacer examen de admisión
+                  </Button>
+                ) : admissionStatus?.requires_payment ? (
+                  <>
+                    <div className="text-sm font-black text-slate-900 dark:text-white">
+                      Pago de admisión: {admissionPriceLabel}
+                    </div>
+                    {safeAdmissionPaymentLink ? (
+                      <Suspense
+                        fallback={
+                          <div className="grid min-h-[7rem] place-items-center rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950/70">
+                            <Spinner />
+                          </div>
+                        }
+                      >
+                        <BiPayEmbed paymentLink={admissionQuiz.payment_link_admision} />
+                      </Suspense>
+                    ) : null}
+
+                    <input
+                      ref={admissionProofInputRef}
+                      type="file"
+                      className="hidden"
+                      accept="image/*,application/pdf"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] ?? null;
+                        setAdmissionProofFile(f);
+                        e.currentTarget.value = "";
+                      }}
+                      disabled={uploadingAdmissionProof}
+                    />
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/70">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-extrabold text-slate-900 dark:text-white">
+                            {admissionProofFile ? admissionProofFile.name : "Comprobante de admisión"}
+                          </div>
+                          <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">Imagen o PDF</div>
+                        </div>
+                        <button
+                          type="button"
+                          className="inline-flex shrink-0 items-center justify-center rounded-xl bg-white px-3 py-2 text-sm font-extrabold text-slate-900 ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-100 dark:ring-slate-700 dark:hover:bg-slate-800"
+                          onClick={() => admissionProofInputRef.current?.click()}
+                          disabled={uploadingAdmissionProof}
+                        >
+                          Elegir
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        className={classNames(
+                          "mt-3 w-full rounded-xl px-4 py-2.5 text-sm font-extrabold transition",
+                          admissionProofFile && !uploadingAdmissionProof
+                            ? "bg-blue-600 text-white hover:bg-blue-700"
+                            : "bg-slate-200 text-slate-500 cursor-not-allowed"
+                        )}
+                        disabled={!admissionProofFile || uploadingAdmissionProof}
+                        onClick={async () => {
+                          if (!admissionProofFile) return;
+                          await uploadAdmissionProof(admissionProofFile);
+                          setAdmissionProofFile(null);
+                        }}
+                      >
+                        {uploadingAdmissionProof ? "Enviando…" : "Enviar comprobante de admisión"}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-300">
+                    Espera a que se habiliten tus oportunidades para realizar el examen.
+                  </div>
+                )}
+              </div>
+            </Card>
+          ) : null}
+
           <Card className="p-5 md:p-6">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -657,6 +890,21 @@ export function CourseDetailPage() {
                     </Link>
                   </div>
                 </div>
+              ) : admissionBlocksPurchase ? (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-950 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-100">
+                  <div className="font-black">Primero aprueba admisión</div>
+                  <p className="mt-1 leading-6">
+                    Este curso requiere aprobar el examen de admisión antes de habilitar la compra.
+                  </p>
+                  {admissionStatus?.can_take_exam ? (
+                    <Button
+                      className="mt-4 w-full"
+                      onClick={() => navigate(`/student/course/${course.id}/quizzes`)}
+                    >
+                      Hacer examen de admisión
+                    </Button>
+                  ) : null}
+                </div>
               ) : safePaymentLink ? (
                 <div className="grid gap-3">
                   <Suspense
@@ -695,7 +943,7 @@ export function CourseDetailPage() {
             {actionError ? <div className="mt-3 text-xs text-rose-600 dark:text-rose-200">{actionError}</div> : null}
           </Card>
 
-          {isPaid && token ? (
+          {isPaid && token && !admissionBlocksPurchase ? (
             <Card className="p-5 md:p-6">
               <div className="flex items-start justify-between gap-3">
                 <div>

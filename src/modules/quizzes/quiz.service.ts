@@ -105,6 +105,15 @@ function normalizeOptionalAnswer(value: string | null | undefined): string | nul
   return value?.trim() || null;
 }
 
+function admissionPercent(score: number, total: number): number {
+  if (!Number.isFinite(total) || total <= 0) return 0;
+  return Math.round(((score / total) * 100 + Number.EPSILON) * 100) / 100;
+}
+
+function admissionPassed(score: number, quiz: Quiz): boolean {
+  return admissionPercent(score, Number(quiz.puntaje_total)) + POINT_EPSILON >= Number(quiz.porcentaje_aprobacion);
+}
+
 export class QuizService {
   private readonly repo = new QuizRepository();
 
@@ -118,10 +127,14 @@ export class QuizService {
       return this.repo.listQuizzes(courseId);
     }
 
-    // estudiante: solo publicados + requiere inscripción + curso publicado
+    // estudiante: quizzes regulares requieren inscripción; admisión puede verse antes de comprar.
     if (course.estado !== "publicado") throw notFound("Curso no encontrado");
     const enrolled = await this.repo.userIsEnrolledActive(requester.userId, courseId);
-    if (!enrolled) throw forbidden("No tienes acceso a este curso");
+    if (!enrolled) {
+      const admission = await this.getAdmissionStatus(requester, courseId);
+      if (admission.enabled && admission.quiz && admission.can_take_exam) return [admission.quiz];
+      throw forbidden("No tienes acceso a este curso");
+    }
     return this.repo.listQuizzes(courseId, "publicado");
   }
 
@@ -145,6 +158,81 @@ export class QuizService {
     return quiz;
   }
 
+  async getAdmissionStatus(requester: AuthContext, courseId: number): Promise<{
+    enabled: boolean;
+    quiz: Quiz | null;
+    requires_payment: boolean;
+    has_paid: boolean;
+    passed: boolean;
+    can_take_exam: boolean;
+    can_buy_course: boolean;
+    attempts_used: number;
+    attempts_remaining: number;
+    latest_paid_at: string | null;
+    message: string | null;
+  }> {
+    const course = await this.repo.findCourse(courseId);
+    if (!course) throw notFound("Curso no encontrado");
+    if (course.estado !== "publicado" && requester.role === "estudiante") {
+      throw notFound("Curso no encontrado");
+    }
+
+    const quiz = await this.repo.findPublishedAdmissionQuiz(courseId);
+    if (!quiz) {
+      return {
+        enabled: false,
+        quiz: null,
+        requires_payment: false,
+        has_paid: true,
+        passed: true,
+        can_take_exam: false,
+        can_buy_course: true,
+        attempts_used: 0,
+        attempts_remaining: 0,
+        latest_paid_at: null,
+        message: null,
+      };
+    }
+
+    const requiresPayment = Number(quiz.precio_admision) > 0;
+    const latestPaidAt = requiresPayment
+      ? await this.repo.latestPaidAdmissionAt(requester.userId, courseId)
+      : null;
+    const hasPaid = !requiresPayment || Boolean(latestPaidAt);
+    const bestScore = await this.repo.bestCompletedAttemptScoreForQuiz(quiz.id, requester.userId);
+    const passed = bestScore !== null && admissionPassed(bestScore, quiz);
+    const attemptsUsed = await withTransaction((conn) =>
+      this.repo.countAttemptsSince(conn, quiz.id, requester.userId, latestPaidAt)
+    );
+    const attemptsRemaining = Math.max(Number(quiz.intentos_permitidos) - attemptsUsed, 0);
+    const availability = nowIsWithinWindow(quiz);
+    const exhausted = attemptsRemaining <= 0;
+    const needsNewPayment = !passed && exhausted && quiz.requiere_pago_reintento === 1;
+    const canTakeExam = !passed && hasPaid && !exhausted && availability.ok;
+
+    return {
+      enabled: true,
+      quiz,
+      requires_payment: requiresPayment,
+      has_paid: hasPaid,
+      passed,
+      can_take_exam: canTakeExam,
+      can_buy_course: passed,
+      attempts_used: attemptsUsed,
+      attempts_remaining: attemptsRemaining,
+      latest_paid_at: latestPaidAt,
+      message: passed
+        ? "Examen de admisión aprobado. Ya puedes comprar el curso."
+        : !hasPaid || needsNewPayment
+          ? "Debes pagar el examen de admisión para habilitar tus oportunidades."
+          : !availability.ok
+            ? availability.message ?? "El examen no está disponible."
+            : exhausted
+              ? "Ya alcanzaste el límite de oportunidades."
+              : null,
+    };
+  }
+
   async createQuiz(requester: AuthContext, courseId: number, input: CreateQuizInput): Promise<Quiz> {
     const course = await this.repo.findCourse(courseId);
     if (!course) throw notFound("Curso no encontrado");
@@ -158,9 +246,14 @@ export class QuizService {
         titulo: (input.titulo ?? "").trim(),
         descripcion: input.descripcion ?? null,
         instrucciones: input.instrucciones ?? null,
+        tipo: input.tipo ?? "regular",
         puntaje_total: String(input.puntaje_total ?? 100),
+        porcentaje_aprobacion: String(input.porcentaje_aprobacion ?? 60),
+        precio_admision: String(input.precio_admision ?? 0),
+        payment_link_admision: input.payment_link_admision ?? null,
         tiempo_limite_minutos: input.tiempo_limite_minutos ?? null,
         intentos_permitidos: input.intentos_permitidos ?? 1,
+        requiere_pago_reintento: input.requiere_pago_reintento ? 1 : 0,
         fecha_apertura: input.fecha_apertura ?? null,
         fecha_cierre: input.fecha_cierre ?? null,
         mostrar_resultado_inmediato: input.mostrar_resultado_inmediato ? 1 : 0,
@@ -193,9 +286,16 @@ export class QuizService {
       const affected = await this.repo.updateQuiz(conn, courseId, quizId, {
         ...input,
         titulo: input.titulo?.trim(),
+        tipo: input.tipo,
         mostrar_resultado_inmediato:
           input.mostrar_resultado_inmediato === undefined ? undefined : input.mostrar_resultado_inmediato ? 1 : 0,
         puntaje_total: input.puntaje_total === undefined ? undefined : String(input.puntaje_total),
+        porcentaje_aprobacion:
+          input.porcentaje_aprobacion === undefined ? undefined : String(input.porcentaje_aprobacion),
+        precio_admision: input.precio_admision === undefined ? undefined : String(input.precio_admision),
+        payment_link_admision: input.payment_link_admision,
+        requiere_pago_reintento:
+          input.requiere_pago_reintento === undefined ? undefined : input.requiere_pago_reintento ? 1 : 0,
       } as unknown as Partial<Omit<Quiz, "id" | "curso_id" | "created_at" | "updated_at">>);
       if (affected === 0) throw notFound("Quiz no encontrado");
     });
@@ -349,8 +449,6 @@ export class QuizService {
     const course = await this.repo.findCourse(courseId);
     if (!course) throw notFound("Curso no encontrado");
     if (course.estado !== "publicado") throw notFound("Curso no encontrado");
-    const enrolled = await this.repo.userIsEnrolledActive(requester.userId, courseId);
-    if (!enrolled) throw forbidden("No tienes acceso a este curso");
 
     const quiz = await this.repo.findQuizById(courseId, quizId);
     if (!quiz) throw notFound("Quiz no encontrado");
@@ -359,13 +457,48 @@ export class QuizService {
     const window = nowIsWithinWindow(quiz);
     if (!window.ok) throw forbidden(window.message ?? "No disponible");
 
+    if (quiz.tipo === "admision") {
+      const requiresPayment = Number(quiz.precio_admision) > 0;
+      const latestPaidAt = requiresPayment ? await this.repo.latestPaidAdmissionAt(requester.userId, courseId) : null;
+      if (requiresPayment && !latestPaidAt) {
+        throw forbidden("Debes pagar el examen de admisión antes de iniciarlo");
+      }
+      const bestScore = await this.repo.bestCompletedAttemptScoreForQuiz(quizId, requester.userId);
+      if (bestScore !== null && admissionPassed(bestScore, quiz)) {
+        throw forbidden("Ya aprobaste el examen de admisión");
+      }
+    } else {
+      const enrolled = await this.repo.userIsEnrolledActive(requester.userId, courseId);
+      if (!enrolled) throw forbidden("No tienes acceso a este curso");
+    }
+
     const preguntas = await this.repo.listActiveQuestionsPublic(quizId);
     if (preguntas.length === 0) throw badRequest("Este quiz no tiene preguntas activas");
     const variante = (await this.repo.quizHasVariants(quizId)) ? randomVariant() : null;
 
     const { intentoId, numeroIntento } = await withTransaction(async (conn) => {
-      const used = await this.repo.countAttempts(conn, quizId, requester.userId);
-      if (used >= quiz.intentos_permitidos) throw forbidden("Ya alcanzaste el límite de intentos");
+      const latestPaidAt =
+        quiz.tipo === "admision" && Number(quiz.precio_admision) > 0
+          ? await this.repo.latestPaidAdmissionAt(requester.userId, courseId)
+          : null;
+      const used =
+        quiz.tipo === "admision"
+          ? await this.repo.countAttemptsSince(conn, quizId, requester.userId, latestPaidAt)
+          : await this.repo.countAttempts(conn, quizId, requester.userId);
+      if (used >= quiz.intentos_permitidos) {
+        if (quiz.tipo === "admision") {
+          const bestScore = await this.repo.bestCompletedAttemptScore(conn, quizId, requester.userId);
+          if (bestScore !== null && admissionPassed(bestScore, quiz)) {
+            throw forbidden("Ya aprobaste el examen de admisión");
+          }
+          if (quiz.requiere_pago_reintento === 1) {
+            throw forbidden(
+              "No aprobaste el examen de admisión dentro de las oportunidades disponibles. Debes realizar un nuevo pago para habilitar más intentos."
+            );
+          }
+        }
+        throw forbidden("Ya alcanzaste el límite de intentos");
+      }
       const numero = used + 1;
       const id = await this.repo.createAttempt(conn, quizId, requester.userId, numero, variante);
       return { intentoId: id, numeroIntento: numero };
@@ -387,13 +520,15 @@ export class QuizService {
     const course = await this.repo.findCourse(courseId);
     if (!course) throw notFound("Curso no encontrado");
     if (course.estado !== "publicado") throw notFound("Curso no encontrado");
-    const enrolled = await this.repo.userIsEnrolledActive(requester.userId, courseId);
-    if (!enrolled) throw forbidden("No tienes acceso a este curso");
 
     const quiz = await this.repo.findQuizById(courseId, quizId);
     if (!quiz) throw notFound("Quiz no encontrado");
     if (quiz.estado === "cerrado") throw forbidden("El quiz está cerrado");
     if (quiz.estado !== "publicado") throw notFound("Quiz no encontrado");
+    if (quiz.tipo !== "admision") {
+      const enrolled = await this.repo.userIsEnrolledActive(requester.userId, courseId);
+      if (!enrolled) throw forbidden("No tienes acceso a este curso");
+    }
     const window = nowIsWithinWindow(quiz);
     if (!window.ok) throw forbidden(window.message ?? "No disponible");
 
@@ -453,11 +588,17 @@ export class QuizService {
       return { updatedAttempt, score, detalle };
     });
 
+    const porcentajeObtenido = admissionPercent(result.score, Number(quiz.puntaje_total));
+    const isAdmission = quiz.tipo === "admision";
+
     return {
       intento: result.updatedAttempt,
       mostrar_resultado: quiz.mostrar_resultado_inmediato === 1,
       puntaje_obtenido: result.score,
       puntaje_total: Number(quiz.puntaje_total),
+      porcentaje_obtenido: porcentajeObtenido,
+      porcentaje_aprobacion: isAdmission ? Number(quiz.porcentaje_aprobacion) : null,
+      aprobado: isAdmission ? porcentajeObtenido + POINT_EPSILON >= Number(quiz.porcentaje_aprobacion) : null,
       detalle: quiz.mostrar_resultado_inmediato === 1 ? result.detalle : undefined,
     };
   }
