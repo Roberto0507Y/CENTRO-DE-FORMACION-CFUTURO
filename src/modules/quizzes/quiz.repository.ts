@@ -1,6 +1,6 @@
 import type { ResultSetHeader, RowDataPacket, PoolConnection } from "mysql2/promise";
 import { pool } from "../../config/db";
-import type { Attempt, Quiz, QuizQuestion, QuizStatus, QuizVariant } from "./quiz.types";
+import type { AdmissionResultItem, Attempt, Quiz, QuizQuestion, QuizStatus, QuizVariant } from "./quiz.types";
 
 type CourseRow = RowDataPacket & { id: number; docente_id: number; estado: "borrador" | "publicado" | "oculto" };
 
@@ -30,6 +30,21 @@ type ColumnExistsRow = RowDataPacket & { cnt: number };
 type VariantCountRow = RowDataPacket & { total: number };
 type PaidAtRow = RowDataPacket & { paid_at: string | null };
 type AttemptCountRow = RowDataPacket & { total: number };
+type AttemptNumberRow = RowDataPacket & { numero_intento: number };
+type AdmissionResultRow = RowDataPacket & {
+  usuario_id: number;
+  nombres: string;
+  apellidos: string;
+  correo: string;
+  pago_estado: AdmissionResultItem["pago_estado"] | null;
+  intentos: number | null;
+  completados: number | null;
+  mejor_puntaje: string | number | null;
+  puntaje_total: string | number;
+  porcentaje_aprobacion: string | number;
+  fecha_ultimo_intento: string | null;
+  fecha_ultimo_pago: string | null;
+};
 
 export class QuizRepository {
   private static columnCache = new Map<string, boolean>();
@@ -213,6 +228,94 @@ export class QuizRepository {
       [courseId]
     );
     return rows[0] ?? null;
+  }
+
+  async listAdmissionResults(courseId: number, quizId: number): Promise<AdmissionResultItem[]> {
+    await QuizRepository.ensureQuizColumns();
+    const [rows] = await pool.query<AdmissionResultRow[]>(
+      `SELECT
+         u.id AS usuario_id,
+         u.nombres,
+         u.apellidos,
+         u.correo,
+         COALESCE(pay.pago_estado, 'sin_pago') AS pago_estado,
+         COALESCE(attempts.intentos, 0) AS intentos,
+         COALESCE(attempts.completados, 0) AS completados,
+         attempts.mejor_puntaje,
+         q.puntaje_total,
+         q.porcentaje_aprobacion,
+         attempts.fecha_ultimo_intento,
+         pay.fecha_ultimo_pago
+       FROM quizzes q
+       JOIN (
+         SELECT estudiante_id AS usuario_id
+         FROM intentos_quiz
+         WHERE quiz_id = ?
+         UNION
+         SELECT p.usuario_id
+         FROM pagos p
+         JOIN detalle_pagos dp ON dp.pago_id = p.id
+         WHERE dp.curso_id = ?
+           AND COALESCE(dp.concepto, 'curso') = 'admision'
+       ) candidates ON 1 = 1
+       JOIN usuarios u ON u.id = candidates.usuario_id
+       LEFT JOIN (
+         SELECT
+           estudiante_id,
+           COUNT(*) AS intentos,
+           SUM(CASE WHEN completado = 1 THEN 1 ELSE 0 END) AS completados,
+           MAX(CASE WHEN completado = 1 THEN puntaje_obtenido ELSE NULL END) AS mejor_puntaje,
+           MAX(COALESCE(fecha_fin, fecha_inicio)) AS fecha_ultimo_intento
+         FROM intentos_quiz
+         WHERE quiz_id = ?
+         GROUP BY estudiante_id
+       ) attempts ON attempts.estudiante_id = u.id
+       LEFT JOIN (
+         SELECT
+           p.usuario_id,
+           CASE
+             WHEN SUM(CASE WHEN p.estado = 'pagado' THEN 1 ELSE 0 END) > 0 THEN 'pagado'
+             WHEN SUM(CASE WHEN p.estado = 'pendiente' THEN 1 ELSE 0 END) > 0 THEN 'pendiente'
+             WHEN SUM(CASE WHEN p.estado = 'rechazado' THEN 1 ELSE 0 END) > 0 THEN 'rechazado'
+             WHEN SUM(CASE WHEN p.estado = 'reembolsado' THEN 1 ELSE 0 END) > 0 THEN 'reembolsado'
+             ELSE 'sin_pago'
+           END AS pago_estado,
+           MAX(COALESCE(p.fecha_pago, p.created_at)) AS fecha_ultimo_pago
+         FROM pagos p
+         JOIN detalle_pagos dp ON dp.pago_id = p.id
+         WHERE dp.curso_id = ?
+           AND COALESCE(dp.concepto, 'curso') = 'admision'
+         GROUP BY p.usuario_id
+       ) pay ON pay.usuario_id = u.id
+       WHERE q.id = ?
+         AND q.curso_id = ?
+         AND q.tipo = 'admision'
+       ORDER BY u.apellidos ASC, u.nombres ASC, u.id ASC`,
+      [quizId, courseId, quizId, courseId, quizId, courseId]
+    );
+
+    return rows.map((row) => {
+      const bestScore = row.mejor_puntaje === null || row.mejor_puntaje === undefined ? null : Number(row.mejor_puntaje);
+      const total = Number(row.puntaje_total);
+      const threshold = Number(row.porcentaje_aprobacion);
+      const percentage = bestScore !== null && total > 0 ? Math.round(((bestScore / total) * 100 + Number.EPSILON) * 100) / 100 : null;
+      return {
+        usuario_id: row.usuario_id,
+        nombres: row.nombres,
+        apellidos: row.apellidos,
+        correo: row.correo,
+        pago_estado: row.pago_estado ?? "sin_pago",
+        intentos: Number(row.intentos ?? 0),
+        completados: Number(row.completados ?? 0),
+        mejor_puntaje: bestScore !== null && Number.isFinite(bestScore) ? bestScore : null,
+        puntaje_total: Number.isFinite(total) ? total : 0,
+        porcentaje: percentage,
+        porcentaje_aprobacion: Number.isFinite(threshold) ? threshold : 0,
+        aprobado: percentage !== null && percentage + 1e-9 >= threshold,
+        fecha_ultimo_intento: row.fecha_ultimo_intento,
+        fecha_ultimo_pago: row.fecha_ultimo_pago,
+      };
+    });
   }
 
   async createQuiz(conn: PoolConnection, courseId: number, input: Omit<Quiz, "id" | "created_at" | "updated_at">): Promise<number> {
@@ -540,6 +643,20 @@ export class QuizRepository {
       params
     );
     return Number(rows[0]?.total ?? 0);
+  }
+
+  async nextAttemptNumber(conn: PoolConnection, quizId: number, studentId: number): Promise<number> {
+    const [rows] = await conn.query<AttemptNumberRow[]>(
+      `SELECT numero_intento
+       FROM intentos_quiz
+       WHERE quiz_id = ? AND estudiante_id = ?
+       ORDER BY numero_intento DESC
+       LIMIT 1
+       FOR UPDATE`,
+      [quizId, studentId]
+    );
+    const next = Number(rows[0]?.numero_intento ?? 0) + 1;
+    return Number.isFinite(next) && next > 0 ? next : 1;
   }
 
   async createAttempt(

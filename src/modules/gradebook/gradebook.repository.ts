@@ -137,9 +137,10 @@ export class GradebookRepository {
          GROUP BY quiz_id, estudiante_id
        ) qa
          ON qa.quiz_id = q.id
-        AND qa.estudiante_id = ?
+       AND qa.estudiante_id = ?
        WHERE q.curso_id = ?
          AND q.estado IN ('publicado', 'cerrado')
+         AND COALESCE(q.tipo, 'regular') <> 'admision'
        ORDER BY q.fecha_cierre ASC, q.id ASC`,
       [studentId, studentId, courseId]
     );

@@ -94,3 +94,20 @@ export type AttemptResult = {
     explicacion?: string | null;
   }>;
 };
+
+export type AdmissionResultItem = {
+  usuario_id: number;
+  nombres: string;
+  apellidos: string;
+  correo: string;
+  pago_estado: "sin_pago" | "pendiente" | "pagado" | "rechazado" | "reembolsado";
+  intentos: number;
+  completados: number;
+  mejor_puntaje: number | null;
+  puntaje_total: number;
+  porcentaje: number | null;
+  porcentaje_aprobacion: number;
+  aprobado: boolean;
+  fecha_ultimo_intento: string | null;
+  fecha_ultimo_pago: string | null;
+};

@@ -31,6 +31,13 @@ router.get(
   asyncHandler(controller.admissionStatus)
 );
 
+router.get(
+  "/:quizId/admission-results",
+  requireRole("admin", "docente"),
+  validate({ params: quizIdParamsSchema }),
+  asyncHandler(controller.admissionResults)
+);
+
 router.get("/:quizId", validate({ params: quizIdParamsSchema }), asyncHandler(controller.get));
 
 // admin/docente

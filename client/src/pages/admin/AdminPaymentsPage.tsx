@@ -1,24 +1,33 @@
 import { Suspense, memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { Card } from "../../components/ui/Card";
-import { PageHeader } from "../../components/ui/PageHeader";
+import type { ReactNode } from "react";
 import { Button } from "../../components/ui/Button";
-import { Badge } from "../../components/ui/Badge";
-import { Input } from "../../components/ui/Input";
-import { Spinner } from "../../components/ui/Spinner";
-import { EmptyState } from "../../components/ui/EmptyState";
-import { PaginationControls } from "../../components/ui/PaginationControls";
+import { Card } from "../../components/ui/Card";
 import { ConfirmActionModal } from "../../components/ui/ConfirmActionModal";
+import { EmptyState } from "../../components/ui/EmptyState";
+import { Input } from "../../components/ui/Input";
+import { PaginationControls } from "../../components/ui/PaginationControls";
+import { Spinner } from "../../components/ui/Spinner";
 import { useAuth } from "../../hooks/useAuth";
 import type { ApiResponse } from "../../types/api";
-import type { PaymentDetail, PaymentListItem, PaymentsListResponse, PaymentsSummary, RevenuePoint } from "../../types/payment";
-import type { PaymentMethod, PaymentStatus } from "../../types/payment";
+import type {
+  PaymentDetail,
+  PaymentListItem,
+  PaymentMethod,
+  PaymentsListResponse,
+  PaymentsSummary,
+  PaymentStatus,
+  RevenuePoint,
+} from "../../types/payment";
 import { getApiErrorMessage } from "../../utils/apiError";
 import { downloadPaymentProof } from "../../utils/downloadFile";
 import { lazyNamed } from "../../utils/lazyNamed";
 import "../../styles/admin-payments.css";
 
 type Banner = { tone: "success" | "error"; text: string } | null;
+type QuickRange = "today" | "week" | "month";
+
 const PAGE_SIZE = 10;
+
 const PaymentDetailModal = lazyNamed(
   () => import("../../components/payment/AdminPaymentModals"),
   "PaymentDetailModal"
@@ -28,9 +37,9 @@ const PaymentRejectModal = lazyNamed(
   "PaymentRejectModal"
 );
 
-function formatMoney(amount: string, currency: string) {
+function formatMoney(amount: string | number, currency: string) {
   const n = Number(amount);
-  if (!Number.isFinite(n)) return amount;
+  if (!Number.isFinite(n)) return String(amount);
   try {
     return new Intl.NumberFormat("es-GT", {
       style: "currency",
@@ -53,51 +62,84 @@ function formatDateTime(value: string | null) {
 function formatChartDate(value: string) {
   const d = new Date(`${value}T00:00:00`);
   if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString("es-GT", { day: "2-digit", month: "short" });
+  return d.toLocaleDateString("es-GT", { weekday: "short", day: "2-digit" });
 }
 
-function formatCompactMoney(amount: number, currency = "GTQ") {
-  if (!Number.isFinite(amount)) return "—";
-  try {
-    return new Intl.NumberFormat("es-GT", {
-      style: "currency",
-      currency,
-      notation: "compact",
-      maximumFractionDigits: 1,
-    }).format(amount);
-  } catch {
-    return `${amount.toFixed(2)} ${currency}`;
-  }
+function formatInputDate(date: Date) {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function statusUi(estado: PaymentStatus) {
   switch (estado) {
     case "pagado":
-      return { label: "Pagado", variant: "green" as const };
+      return { label: "Pagado", className: "cf-payments-status--paid" };
     case "pendiente":
-      return { label: "Pendiente", variant: "amber" as const };
+      return { label: "Pendiente", className: "cf-payments-status--pending" };
     case "reembolsado":
-      return { label: "Reembolsado", variant: "blue" as const };
+      return { label: "Reembolsado", className: "cf-payments-status--refunded" };
     case "rechazado":
-      return { label: "Rechazado", variant: "rose" as const };
+      return { label: "Rechazado", className: "cf-payments-status--rejected" };
     case "cancelado":
     default:
-      return { label: "Cancelado", variant: "slate" as const };
+      return { label: "Cancelado", className: "cf-payments-status--canceled" };
   }
 }
 
 function methodLabel(m: PaymentMethod) {
-  if (m === "bi_pay") return "BiPay";
+  if (m === "bi_pay") return "BI Pay";
   if (m === "transferencia") return "Transferencia";
   if (m === "deposito") return "Depósito";
   if (m === "efectivo") return "Efectivo";
   return "Manual";
 }
 
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+function csvCell(value: string | number | null | undefined) {
+  const text = String(value ?? "");
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function downloadCsv(rows: PaymentListItem[]) {
+  const headers = ["Pago", "Referencia", "Estudiante", "Correo", "Curso", "Monto", "Metodo", "Estado", "Fecha"];
+  const body = rows.map((p) => [
+    p.id,
+    p.referencia_pago,
+    `${p.usuario.nombres} ${p.usuario.apellidos}`,
+    p.usuario.correo,
+    p.cursos ?? "",
+    formatMoney(p.monto_total, p.moneda),
+    methodLabel(p.metodo_pago),
+    statusUi(p.estado).label,
+    formatDateTime(p.fecha_pago ?? p.created_at),
+  ]);
+  const csv = [headers, ...body].map((row) => row.map(csvCell).join(",")).join("\n");
+  const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `pagos-transacciones-${formatInputDate(new Date())}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 const modalFallback = (
   <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true">
     <Card className="w-full max-w-md p-6">
-      <div className="flex items-center gap-3 text-sm font-semibold text-slate-600">
+      <div className="flex items-center gap-3 text-sm font-semibold text-slate-600 dark:text-slate-300">
         <Spinner />
         Cargando…
       </div>
@@ -115,6 +157,8 @@ export function AdminPaymentsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [list, setList] = useState<PaymentsListResponse | null>(null);
   const [page, setPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [quickRange, setQuickRangeState] = useState<QuickRange | null>(null);
 
   const [filters, setFilters] = useState<{
     date_from: string;
@@ -143,11 +187,13 @@ export function AdminPaymentsPage() {
   const [rejectReason, setRejectReason] = useState("");
   const detailRequestRef = useRef<AbortController | null>(null);
 
+  const deferredSearchTerm = useDeferredValue(searchTerm.trim().toLowerCase());
   const deferredCourseId = useDeferredValue(filters.curso_id.trim());
   const deferredUsuarioId = useDeferredValue(filters.usuario_id.trim());
 
   const hasActiveFilters = Boolean(
-    filters.date_from ||
+    searchTerm.trim() ||
+      filters.date_from ||
       filters.date_to ||
       filters.estado ||
       filters.metodo_pago ||
@@ -157,6 +203,7 @@ export function AdminPaymentsPage() {
 
   const updateFilters = useCallback(<K extends keyof typeof filters>(key: K, value: (typeof filters)[K]) => {
     setPage(1);
+    setQuickRangeState(null);
     setFilters((prev) => ({ ...prev, [key]: value }));
   }, []);
 
@@ -182,7 +229,7 @@ export function AdminPaymentsPage() {
       try {
         const summaryReq = api.get<ApiResponse<PaymentsSummary>>("/payments/summary", { signal });
         const revenueReq = api.get<ApiResponse<RevenuePoint[]>>("/payments/reports/revenue", {
-          params: { days: 14 },
+          params: { days: 7 },
           signal,
         });
 
@@ -248,6 +295,50 @@ export function AdminPaymentsPage() {
     return () => controller.abort();
   }, [loadList, page]);
 
+  const visibleItems = useMemo(() => {
+    const items = list?.items ?? [];
+    if (!deferredSearchTerm) return items;
+    return items.filter((p) => {
+      const text = [
+        p.id,
+        p.referencia_pago,
+        p.usuario.nombres,
+        p.usuario.apellidos,
+        p.usuario.correo,
+        p.cursos ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      return text.includes(deferredSearchTerm);
+    });
+  }, [deferredSearchTerm, list]);
+
+  const analytics = useMemo(() => {
+    const revenueData = revenue.slice(-7).map((p) => ({ date: p.date, amount: Number(p.total) || 0 }));
+    const revenueTotal = revenueData.reduce((sum, p) => sum + p.amount, 0);
+    const bestDay = revenueData.reduce(
+      (winner, p) => (p.amount > winner.amount ? p : winner),
+      revenueData[0] ?? { date: "", amount: 0 }
+    );
+    const average = revenueData.length > 0 ? revenueTotal / revenueData.length : 0;
+    const listed = list?.items ?? [];
+    const decided = listed.filter((p) => p.estado !== "pendiente" && p.estado !== "cancelado");
+    const approvalRate =
+      decided.length > 0
+        ? Math.round((decided.filter((p) => p.estado === "pagado").length / decided.length) * 100)
+        : 0;
+    const courseTotals = new Map<string, number>();
+    listed
+      .filter((p) => p.estado === "pagado")
+      .forEach((p) => {
+        const key = p.cursos ?? "Sin curso";
+        courseTotals.set(key, (courseTotals.get(key) ?? 0) + Number(p.monto_total || 0));
+      });
+    const topCourse =
+      [...courseTotals.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "Sin datos todavía";
+    return { revenueTotal, bestDay, average, approvalRate, topCourse };
+  }, [list, revenue]);
+
   const openDetail = useCallback(
     async (id: number) => {
       detailRequestRef.current?.abort();
@@ -283,7 +374,10 @@ export function AdminPaymentsPage() {
     setMutating((p) => ({ ...p, [id]: true }));
     setBanner(null);
     try {
-      const res = await api.put<ApiResponse<PaymentDetail>>(`/payments/${id}/status`, { estado, observaciones: observaciones ?? null });
+      const res = await api.put<ApiResponse<PaymentDetail>>(`/payments/${id}/status`, {
+        estado,
+        observaciones: observaciones ?? null,
+      });
       const updated = res.data.data;
       setList((prev) =>
         prev
@@ -329,17 +423,78 @@ export function AdminPaymentsPage() {
     setRejectReason("");
   };
 
+  const setQuickRange = (range: QuickRange) => {
+    const today = new Date();
+    const start = new Date(today);
+    if (range === "today") {
+      start.setTime(today.getTime());
+    } else if (range === "week") {
+      start.setDate(today.getDate() - 6);
+    } else {
+      start.setDate(1);
+    }
+    setQuickRangeState(range);
+    setPage(1);
+    setFilters((prev) => ({
+      ...prev,
+      date_from: formatInputDate(start),
+      date_to: formatInputDate(today),
+    }));
+  };
+
+  const clearFilters = () => {
+    setPage(1);
+    setSearchTerm("");
+    setQuickRangeState(null);
+    setFilters({
+      date_from: "",
+      date_to: "",
+      estado: "",
+      metodo_pago: "",
+      curso_id: "",
+      usuario_id: "",
+    });
+  };
+
+  const exportCurrentRows = () => {
+    if (visibleItems.length === 0) {
+      setBanner({ tone: "error", text: "No hay transacciones para exportar con los filtros actuales." });
+      return;
+    }
+    downloadCsv(visibleItems);
+  };
+
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Pagos"
-        subtitle="Gestión y conciliación (admin)"
-        right={
-          <Button variant="ghost" onClick={() => void loadAll()}>
+    <div className="cf-payments-page space-y-6">
+      <section className="cf-payments-hero">
+        <div className="cf-payments-hero__content">
+          <div className="cf-payments-eyebrow">
+            <span className="cf-payments-live-dot" />
+            Panel financiero
+          </div>
+          <h1>Pagos y Transacciones</h1>
+          <p>Control, validación y seguimiento de movimientos registrados</p>
+        </div>
+        <div className="cf-payments-hero__actions">
+          <Button variant="ghost" className="cf-payments-hero-btn" onClick={() => void loadAll()}>
             Actualizar
           </Button>
-        }
-      />
+          <Button variant="ghost" className="cf-payments-hero-btn" onClick={exportCurrentRows}>
+            Exportar
+          </Button>
+          <Button
+            className="cf-payments-primary-btn"
+            onClick={() =>
+              setBanner({
+                tone: "success",
+                text: "Botón listo para conectar al formulario de registro manual de pago.",
+              })
+            }
+          >
+            Nuevo pago
+          </Button>
+        </div>
+      </section>
 
       {banner ? (
         <div
@@ -354,294 +509,280 @@ export function AdminPaymentsPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard
-          label="Ingresos totales"
-          value={summary ? formatMoney(summary.totalRevenue, "GTQ") : "—"}
+      <section className="cf-payments-stats">
+        <FinancialStatCard
+          label="Ingresos del mes"
+          value={formatMoney(analytics.revenueTotal, "GTQ")}
+          note="Pagos aprobados recientes"
+          tone="blue"
+        />
+        <FinancialStatCard
+          label="Pagos aprobados"
+          value={summary ? `${summary.monthPaidCount}` : "—"}
+          note="Confirmados este mes"
           tone="green"
         />
-        <SummaryCard label="Pagos del mes" value={summary ? `${summary.monthPaidCount}` : "—"} tone="blue" />
-        <SummaryCard label="Pagos pendientes" value={summary ? `${summary.pendingCount}` : "—"} tone="amber" />
-        <SummaryCard label="Reembolsos" value={summary ? formatMoney(summary.refundsTotal, "GTQ") : "—"} tone="slate" />
-      </div>
+        <FinancialStatCard
+          label="Pagos pendientes"
+          value={summary ? `${summary.pendingCount}` : "—"}
+          note="Requieren validación"
+          tone="amber"
+        />
+        <FinancialStatCard
+          label="Reembolsos"
+          value={summary ? formatMoney(summary.refundsTotal, "GTQ") : "—"}
+          note="Movimientos devueltos"
+          tone="purple"
+        />
+      </section>
 
-      <Card className="overflow-hidden">
-        <div className="border-b border-slate-200 bg-slate-950 px-6 py-5 text-white dark:border-slate-800 dark:bg-slate-950">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+      <section className="cf-payments-main-grid">
+        <Card className="cf-payments-panel">
+          <div className="cf-payments-panel-header">
             <div>
-              <div className="cf-admin-payments-hero-kicker text-xs font-black uppercase text-cyan-300">Reportes</div>
-              <div className="mt-2 text-2xl font-black tracking-tight">Ingresos recientes</div>
-              <div className="mt-1 text-sm font-semibold text-slate-300">Últimos 14 días registrados</div>
+              <h2>Ingresos de los últimos 7 días</h2>
+              <p>Movimientos confirmados por día, expresados en quetzales.</p>
             </div>
-            <div className="cf-admin-payments-currency-pill rounded-full border border-white/10 bg-white/10 px-4 py-2 text-xs font-black uppercase text-slate-200">
-              GTQ
+            <span className="cf-payments-total-pill">{formatMoney(analytics.revenueTotal, "GTQ")}</span>
+          </div>
+          <RevenueChart points={revenue} />
+        </Card>
+
+        <Card className="cf-payments-panel cf-payments-summary-panel">
+          <div className="cf-payments-panel-header">
+            <div>
+              <h2>Resumen rápido</h2>
+              <p>Lectura ejecutiva del comportamiento reciente.</p>
             </div>
           </div>
+          <div className="cf-payments-summary-list">
+            <SummaryItem label="Mejor día" value={analytics.bestDay.date ? `${formatChartDate(analytics.bestDay.date)} · ${formatMoney(analytics.bestDay.amount, "GTQ")}` : "Sin datos"} />
+            <SummaryItem label="Promedio diario" value={formatMoney(analytics.average, "GTQ")} />
+            <SummaryItem label="Tasa de aprobación" value={`${analytics.approvalRate}%`} />
+            <SummaryItem label="Curso más pagado" value={analytics.topCourse} />
+          </div>
+        </Card>
+      </section>
+
+      <Card className="cf-payments-filters">
+        <div className="cf-payments-search-row">
+          <div>
+            <div className="cf-payments-section-title">Filtros</div>
+            <div className="cf-payments-section-copy">Busca y segmenta las transacciones sin perder claridad.</div>
+          </div>
+          <div className="cf-payments-search-field">
+            <span aria-hidden="true">⌕</span>
+            <Input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar por estudiante, correo o número de pago..."
+              className="pl-11"
+            />
+          </div>
         </div>
-        <div className="p-5 sm:p-6">
-          <RevenueChart points={revenue} />
+
+        <div className="cf-payments-quick-row">
+          <button type="button" className={quickRange === "today" ? "is-active" : ""} onClick={() => setQuickRange("today")}>
+            Hoy
+          </button>
+          <button type="button" className={quickRange === "week" ? "is-active" : ""} onClick={() => setQuickRange("week")}>
+            Semana
+          </button>
+          <button type="button" className={quickRange === "month" ? "is-active" : ""} onClick={() => setQuickRange("month")}>
+            Mes
+          </button>
+          <button type="button" onClick={clearFilters}>
+            Limpiar
+          </button>
+        </div>
+
+        <div className="cf-payments-filter-grid">
+          <FilterField label="Fecha desde">
+            <Input type="date" value={filters.date_from} onChange={(e) => updateFilters("date_from", e.target.value)} />
+          </FilterField>
+          <FilterField label="Fecha hasta">
+            <Input type="date" value={filters.date_to} onChange={(e) => updateFilters("date_to", e.target.value)} />
+          </FilterField>
+          <FilterField label="Estado">
+            <select value={filters.estado} onChange={(e) => updateFilters("estado", e.target.value as "" | PaymentStatus)}>
+              <option value="">Todos</option>
+              <option value="pagado">Pagado</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="rechazado">Rechazado</option>
+              <option value="cancelado">Cancelado</option>
+              <option value="reembolsado">Reembolsado</option>
+            </select>
+          </FilterField>
+          <FilterField label="Método">
+            <select
+              value={filters.metodo_pago}
+              onChange={(e) => updateFilters("metodo_pago", e.target.value as "" | PaymentMethod)}
+            >
+              <option value="">Todos</option>
+              <option value="bi_pay">BI Pay</option>
+              <option value="transferencia">Transferencia</option>
+              <option value="deposito">Depósito</option>
+              <option value="efectivo">Efectivo</option>
+              <option value="manual">Manual</option>
+            </select>
+          </FilterField>
+          <FilterField label="Curso o ID estudiante">
+            <div className="cf-payments-combo-inputs">
+              <Input
+                inputMode="numeric"
+                value={filters.curso_id}
+                onChange={(e) => updateFilters("curso_id", e.target.value)}
+                placeholder="Curso ID"
+              />
+              <Input
+                inputMode="numeric"
+                value={filters.usuario_id}
+                onChange={(e) => updateFilters("usuario_id", e.target.value)}
+                placeholder="Estudiante ID"
+              />
+            </div>
+          </FilterField>
         </div>
       </Card>
 
-      <div className="space-y-6">
-        <Card className="p-5">
-            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-              <div className="min-w-0">
-                <div className="text-sm font-black text-slate-900 dark:text-slate-100">Filtros</div>
-                <div className="mt-1 text-sm text-slate-600 dark:text-slate-400">Ajusta filtros y se actualizará el listado.</div>
-              </div>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setPage(1);
-                  setFilters({
-                    date_from: "",
-                    date_to: "",
-                    estado: "",
-                    metodo_pago: "",
-                    curso_id: "",
-                    usuario_id: "",
-                  });
-                }}
-              >
-                Limpiar
-              </Button>
-            </div>
+      <Card className="cf-payments-table-card">
+        <div className="cf-payments-table-toolbar">
+          <div>
+            <h2>Transacciones recientes</h2>
+            <p>
+              {list ? `${list.total} registros encontrados` : "Cargando registros"} ·{" "}
+              {visibleItems.length} visibles en esta página
+            </p>
+          </div>
+          <span className="cf-payments-count-pill">{visibleItems.length} registros</span>
+        </div>
 
-            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              <div>
-                <div className="text-xs font-extrabold text-slate-700 dark:text-slate-300">Desde</div>
-                <div className="mt-2">
-                  <Input
-                    type="date"
-                    value={filters.date_from}
-                    onChange={(e) => updateFilters("date_from", e.target.value)}
-                  />
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-extrabold text-slate-700 dark:text-slate-300">Hasta</div>
-                <div className="mt-2">
-                  <Input
-                    type="date"
-                    value={filters.date_to}
-                    onChange={(e) => updateFilters("date_to", e.target.value)}
-                  />
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-extrabold text-slate-700 dark:text-slate-300">Estado</div>
-                <div className="mt-2">
-                  <select
-                    value={filters.estado}
-                    onChange={(e) => updateFilters("estado", e.target.value as "" | PaymentStatus)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none ring-blue-500 focus:ring-2 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                  >
-                    <option value="">Todos</option>
-                    <option value="pagado">Pagado</option>
-                    <option value="pendiente">Pendiente</option>
-                    <option value="rechazado">Rechazado</option>
-                    <option value="cancelado">Cancelado</option>
-                    <option value="reembolsado">Reembolsado</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-extrabold text-slate-700 dark:text-slate-300">Método</div>
-                <div className="mt-2">
-                  <select
-                    value={filters.metodo_pago}
-                    onChange={(e) => updateFilters("metodo_pago", e.target.value as "" | PaymentMethod)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none ring-blue-500 focus:ring-2 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                  >
-                    <option value="">Todos</option>
-                    <option value="bi_pay">BiPay</option>
-                    <option value="transferencia">Transferencia</option>
-                    <option value="deposito">Depósito</option>
-                    <option value="efectivo">Efectivo</option>
-                    <option value="manual">Manual</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-extrabold text-slate-700 dark:text-slate-300">Curso (ID)</div>
-                <div className="mt-2">
-                  <Input
-                    inputMode="numeric"
-                    value={filters.curso_id}
-                    onChange={(e) => updateFilters("curso_id", e.target.value)}
-                    placeholder="Ej: 12"
-                  />
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-extrabold text-slate-700 dark:text-slate-300">Estudiante (ID)</div>
-                <div className="mt-2">
-                  <Input
-                    inputMode="numeric"
-                    value={filters.usuario_id}
-                    onChange={(e) => updateFilters("usuario_id", e.target.value)}
-                    placeholder="Ej: 25"
-                  />
-                </div>
-              </div>
+        <div className="cf-payments-table-body">
+          {isLoading ? (
+            <div className="grid place-items-center py-12">
+              <Spinner />
             </div>
-          </Card>
-
-          <Card className="overflow-hidden">
-            <div className="border-b border-slate-200 bg-white px-6 py-5 dark:border-slate-800 dark:bg-slate-950/80">
-              <div className="flex items-end justify-between gap-3">
-                <div>
-                  <div className="text-sm font-black text-slate-900 dark:text-slate-100">Pagos</div>
-                  <div className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                    {list ? `${list.total} registros` : "—"}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 sm:p-6">
-              {isLoading ? (
-                <div className="grid place-items-center py-10">
-                  <Spinner />
-                </div>
-              ) : !list || list.items.length === 0 ? (
-                <EmptyState
-                  title={hasActiveFilters ? "Sin resultados" : "No hay pagos todavía"}
-                  description={
-                    hasActiveFilters
-                      ? "Prueba con otros filtros o limpia la búsqueda."
-                      : "Cuando existan transacciones, aparecerán aquí."
-                  }
-                  actionLabel={hasActiveFilters ? "Limpiar filtros" : "Actualizar"}
-                  onAction={() => {
-                    if (hasActiveFilters) {
-                      setPage(1);
-                      setFilters({
-                        date_from: "",
-                        date_to: "",
-                        estado: "",
-                        metodo_pago: "",
-                        curso_id: "",
-                        usuario_id: "",
-                      });
-                      return;
-                    }
-                    void loadAll();
-                  }}
-                />
-              ) : (
-                <div>
-                  <div className="w-full overflow-x-auto rounded-[1.6rem] border border-slate-200 [-webkit-overflow-scrolling:touch] dark:border-slate-800">
-                    <table className="w-full min-w-[1180px] border-separate border-spacing-0 bg-white text-left text-sm dark:bg-slate-950/70">
-                      <thead className="bg-slate-50 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 dark:bg-slate-900/80 dark:text-slate-400">
-                        <tr>
-                          <th className="px-5 py-4">Pago</th>
-                          <th className="px-4 py-4">Estudiante</th>
-                          <th className="px-4 py-4">Curso</th>
-                          <th className="px-4 py-4">Monto</th>
-                          <th className="px-4 py-4">Comprobante</th>
-                          <th className="px-4 py-4 text-right">Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {list.items.map((p) => {
-                          const s = statusUi(p.estado);
-                          const busy = Boolean(mutating[p.id]);
-                          return (
-                            <tr key={p.id} className="transition hover:bg-slate-50/70 dark:hover:bg-slate-900/50">
-                              <td className="whitespace-nowrap px-5 py-4 align-top">
-                                <div className="text-sm font-black text-slate-950 dark:text-white">Pago #{p.id}</div>
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                  <Badge variant={s.variant}>{s.label}</Badge>
-                                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                                    {methodLabel(p.metodo_pago)}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="min-w-[240px] px-4 py-4 align-top">
-                                <div className="truncate text-sm font-black text-slate-950 dark:text-white">
-                                  {p.usuario.nombres} {p.usuario.apellidos}
-                                </div>
-                                <div className="mt-1 break-all text-xs font-semibold text-slate-600 dark:text-slate-400">
-                                  {p.usuario.correo}
-                                </div>
-                              </td>
-                              <td className="min-w-[250px] px-4 py-4 align-top">
-                                <div className="line-clamp-2 text-sm font-black text-slate-950 dark:text-white">
-                                  {p.cursos ?? "—"}
-                                </div>
-                                <div className="mt-1 break-all text-xs font-semibold text-slate-500 dark:text-slate-500">
-                                  {p.referencia_pago}
-                                </div>
-                              </td>
-                              <td className="whitespace-nowrap px-4 py-4 align-top">
-                                <div className="text-sm font-black text-slate-950 dark:text-white">
-                                  {formatMoney(p.monto_total, p.moneda)}
-                                </div>
-                                <div className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-500">
-                                  {formatDateTime(p.fecha_pago ?? p.created_at)}
-                                </div>
-                              </td>
-                              <td className="whitespace-nowrap px-4 py-4 align-top">
-                                {p.comprobante_url ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => void downloadProof(p.id)}
-                                    className="text-sm font-black text-blue-700 hover:underline dark:text-cyan-300"
+          ) : !list || visibleItems.length === 0 ? (
+            <EmptyState
+              title={hasActiveFilters ? "Sin resultados" : "No hay pagos todavía"}
+              description={
+                hasActiveFilters
+                  ? "Prueba con otros filtros o limpia la búsqueda."
+                  : "Cuando existan transacciones, aparecerán aquí."
+              }
+              actionLabel={hasActiveFilters ? "Limpiar filtros" : "Actualizar"}
+              onAction={() => {
+                if (hasActiveFilters) {
+                  clearFilters();
+                  return;
+                }
+                void loadAll();
+              }}
+            />
+          ) : (
+            <>
+              <div className="cf-payments-table-wrap">
+                <table className="cf-payments-table">
+                  <thead>
+                    <tr>
+                      <th>Pago</th>
+                      <th>Estudiante</th>
+                      <th>Curso</th>
+                      <th>Monto</th>
+                      <th>Método</th>
+                      <th>Estado</th>
+                      <th>Comprobante</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleItems.map((p) => {
+                      const s = statusUi(p.estado);
+                      const busy = Boolean(mutating[p.id]);
+                      const studentName = `${p.usuario.nombres} ${p.usuario.apellidos}`;
+                      return (
+                        <tr key={p.id}>
+                          <td>
+                            <div className="cf-payments-payment-id">
+                              <strong>Pago #{p.id}</strong>
+                              <span>{p.referencia_pago}</span>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="cf-payments-student">
+                              <div className="cf-payments-avatar">{initials(studentName)}</div>
+                              <div className="min-w-0">
+                                <strong>{studentName}</strong>
+                                <span>{p.usuario.correo}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="cf-payments-course">{p.cursos ?? "—"}</div>
+                          </td>
+                          <td>
+                            <div className="cf-payments-amount">{formatMoney(p.monto_total, p.moneda)}</div>
+                            <div className="cf-payments-date">{formatDateTime(p.fecha_pago ?? p.created_at)}</div>
+                          </td>
+                          <td>
+                            <span className="cf-payments-method">{methodLabel(p.metodo_pago)}</span>
+                          </td>
+                          <td>
+                            <span className={`cf-payments-status ${s.className}`}>{s.label}</span>
+                          </td>
+                          <td>
+                            {p.comprobante_url ? (
+                              <button
+                                type="button"
+                                onClick={() => void downloadProof(p.id)}
+                                className="cf-payments-proof-btn"
+                              >
+                                Ver comprobante
+                              </button>
+                            ) : (
+                              <span className="cf-payments-muted">Sin archivo</span>
+                            )}
+                          </td>
+                          <td>
+                            <div className="cf-payments-row-actions">
+                              <Button size="sm" variant="ghost" onClick={() => void openDetail(p.id)}>
+                                Detalle
+                              </Button>
+                              {p.estado === "pendiente" ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    disabled={busy}
+                                    onClick={() => setPendingApprovePayment(p)}
                                   >
-                                    Ver comprobante
-                                  </button>
-                                ) : (
-                                  <div className="text-sm font-semibold text-slate-500 dark:text-slate-400">Sin archivo</div>
-                                )}
-                              </td>
-                              <td className="px-4 py-4 text-right align-top">
-                                <div className="flex justify-end gap-2">
-                                  <Button size="sm" variant="ghost" onClick={() => void openDetail(p.id)}>
-                                    Ver detalle
+                                    Aprobar
                                   </Button>
-                                  {p.estado === "pendiente" ? (
-                                    <>
-                                      <Button
-                                        size="sm"
-                                        variant="secondary"
-                                        disabled={busy}
-                                        onClick={() => setPendingApprovePayment(p)}
-                                      >
-                                        Aprobar
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="danger"
-                                        disabled={busy}
-                                        onClick={() => openReject(p.id)}
-                                      >
-                                        Rechazar
-                                      </Button>
-                                    </>
-                                  ) : null}
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                                  <Button size="sm" variant="danger" disabled={busy} onClick={() => openReject(p.id)}>
+                                    Rechazar
+                                  </Button>
+                                </>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
 
-                  <PaginationControls
-                    page={page}
-                    pageSize={list.limit}
-                    total={list.total}
-                    isLoading={isLoading}
-                    onPageChange={setPage}
-                  />
-                </div>
-              )}
-            </div>
-          </Card>
-      </div>
+              <PaginationControls
+                page={page}
+                pageSize={list.limit}
+                total={list.total}
+                isLoading={isLoading}
+                onPageChange={setPage}
+              />
+            </>
+          )}
+        </div>
+      </Card>
 
       {detailOpen ? (
         <Suspense fallback={modalFallback}>
@@ -690,176 +831,79 @@ export function AdminPaymentsPage() {
   );
 }
 
-function SummaryCard({
+function FinancialStatCard({
   label,
   value,
+  note,
   tone,
 }: {
   label: string;
   value: string;
-  tone: "green" | "blue" | "amber" | "slate";
+  note: string;
+  tone: "blue" | "green" | "amber" | "purple";
 }) {
-  const toneStyles =
-    tone === "green"
-      ? "cf-admin-payments-summary--green"
-      : tone === "blue"
-        ? "cf-admin-payments-summary--blue"
-        : tone === "amber"
-          ? "cf-admin-payments-summary--amber"
-          : "";
-
   return (
-    <Card className="overflow-hidden">
-      <div className={`cf-admin-payments-summary ${toneStyles}`}>
-        <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</div>
-        <div className="mt-1 truncate text-base font-black tracking-tight text-slate-900 dark:text-white">{value}</div>
+    <Card className={`cf-payments-stat cf-payments-stat--${tone}`}>
+      <div className="cf-payments-stat__top">
+        <span>{label}</span>
+        <i aria-hidden="true">{tone === "green" ? "✓" : tone === "amber" ? "!" : tone === "purple" ? "↺" : "Q"}</i>
       </div>
+      <strong>{value}</strong>
+      <p>{note}</p>
     </Card>
+  );
+}
+
+function SummaryItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="cf-payments-summary-item">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function FilterField({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="cf-payments-filter-field">
+      <span>{label}</span>
+      {children}
+    </label>
   );
 }
 
 const RevenueChart = memo(function RevenueChart({ points }: { points: RevenuePoint[] }) {
   const data = useMemo(() => {
-    return points.slice(-14).map((p) => {
-      const amount = Number(p.total);
-      return {
-        date: p.date,
-        amount: Number.isFinite(amount) ? amount : 0,
-      };
-    });
+    return points.slice(-7).map((p) => ({
+      date: p.date,
+      amount: Number(p.total) || 0,
+    }));
   }, [points]);
 
-  const metrics = useMemo(() => {
-    if (data.length === 0) return null;
-    const total = data.reduce((sum, p) => sum + p.amount, 0);
-    const max = Math.max(...data.map((p) => p.amount));
-    const best = data.reduce((winner, p) => (p.amount > winner.amount ? p : winner), data[0]);
-    return {
-      total,
-      max,
-      average: total / data.length,
-      best,
-    };
-  }, [data]);
+  const max = Math.max(...data.map((p) => p.amount), 1);
 
-  if (!metrics) {
+  if (data.length === 0) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-        No hay datos suficientes para graficar.
+      <div className="cf-payments-chart-empty">
+        No hay datos suficientes para graficar ingresos recientes.
       </div>
     );
   }
 
-  const chartWidth = 980;
-  const chartHeight = 260;
-  const padding = { top: 24, right: 28, bottom: 56, left: 70 };
-  const baseline = chartHeight - padding.bottom;
-  const usableWidth = chartWidth - padding.left - padding.right;
-  const usableHeight = chartHeight - padding.top - padding.bottom;
-  const ceiling = Math.max(metrics.max, 1);
-  const plotted = data.map((p, index) => {
-    const x =
-      data.length === 1
-        ? padding.left + usableWidth / 2
-        : padding.left + (index / (data.length - 1)) * usableWidth;
-    const y = padding.top + usableHeight - (p.amount / ceiling) * usableHeight;
-    return { ...p, x, y };
-  });
-  const linePath = plotted.map((p, index) => `${index === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-  const areaPath = `${linePath} L ${plotted[plotted.length - 1].x} ${baseline} L ${plotted[0].x} ${baseline} Z`;
-  const guideLines = [0, 0.25, 0.5, 0.75, 1];
-
   return (
-    <div className="space-y-5">
-      <div className="grid gap-3 md:grid-cols-3">
-        <div className="cf-admin-payments-chart-metric border border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-950/80">
-          <div className="cf-admin-payments-chart-metric-label text-xs font-black uppercase text-slate-500 dark:text-slate-400">Periodo</div>
-          <div className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
-            {formatMoney(metrics.total.toFixed(2), "GTQ")}
+    <div className="cf-payments-chart">
+      {data.map((item) => {
+        const width = `${Math.max((item.amount / max) * 100, item.amount > 0 ? 8 : 2)}%`;
+        return (
+          <div className="cf-payments-chart-row" key={item.date}>
+            <span>{formatChartDate(item.date)}</span>
+            <div className="cf-payments-chart-track">
+              <div className="cf-payments-chart-fill" style={{ width }} />
+            </div>
+            <strong>{formatMoney(item.amount, "GTQ")}</strong>
           </div>
-        </div>
-        <div className="cf-admin-payments-chart-metric border border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-950/80">
-          <div className="cf-admin-payments-chart-metric-label text-xs font-black uppercase text-slate-500 dark:text-slate-400">Promedio diario</div>
-          <div className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
-            {formatMoney(metrics.average.toFixed(2), "GTQ")}
-          </div>
-        </div>
-        <div className="cf-admin-payments-chart-metric border border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-950/80">
-          <div className="cf-admin-payments-chart-metric-label text-xs font-black uppercase text-slate-500 dark:text-slate-400">Mejor día</div>
-          <div className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
-            {formatMoney(metrics.best.amount.toFixed(2), "GTQ")}
-          </div>
-          <div className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">{formatChartDate(metrics.best.date)}</div>
-        </div>
-      </div>
-
-      <div className="cf-admin-payments-chart-shell">
-        <div className="flex flex-col gap-2 px-1 pb-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="cf-admin-payments-chart-kicker text-xs font-black uppercase text-cyan-300">Curva de ingresos</div>
-            <div className="mt-1 text-sm font-semibold text-slate-300">Pagos aprobados por día</div>
-          </div>
-          <div className="rounded-full bg-cyan-400/10 px-3 py-1 text-xs font-black text-cyan-200 ring-1 ring-cyan-300/20">
-            Pico: {formatCompactMoney(metrics.max)}
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <svg
-            viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-            className="cf-admin-payments-chart-svg"
-            role="img"
-            aria-label="Gráfica de ingresos de los últimos 14 días"
-          >
-            <defs>
-              <linearGradient id="paymentsRevenueArea" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.45" />
-                <stop offset="100%" stopColor="#2563eb" stopOpacity="0.02" />
-              </linearGradient>
-              <linearGradient id="paymentsRevenueLine" x1="0" x2="1" y1="0" y2="0">
-                <stop offset="0%" stopColor="#67e8f9" />
-                <stop offset="100%" stopColor="#60a5fa" />
-              </linearGradient>
-            </defs>
-
-            {guideLines.map((guide) => {
-              const y = padding.top + usableHeight - guide * usableHeight;
-              return (
-                <g key={guide}>
-                  <line x1={padding.left} x2={chartWidth - padding.right} y1={y} y2={y} stroke="#1e293b" strokeDasharray="4 8" />
-                  <text x={padding.left - 12} y={y + 4} textAnchor="end" className="cf-admin-payments-chart-axis-label fill-slate-500">
-                    {formatCompactMoney(ceiling * guide)}
-                  </text>
-                </g>
-              );
-            })}
-
-            <path d={areaPath} fill="url(#paymentsRevenueArea)" />
-            <path d={linePath} fill="none" stroke="url(#paymentsRevenueLine)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="5" />
-
-            {plotted.map((p) => (
-              <g key={p.date}>
-                <circle cx={p.x} cy={p.y} r="6" fill="#0f172a" stroke="#67e8f9" strokeWidth="4" />
-                {p.amount > 0 ? (
-                  <text x={p.x} y={Math.max(18, p.y - 14)} textAnchor="middle" className="cf-admin-payments-chart-point-label fill-slate-100">
-                    {formatCompactMoney(p.amount)}
-                  </text>
-                ) : null}
-              </g>
-            ))}
-
-            {plotted.map((p, index) => {
-              const shouldShow = index === 0 || index === plotted.length - 1 || index % 3 === 0;
-              if (!shouldShow) return null;
-              return (
-                <text key={`${p.date}-label`} x={p.x} y={chartHeight - 18} textAnchor="middle" className="cf-admin-payments-chart-date-label fill-slate-400">
-                  {formatChartDate(p.date)}
-                </text>
-              );
-            })}
-          </svg>
-        </div>
-      </div>
+        );
+      })}
     </div>
   );
 });

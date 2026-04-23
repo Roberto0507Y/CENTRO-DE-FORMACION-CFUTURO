@@ -118,6 +118,7 @@ export class ReportRepository {
        LEFT JOIN quizzes q
          ON q.curso_id = i.curso_id
         AND q.estado = 'publicado'
+        AND COALESCE(q.tipo, 'regular') <> 'admision'
        LEFT JOIN (
          SELECT
            iq.quiz_id,
@@ -129,6 +130,7 @@ export class ReportRepository {
          JOIN quizzes q_scope
            ON q_scope.id = iq.quiz_id
           AND q_scope.curso_id = ?
+          AND COALESCE(q_scope.tipo, 'regular') <> 'admision'
          GROUP BY iq.quiz_id, iq.estudiante_id
        ) qa
          ON qa.quiz_id = q.id

@@ -45,6 +45,7 @@ export function CourseQuizzesStudentPage() {
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   const [attemptId, setAttemptId] = useState<number | null>(null);
   const [variant, setVariant] = useState<QuizVariant | null>(null);
+  const [startingQuizId, setStartingQuizId] = useState<number | null>(null);
   const [questions, setQuestions] = useState<QuizQuestionPublic[]>([]);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -85,7 +86,9 @@ export function CourseQuizzesStudentPage() {
   }, [stage, timeLeft]);
 
   const start = async (quiz: Quiz) => {
+    if (startingQuizId !== null) return;
     try {
+      setStartingQuizId(quiz.id);
       setBanner(null);
       const res = await api.post<ApiResponse<StartQuizResponse>>(`/courses/${id}/quizzes/${quiz.id}/start`, {});
       setActiveQuiz(res.data.data.quiz);
@@ -99,6 +102,8 @@ export function CourseQuizzesStudentPage() {
       setStage("taking");
     } catch (err) {
       setBanner({ tone: "error", text: getApiErrorMessage(err, "No se pudo iniciar el quiz.") });
+    } finally {
+      setStartingQuizId(null);
     }
   };
 
@@ -191,8 +196,8 @@ export function CourseQuizzesStudentPage() {
                       Apertura: {formatDate(q.fecha_apertura)} · Cierre: {formatDate(q.fecha_cierre)}
                     </div>
                   </div>
-                  <Button onClick={() => void start(q)} className="shrink-0">
-                    Iniciar
+                  <Button onClick={() => void start(q)} className="shrink-0" disabled={startingQuizId !== null}>
+                    {startingQuizId === q.id ? "Iniciando…" : "Iniciar"}
                   </Button>
                 </div>
               </Card>

@@ -3,6 +3,7 @@ import type { AuthContext } from "../../common/types/express";
 import { withTransaction } from "../../config/db";
 import { QuizRepository } from "./quiz.repository";
 import type {
+  AdmissionResultItem,
   AttemptResult,
   CreateQuestionInput,
   CreateQuizInput,
@@ -114,6 +115,10 @@ function admissionPassed(score: number, quiz: Quiz): boolean {
   return admissionPercent(score, Number(quiz.puntaje_total)) + POINT_EPSILON >= Number(quiz.porcentaje_aprobacion);
 }
 
+function isDuplicateEntry(err: unknown): boolean {
+  return typeof err === "object" && err !== null && (err as { code?: unknown }).code === "ER_DUP_ENTRY";
+}
+
 export class QuizService {
   private readonly repo = new QuizRepository();
 
@@ -135,7 +140,8 @@ export class QuizService {
       if (admission.enabled && admission.quiz && admission.can_take_exam) return [admission.quiz];
       throw forbidden("No tienes acceso a este curso");
     }
-    return this.repo.listQuizzes(courseId, "publicado");
+    const quizzes = await this.repo.listQuizzes(courseId, "publicado");
+    return quizzes.filter((quiz) => quiz.tipo !== "admision");
   }
 
   async getQuiz(requester: AuthContext, courseId: number, quizId: number): Promise<Quiz> {
@@ -231,6 +237,24 @@ export class QuizService {
               ? "Ya alcanzaste el límite de oportunidades."
               : null,
     };
+  }
+
+  async listAdmissionResults(
+    requester: AuthContext,
+    courseId: number,
+    quizId: number
+  ): Promise<AdmissionResultItem[]> {
+    const course = await this.repo.findCourse(courseId);
+    if (!course) throw notFound("Curso no encontrado");
+    this.assertCanManage(requester, course.docente_id);
+
+    const quiz = await this.repo.findQuizById(courseId, quizId);
+    if (!quiz) throw notFound("Quiz no encontrado");
+    if (quiz.tipo !== "admision") {
+      throw badRequest("Este reporte solo aplica a exámenes de admisión");
+    }
+
+    return this.repo.listAdmissionResults(courseId, quizId);
   }
 
   async createQuiz(requester: AuthContext, courseId: number, input: CreateQuizInput): Promise<Quiz> {
@@ -477,31 +501,41 @@ export class QuizService {
     const variante = (await this.repo.quizHasVariants(quizId)) ? randomVariant() : null;
 
     const { intentoId, numeroIntento } = await withTransaction(async (conn) => {
-      const latestPaidAt =
-        quiz.tipo === "admision" && Number(quiz.precio_admision) > 0
-          ? await this.repo.latestPaidAdmissionAt(requester.userId, courseId)
-          : null;
-      const used =
-        quiz.tipo === "admision"
-          ? await this.repo.countAttemptsSince(conn, quizId, requester.userId, latestPaidAt)
-          : await this.repo.countAttempts(conn, quizId, requester.userId);
-      if (used >= quiz.intentos_permitidos) {
-        if (quiz.tipo === "admision") {
-          const bestScore = await this.repo.bestCompletedAttemptScore(conn, quizId, requester.userId);
-          if (bestScore !== null && admissionPassed(bestScore, quiz)) {
-            throw forbidden("Ya aprobaste el examen de admisión");
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const latestPaidAt =
+          quiz.tipo === "admision" && Number(quiz.precio_admision) > 0
+            ? await this.repo.latestPaidAdmissionAt(requester.userId, courseId)
+            : null;
+        const used =
+          quiz.tipo === "admision"
+            ? await this.repo.countAttemptsSince(conn, quizId, requester.userId, latestPaidAt)
+            : await this.repo.countAttempts(conn, quizId, requester.userId);
+        if (used >= quiz.intentos_permitidos) {
+          if (quiz.tipo === "admision") {
+            const bestScore = await this.repo.bestCompletedAttemptScore(conn, quizId, requester.userId);
+            if (bestScore !== null && admissionPassed(bestScore, quiz)) {
+              throw forbidden("Ya aprobaste el examen de admisión");
+            }
+            if (quiz.requiere_pago_reintento === 1) {
+              throw forbidden(
+                "No aprobaste el examen de admisión dentro de las oportunidades disponibles. Debes realizar un nuevo pago para habilitar más intentos."
+              );
+            }
           }
-          if (quiz.requiere_pago_reintento === 1) {
-            throw forbidden(
-              "No aprobaste el examen de admisión dentro de las oportunidades disponibles. Debes realizar un nuevo pago para habilitar más intentos."
-            );
-          }
+          throw forbidden("Ya alcanzaste el límite de intentos");
         }
-        throw forbidden("Ya alcanzaste el límite de intentos");
+
+        const numero = await this.repo.nextAttemptNumber(conn, quizId, requester.userId);
+        try {
+          const id = await this.repo.createAttempt(conn, quizId, requester.userId, numero, variante);
+          return { intentoId: id, numeroIntento: numero };
+        } catch (err) {
+          if (isDuplicateEntry(err) && attempt < 2) continue;
+          throw err;
+        }
       }
-      const numero = used + 1;
-      const id = await this.repo.createAttempt(conn, quizId, requester.userId, numero, variante);
-      return { intentoId: id, numeroIntento: numero };
+
+      throw forbidden("No se pudo iniciar el intento. Intenta de nuevo.");
     });
 
     return { intento_id: intentoId, quiz, preguntas: preguntas as QuizQuestionPublic[], numero_intento: numeroIntento, variante };

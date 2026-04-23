@@ -9,8 +9,19 @@ import { Spinner } from "../../components/ui/Spinner";
 import { ConfirmDeleteModal } from "../../components/ui/ConfirmDeleteModal";
 import { useAuth } from "../../hooks/useAuth";
 import type { ApiResponse } from "../../types/api";
-import type { Quiz, QuizKind, QuizQuestion, QuizStatus, QuestionType, QuestionStatus, QuizVariant } from "../../types/quiz";
+import type { PricingSetting } from "../../types/pricing";
+import type {
+  AdmissionResultItem,
+  Quiz,
+  QuizKind,
+  QuizQuestion,
+  QuizStatus,
+  QuestionType,
+  QuestionStatus,
+  QuizVariant,
+} from "../../types/quiz";
 import { getApiErrorMessage } from "../../utils/apiError";
+import { normalizePaymentLinkInput } from "../../utils/paymentLink";
 import type { CourseManageOutletContext } from "./courseManage.types";
 
 type Banner = { tone: "success" | "error"; text: string } | null;
@@ -30,6 +41,22 @@ function quizKindBadge(kind: QuizKind) {
   return kind === "admision" ? <Badge variant="amber">Admisión</Badge> : <Badge variant="blue">Quiz regular</Badge>;
 }
 
+function admissionOutcomeBadge(item: AdmissionResultItem) {
+  if (item.aprobado) return <Badge variant="green">Aprobado</Badge>;
+  if (item.completados > 0) return <Badge variant="rose">No aprobado</Badge>;
+  if (item.intentos > 0) return <Badge variant="amber">En proceso</Badge>;
+  if (item.pago_estado === "pagado") return <Badge variant="blue">Listo para iniciar</Badge>;
+  return <Badge variant="slate">Sin intento</Badge>;
+}
+
+function admissionPaymentBadge(status: AdmissionResultItem["pago_estado"]) {
+  if (status === "pagado") return <Badge variant="green">Pago aprobado</Badge>;
+  if (status === "pendiente") return <Badge variant="amber">Pago pendiente</Badge>;
+  if (status === "rechazado") return <Badge variant="rose">Pago rechazado</Badge>;
+  if (status === "reembolsado") return <Badge variant="slate">Reembolsado</Badge>;
+  return <Badge variant="slate">Sin pago</Badge>;
+}
+
 function toLocalInputValue(mysqlDatetime: string | null) {
   if (!mysqlDatetime) return "";
   return mysqlDatetime.replace(" ", "T").slice(0, 16);
@@ -38,6 +65,13 @@ function toMysqlDatetime(local: string) {
   if (!local) return null;
   const v = local.replace("T", " ");
   return v.length === 16 ? `${v}:00` : v;
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) return "—";
+  const date = new Date(value.replace(" ", "T"));
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("es-GT", { dateStyle: "medium", timeStyle: "short" });
 }
 
 function sortQuestions(items: QuizQuestion[]) {
@@ -191,6 +225,11 @@ export function CourseQuizzesPage() {
   const [qEditing, setQEditing] = useState<QuizQuestion | null>(null);
   const [pendingDeleteQuestion, setPendingDeleteQuestion] = useState<QuizQuestion | null>(null);
   const [qForm, setQForm] = useState<QuestionForm>(emptyQuestionForm);
+  const [admissionResults, setAdmissionResults] = useState<AdmissionResultItem[]>([]);
+  const [admissionResultsLoading, setAdmissionResultsLoading] = useState(false);
+  const [admissionResultsError, setAdmissionResultsError] = useState<string | null>(null);
+  const [pricingOptions, setPricingOptions] = useState<PricingSetting[]>([]);
+  const [pricingLoading, setPricingLoading] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -227,15 +266,51 @@ export function CourseQuizzesPage() {
     }
   }, [api, ctx.courseId]);
 
+  const loadAdmissionResults = useCallback(async (quizId: number) => {
+    try {
+      setAdmissionResultsLoading(true);
+      setAdmissionResultsError(null);
+      const res = await api.get<ApiResponse<AdmissionResultItem[]>>(
+        `/courses/${ctx.courseId}/quizzes/${quizId}/admission-results`
+      );
+      setAdmissionResults(res.data.data);
+    } catch (err) {
+      setAdmissionResults([]);
+      setAdmissionResultsError(getApiErrorMessage(err, "No se pudieron cargar los resultados de admisión."));
+    } finally {
+      setAdmissionResultsLoading(false);
+    }
+  }, [api, ctx.courseId]);
+
+  const loadPricingOptions = useCallback(async () => {
+    try {
+      setPricingLoading(true);
+      const res = await api.get<ApiResponse<PricingSetting[]>>("/pricing-settings", {
+        params: { estado: "activo" },
+      });
+      setPricingOptions(res.data.data);
+    } catch {
+      setPricingOptions([]);
+    } finally {
+      setPricingLoading(false);
+    }
+  }, [api]);
+
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void loadPricingOptions();
+  }, [loadPricingOptions]);
 
   useEffect(() => {
     if (!selected) {
       setForm(emptyQuizForm);
       setQuestions([]);
       setQError(null);
+      setAdmissionResults([]);
+      setAdmissionResultsError(null);
       setTab("config");
       return;
     }
@@ -258,8 +333,19 @@ export function CourseQuizzesPage() {
       estado: selected.estado,
     });
     void loadQuestions(selected.id);
+    setAdmissionResults([]);
+    setAdmissionResultsError(null);
     setTab("config");
   }, [loadQuestions, selected]);
+
+  useEffect(() => {
+    if (tab !== "results" || !selected || selected.tipo !== "admision") {
+      setAdmissionResults([]);
+      setAdmissionResultsError(null);
+      return;
+    }
+    void loadAdmissionResults(selected.id);
+  }, [loadAdmissionResults, selected, tab]);
 
   const createNew = () => {
     setSelectedId(null);
@@ -267,6 +353,8 @@ export function CourseQuizzesPage() {
     setForm({ ...emptyQuizForm, estado: "borrador" });
     setQuestions([]);
     setQError(null);
+    setAdmissionResults([]);
+    setAdmissionResultsError(null);
     setTab("config");
     setBanner(null);
   };
@@ -392,10 +480,35 @@ export function CourseQuizzesPage() {
     };
   }, [configuredTotalPoints, qEditing, qForm, questionStats.pointsSum]);
 
+  const selectedAdmissionPricing = useMemo(() => {
+    if (form.tipo !== "admision") return null;
+    const selectedPrice = Number(form.precio_admision || "0");
+    if (!Number.isFinite(selectedPrice) || selectedPrice <= 0) return null;
+    const selectedLink = normalizePaymentLinkInput(form.payment_link_admision);
+    return (
+      pricingOptions.find(
+        (item) =>
+          Number(item.precio) === selectedPrice &&
+          normalizePaymentLinkInput(item.payment_link) === selectedLink
+      ) ?? null
+    );
+  }, [form.payment_link_admision, form.precio_admision, form.tipo, pricingOptions]);
+
+  const selectAdmissionPricingOption = (item: PricingSetting) => {
+    setForm((prev) => ({
+      ...prev,
+      tipo: "admision",
+      precio_admision: String(item.precio),
+      payment_link_admision: item.payment_link,
+    }));
+  };
+
   const saveQuiz = async () => {
     try {
       setSaving(true);
       setBanner(null);
+      const admissionPaymentLink =
+        form.tipo === "admision" ? normalizePaymentLinkInput(form.payment_link_admision) : null;
       const payload = {
         titulo: form.titulo.trim(),
         descripcion: form.descripcion.trim() ? form.descripcion.trim() : null,
@@ -404,10 +517,7 @@ export function CourseQuizzesPage() {
         puntaje_total: Number(form.puntaje_total || "100"),
         porcentaje_aprobacion: Number(form.porcentaje_aprobacion || "60"),
         precio_admision: form.tipo === "admision" ? Number(form.precio_admision || "0") : 0,
-        payment_link_admision:
-          form.tipo === "admision" && form.payment_link_admision.trim()
-            ? form.payment_link_admision.trim()
-            : null,
+        payment_link_admision: admissionPaymentLink,
         tiempo_limite_minutos: form.tiempo_limite_minutos ? Number(form.tiempo_limite_minutos) : null,
         intentos_permitidos: Number(form.intentos_permitidos || "1"),
         requiere_pago_reintento: form.requiere_pago_reintento,
@@ -558,6 +668,13 @@ export function CourseQuizzesPage() {
 
   const quizTitle = selected?.titulo ?? (form.titulo.trim() ? form.titulo.trim() : "Nuevo quiz");
   const remainingPoints = roundPoints(Math.max(configuredTotalPoints - questionStats.pointsSum, 0));
+  const admissionStats = useMemo(() => {
+    const approved = admissionResults.filter((item) => item.aprobado).length;
+    const failed = admissionResults.filter((item) => !item.aprobado && item.completados > 0).length;
+    const pending = admissionResults.filter((item) => !item.aprobado && item.completados === 0).length;
+    const paid = admissionResults.filter((item) => item.pago_estado === "pagado").length;
+    return { approved, failed, pending, paid, total: admissionResults.length };
+  }, [admissionResults]);
 
   const hasItems = items.length > 0;
   const showForm = Boolean(selected) || creating;
@@ -818,6 +935,73 @@ export function CourseQuizzesPage() {
                     <div className="mt-1 text-xs font-semibold leading-5 text-amber-900">
                       El alumno debe alcanzar el porcentaje mínimo configurado. Si agota sus oportunidades sin aprobar, el sistema puede bloquear nuevos intentos e indicar que debe pagar nuevamente.
                     </div>
+                    <div className="mt-4 rounded-2xl border border-amber-200/80 bg-white/80 p-3 shadow-sm shadow-amber-900/5">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div className="text-xs font-extrabold uppercase tracking-[0.18em] text-amber-900">
+                            Botones de precio
+                          </div>
+                          <div className="mt-1 text-xs font-semibold leading-5 text-amber-900/80">
+                            Selecciona un precio activo para copiar automáticamente el monto y el botón BI Pay del examen.
+                          </div>
+                        </div>
+                        {selectedAdmissionPricing ? (
+                          <Badge variant="green" className="mt-0.5">
+                            {selectedAdmissionPricing.nombre}
+                          </Badge>
+                        ) : null}
+                      </div>
+
+                      {pricingLoading ? (
+                        <div className="mt-3 rounded-2xl border border-dashed border-amber-200 bg-amber-50/70 px-4 py-3 text-xs font-bold text-amber-900">
+                          Cargando botones disponibles...
+                        </div>
+                      ) : pricingOptions.length === 0 ? (
+                        <div className="mt-3 rounded-2xl border border-dashed border-amber-200 bg-amber-50/70 px-4 py-3 text-xs font-bold text-amber-900">
+                          No hay botones de precio activos. Puedes ingresar el monto y enlace manualmente.
+                        </div>
+                      ) : (
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                          {pricingOptions.map((item) => {
+                            const active =
+                              selectedAdmissionPricing?.id === item.id ||
+                              (Number(form.precio_admision) === Number(item.precio) &&
+                                normalizePaymentLinkInput(form.payment_link_admision) ===
+                                  normalizePaymentLinkInput(item.payment_link));
+                            return (
+                              <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => selectAdmissionPricingOption(item)}
+                                className={`group flex min-h-[82px] items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                                  active
+                                    ? "border-sky-300 bg-gradient-to-br from-sky-50 to-cyan-50 shadow-sm shadow-sky-900/10"
+                                    : "border-slate-200 bg-white hover:border-sky-200 hover:bg-sky-50/60"
+                                }`}
+                              >
+                                <span className="min-w-0">
+                                  <span className="block text-base font-black text-slate-950">
+                                    Q {Number(item.precio).toFixed(2)}
+                                  </span>
+                                  <span className="mt-1 block truncate text-xs font-bold text-slate-500">
+                                    {item.nombre}
+                                  </span>
+                                </span>
+                                <span
+                                  className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-black transition ${
+                                    active
+                                      ? "bg-sky-600 text-white"
+                                      : "bg-slate-100 text-slate-600 group-hover:bg-sky-100 group-hover:text-sky-700"
+                                  }`}
+                                >
+                                  {active ? "Seleccionado" : "Usar"}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                     <div className="mt-4 grid gap-4 md:grid-cols-2">
                       <div>
                         <div className="text-xs font-extrabold text-slate-700">Porcentaje para aprobar</div>
@@ -989,6 +1173,113 @@ export function CourseQuizzesPage() {
                   Resumen del quiz y control del puntaje total configurado.
                 </div>
               </div>
+
+              {selected?.tipo === "admision" ? (
+                <Card className="border-cyan-100 bg-cyan-50/50 p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-black text-slate-900">Filtro de admisión</div>
+                      <div className="mt-1 max-w-2xl text-sm text-slate-600">
+                        Este examen es independiente de la zona del curso. Aquí solo verificas quién aprobó,
+                        quién no aprobó y quién aún no completa el filtro.
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => void loadAdmissionResults(selected.id)}
+                      disabled={admissionResultsLoading}
+                    >
+                      {admissionResultsLoading ? "Actualizando…" : "Actualizar"}
+                    </Button>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="rounded-2xl border border-cyan-100 bg-white p-4">
+                      <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Aprobados</div>
+                      <div className="mt-2 text-2xl font-black text-emerald-700">{admissionStats.approved}</div>
+                    </div>
+                    <div className="rounded-2xl border border-cyan-100 bg-white p-4">
+                      <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500">No aprobados</div>
+                      <div className="mt-2 text-2xl font-black text-rose-700">{admissionStats.failed}</div>
+                    </div>
+                    <div className="rounded-2xl border border-cyan-100 bg-white p-4">
+                      <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Pendientes</div>
+                      <div className="mt-2 text-2xl font-black text-amber-700">{admissionStats.pending}</div>
+                    </div>
+                    <div className="rounded-2xl border border-cyan-100 bg-white p-4">
+                      <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Pagos aprobados</div>
+                      <div className="mt-2 text-2xl font-black text-blue-700">{admissionStats.paid}</div>
+                    </div>
+                  </div>
+
+                  {admissionResultsLoading ? (
+                    <div className="mt-6 grid place-items-center rounded-2xl border border-cyan-100 bg-white py-8">
+                      <Spinner />
+                    </div>
+                  ) : admissionResultsError ? (
+                    <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800">
+                      {admissionResultsError}
+                    </div>
+                  ) : admissionStats.total === 0 ? (
+                    <div className="mt-6 rounded-2xl border border-cyan-100 bg-white p-5 text-sm text-slate-600">
+                      Aún no hay alumnos con pago o intento registrado para este examen de admisión.
+                    </div>
+                  ) : (
+                    <div className="mt-6 grid gap-3">
+                      {admissionResults.map((item) => {
+                        const score =
+                          item.mejor_puntaje === null
+                            ? "—"
+                            : `${formatPoints(item.mejor_puntaje)} / ${formatPoints(item.puntaje_total)}`;
+                        return (
+                          <div
+                            key={item.usuario_id}
+                            className="rounded-2xl border border-cyan-100 bg-white p-4 shadow-sm shadow-cyan-950/5"
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-sm font-black text-slate-900">
+                                  {item.apellidos}, {item.nombres}
+                                </div>
+                                <div className="mt-1 truncate text-sm text-slate-600">{item.correo}</div>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {admissionOutcomeBadge(item)}
+                                {admissionPaymentBadge(item.pago_estado)}
+                              </div>
+                            </div>
+                            <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                              <div>
+                                <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Mejor nota</div>
+                                <div className="mt-1 font-black text-slate-900">{score}</div>
+                              </div>
+                              <div>
+                                <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Porcentaje</div>
+                                <div className="mt-1 font-black text-slate-900">
+                                  {item.porcentaje === null ? "—" : `${formatPoints(item.porcentaje)}%`}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Intentos</div>
+                                <div className="mt-1 font-black text-slate-900">
+                                  {item.completados} completados / {item.intentos} iniciados
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Último movimiento</div>
+                                <div className="mt-1 font-black text-slate-900">
+                                  {formatDateTime(item.fecha_ultimo_intento ?? item.fecha_ultimo_pago)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </Card>
+              ) : null}
 
               <div className="grid gap-3 md:grid-cols-2">
                 <Card className="p-5">
