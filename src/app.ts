@@ -21,7 +21,7 @@ const CSP_FRAME_SOURCES = [
 ];
 const CSP_SCRIPT_SOURCES =
   env.NODE_ENV === "production" ? ["'self'"] : ["'self'", "'unsafe-eval'"];
-const CSP_STYLE_SOURCES = ["'self'", "'unsafe-inline'"];
+const CSP_STYLE_SOURCES = ["'self'"];
 
 const parseOrigin = (raw: string): string | null => {
   try {
@@ -88,7 +88,7 @@ app.use(
         scriptSrcAttr: ["'none'"],
         styleSrc: CSP_STYLE_SOURCES,
         styleSrcElem: CSP_STYLE_SOURCES,
-        styleSrcAttr: ["'unsafe-inline'"],
+        styleSrcAttr: ["'none'"],
         imgSrc: ["'self'", "data:", "blob:", "https:"],
         fontSrc: ["'self'", "data:"],
         connectSrc: cspConnectSources,

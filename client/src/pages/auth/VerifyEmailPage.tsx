@@ -23,10 +23,7 @@ export function VerifyEmailPage() {
   );
 
   useEffect(() => {
-    if (!token) {
-      setStatus("error");
-      return;
-    }
+    if (!token) return;
 
     let active = true;
 

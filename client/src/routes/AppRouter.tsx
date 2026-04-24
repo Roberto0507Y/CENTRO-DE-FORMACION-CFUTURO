@@ -1,20 +1,11 @@
-import { Suspense, lazy, type ComponentType, type ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
 import { Spinner } from "../components/ui/Spinner";
 import { PublicLayout } from "../layouts/PublicLayout";
 import { HomePage } from "../pages/public/HomePage";
+import { lazyNamed } from "../utils/lazyNamed";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { RouteErrorPage } from "./RouteErrorPage";
-
-function lazyNamed<TModule extends Record<string, ComponentType<any>>, TKey extends keyof TModule>(
-  factory: () => Promise<TModule>,
-  key: TKey,
-) {
-  return lazy(async () => {
-    const mod = await factory();
-    return { default: mod[key] as ComponentType<any> };
-  });
-}
 
 function RouteLoadingFallback() {
   return (

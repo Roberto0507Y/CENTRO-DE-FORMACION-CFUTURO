@@ -119,7 +119,6 @@ export function NotificationsBell({ api, role }: { api: AxiosInstance; role: Not
       });
     }, 5 * 60000);
     return () => window.clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load, open]);
 
   useEffect(() => {

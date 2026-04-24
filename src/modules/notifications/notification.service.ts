@@ -1,8 +1,12 @@
 import type { AuthContext } from "../../common/types/express";
 import { notFound } from "../../common/errors/httpErrors";
+import { sendMail } from "../../common/services/mailer.service";
 import { withTransaction } from "../../config/db";
+import { env } from "../../config/env";
+import { buildPaymentStatusContent } from "./payment-status-content";
 import { NotificationRepository } from "./notification.repository";
 import type { ListNotificationsQuery, NotificationListResponse } from "./notification.types";
+import type { PaymentConcept } from "../payments/payment.types";
 
 function formatPoints(value: number | string | null | undefined): string {
   const numeric = Number(value);
@@ -120,25 +124,26 @@ export class NotificationService {
 
   async notifyStudentPaymentStatus(params: {
     studentId: number;
+    studentEmail: string;
+    studentName: string;
     paymentId: number;
     courseTitle: string;
+    concepto: PaymentConcept;
     estado: "pagado" | "rechazado" | "reembolsado";
     observaciones?: string | null;
   }): Promise<void> {
+    const { title, message, subject, text, html } = buildPaymentStatusContent({
+      ...params,
+      frontendUrl: env.FRONTEND_URL,
+    });
+
     try {
-      const reason = params.observaciones?.trim();
-      const isApproved = params.estado === "pagado";
-      const isRefunded = params.estado === "reembolsado";
       await withTransaction(async (conn) => {
         await this.repo.createMany(conn, [
           {
             usuario_id: params.studentId,
-            titulo: isApproved ? "Pago aprobado" : isRefunded ? "Pago reembolsado" : "Pago rechazado",
-            mensaje: isApproved
-              ? `Tu pago para “${params.courseTitle}” fue aprobado. Ya tienes acceso al curso.`
-              : isRefunded
-                ? `Tu pago para “${params.courseTitle}” fue reembolsado y el acceso quedó cancelado.${reason ? ` Motivo: ${reason}` : ""}`
-                : `Tu pago para “${params.courseTitle}” fue rechazado.${reason ? ` Motivo: ${reason}` : " Revisa el comprobante o intenta subirlo nuevamente."}`,
+            titulo: title,
+            mensaje: message,
             tipo: "pago",
             referencia_tipo: "pagos",
             referencia_id: params.paymentId,
@@ -148,5 +153,22 @@ export class NotificationService {
     } catch (err) {
       console.warn("No se pudo crear la notificación de pago", err);
     }
+
+    if (!this.canSendPaymentStatusEmail()) return;
+
+    try {
+      await sendMail({
+        to: params.studentEmail,
+        subject,
+        text,
+        html,
+      });
+    } catch (err) {
+      console.warn("No se pudo enviar el correo de estado de pago", err);
+    }
+  }
+
+  private canSendPaymentStatusEmail(): boolean {
+    return Boolean(env.SMTP_HOST && env.SMTP_PORT && env.SMTP_USER && env.SMTP_PASSWORD);
   }
 }

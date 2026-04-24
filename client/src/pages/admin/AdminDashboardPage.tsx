@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "../../components/ui/Card";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { Button } from "../../components/ui/Button";
@@ -65,28 +65,25 @@ export function AdminDashboardPage() {
   const [healthCheckedAt, setHealthCheckedAt] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<AdminMetricsResponse["data"] | null>(null);
 
-  const loadOverview = useCallback(
-    async (signal?: AbortSignal) => {
-      const checkedAt = new Date().toISOString();
-      try {
-        const metricsResult = await api.get<AdminMetricsResponse>("/admin/metrics", { signal });
-        if (signal?.aborted) return;
-        setMetrics(metricsResult.data.data);
-      } catch {
-        if (signal?.aborted) return;
-        setMetrics(null);
-      }
-
-      setHealthCheckedAt(checkedAt);
-    },
-    [api],
-  );
-
   useEffect(() => {
     const controller = new AbortController();
-    void loadOverview(controller.signal);
+    const checkedAt = new Date().toISOString();
+
+    void api
+      .get<AdminMetricsResponse>("/admin/metrics", { signal: controller.signal })
+      .then((metricsResult) => {
+        if (controller.signal.aborted) return;
+        setMetrics(metricsResult.data.data);
+        setHealthCheckedAt(checkedAt);
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setMetrics(null);
+        setHealthCheckedAt(checkedAt);
+      });
+
     return () => controller.abort();
-  }, [loadOverview]);
+  }, [api]);
 
   const greeting = useMemo(() => {
     const name = user?.nombres?.trim() || "Admin";

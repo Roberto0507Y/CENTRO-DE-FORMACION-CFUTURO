@@ -304,8 +304,11 @@ export class PaymentService {
     if (estado === "pagado" || estado === "rechazado" || estado === "reembolsado") {
       void this.notifications.notifyStudentPaymentStatus({
         studentId: updated.usuario.id,
+        studentEmail: updated.usuario.correo,
+        studentName: `${updated.usuario.nombres} ${updated.usuario.apellidos}`.trim(),
         paymentId: updated.id,
         courseTitle: updated.cursos ?? "tu curso",
+        concepto: updated.concepto,
         estado,
         observaciones: updated.observaciones,
       });

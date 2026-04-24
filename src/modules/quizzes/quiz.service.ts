@@ -2,6 +2,13 @@ import { badRequest, forbidden, notFound } from "../../common/errors/httpErrors"
 import type { AuthContext } from "../../common/types/express";
 import { withTransaction } from "../../config/db";
 import { QuizRepository } from "./quiz.repository";
+import {
+  admissionCanTakeExam,
+  admissionNeedsNewPayment,
+  admissionPassed,
+  admissionPercent,
+  remainingAdmissionAttempts,
+} from "./quiz-admission";
 import type {
   AdmissionResultItem,
   AttemptResult,
@@ -106,15 +113,6 @@ function normalizeOptionalAnswer(value: string | null | undefined): string | nul
   return value?.trim() || null;
 }
 
-function admissionPercent(score: number, total: number): number {
-  if (!Number.isFinite(total) || total <= 0) return 0;
-  return Math.round(((score / total) * 100 + Number.EPSILON) * 100) / 100;
-}
-
-function admissionPassed(score: number, quiz: Quiz): boolean {
-  return admissionPercent(score, Number(quiz.puntaje_total)) + POINT_EPSILON >= Number(quiz.porcentaje_aprobacion);
-}
-
 function isDuplicateEntry(err: unknown): boolean {
   return typeof err === "object" && err !== null && (err as { code?: unknown }).code === "ER_DUP_ENTRY";
 }
@@ -206,15 +204,25 @@ export class QuizService {
       : null;
     const hasPaid = !requiresPayment || Boolean(latestPaidAt);
     const bestScore = await this.repo.bestCompletedAttemptScoreForQuiz(quiz.id, requester.userId);
-    const passed = bestScore !== null && admissionPassed(bestScore, quiz);
+    const passed =
+      bestScore !== null &&
+      admissionPassed(bestScore, Number(quiz.puntaje_total), Number(quiz.porcentaje_aprobacion));
     const attemptsUsed = await withTransaction((conn) =>
       this.repo.countAttemptsSince(conn, quiz.id, requester.userId, latestPaidAt)
     );
-    const attemptsRemaining = Math.max(Number(quiz.intentos_permitidos) - attemptsUsed, 0);
+    const attemptsRemaining = remainingAdmissionAttempts(Number(quiz.intentos_permitidos), attemptsUsed);
     const availability = nowIsWithinWindow(quiz);
-    const exhausted = attemptsRemaining <= 0;
-    const needsNewPayment = !passed && exhausted && quiz.requiere_pago_reintento === 1;
-    const canTakeExam = !passed && hasPaid && !exhausted && availability.ok;
+    const needsNewPayment = admissionNeedsNewPayment({
+      passed,
+      attemptsRemaining,
+      requiresPaymentRetry: quiz.requiere_pago_reintento === 1,
+    });
+    const canTakeExam = admissionCanTakeExam({
+      passed,
+      hasPaid,
+      attemptsRemaining,
+      available: availability.ok,
+    });
 
     return {
       enabled: true,
@@ -233,7 +241,7 @@ export class QuizService {
           ? "Debes pagar el examen de admisión para habilitar tus oportunidades."
           : !availability.ok
             ? availability.message ?? "El examen no está disponible."
-            : exhausted
+            : attemptsRemaining <= 0
               ? "Ya alcanzaste el límite de oportunidades."
               : null,
     };
@@ -488,7 +496,10 @@ export class QuizService {
         throw forbidden("Debes pagar el examen de admisión antes de iniciarlo");
       }
       const bestScore = await this.repo.bestCompletedAttemptScoreForQuiz(quizId, requester.userId);
-      if (bestScore !== null && admissionPassed(bestScore, quiz)) {
+      if (
+        bestScore !== null &&
+        admissionPassed(bestScore, Number(quiz.puntaje_total), Number(quiz.porcentaje_aprobacion))
+      ) {
         throw forbidden("Ya aprobaste el examen de admisión");
       }
     } else {
@@ -513,7 +524,10 @@ export class QuizService {
         if (used >= quiz.intentos_permitidos) {
           if (quiz.tipo === "admision") {
             const bestScore = await this.repo.bestCompletedAttemptScore(conn, quizId, requester.userId);
-            if (bestScore !== null && admissionPassed(bestScore, quiz)) {
+            if (
+              bestScore !== null &&
+              admissionPassed(bestScore, Number(quiz.puntaje_total), Number(quiz.porcentaje_aprobacion))
+            ) {
               throw forbidden("Ya aprobaste el examen de admisión");
             }
             if (quiz.requiere_pago_reintento === 1) {
@@ -632,7 +646,7 @@ export class QuizService {
       puntaje_total: Number(quiz.puntaje_total),
       porcentaje_obtenido: porcentajeObtenido,
       porcentaje_aprobacion: isAdmission ? Number(quiz.porcentaje_aprobacion) : null,
-      aprobado: isAdmission ? porcentajeObtenido + POINT_EPSILON >= Number(quiz.porcentaje_aprobacion) : null,
+      aprobado: isAdmission ? admissionPassed(result.score, Number(quiz.puntaje_total), Number(quiz.porcentaje_aprobacion)) : null,
       detalle: quiz.mostrar_resultado_inmediato === 1 ? result.detalle : undefined,
     };
   }
