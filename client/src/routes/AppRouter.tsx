@@ -184,6 +184,10 @@ const CourseQuizzesPage = lazyNamed(
   () => import("../pages/shared/CourseQuizzesPage"),
   "CourseQuizzesPage",
 );
+const CourseAdmissionsPage = lazyNamed(
+  () => import("../pages/shared/CourseAdmissionsPage"),
+  "CourseAdmissionsPage",
+);
 const CourseMaterialsPage = lazyNamed(
   () => import("../pages/shared/CourseMaterialsPage"),
   "CourseMaterialsPage",
@@ -274,6 +278,7 @@ const router = createBrowserRouter([
           { path: "forum", element: suspenseElement(<CourseForumPage />) },
           { path: "attendance", element: suspenseElement(<CourseAttendancePage />) },
           { path: "quizzes", element: suspenseElement(<CourseQuizzesPage />) },
+          { path: "admissions", element: suspenseElement(<CourseAdmissionsPage />) },
         ],
       },
     ],
@@ -313,6 +318,7 @@ const router = createBrowserRouter([
           { path: "forum", element: suspenseElement(<CourseForumPage />) },
           { path: "attendance", element: suspenseElement(<CourseAttendancePage />) },
           { path: "quizzes", element: suspenseElement(<CourseQuizzesPage />) },
+          { path: "admissions", element: suspenseElement(<CourseAdmissionsPage />) },
         ],
       },
     ],

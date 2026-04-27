@@ -3,6 +3,12 @@ import type { AxiosInstance } from "axios";
 import { clearCachedCsrfToken, createApiClient, hydrateCsrfToken } from "../api/axios";
 import type { ApiResponse } from "../types/api";
 import type { RegisterResponse, User, WebAuthResponse } from "../types/auth";
+import {
+  initializeTabSessionLifecycle,
+  markTabActive,
+  markTabClosing,
+  tabSessionHeartbeatMs,
+} from "../utils/tabSessionLifecycle";
 
 type AuthContextValue = {
   token: string | null;
@@ -42,17 +48,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
+  const performServerLogout = useCallback(async () => {
+    try {
+      await api.post("/auth/logout");
+    } catch {
+      // Si falla la red, volveremos a validar la sesión al recargar.
+    } finally {
+      clearCachedCsrfToken();
+    }
+  }, [api]);
+
   const logout = useCallback(() => {
     clearAuthState();
-    void api
-      .post("/auth/logout")
-      .catch(() => {
-        // Si falla la red, volveremos a validar la sesión al recargar.
-      })
-      .finally(() => {
-        clearCachedCsrfToken();
-      });
-  }, [api, clearAuthState]);
+    void performServerLogout();
+  }, [clearAuthState, performServerLogout]);
 
   const refreshMe = useCallback(async () => {
     if (refreshPromiseRef.current) {
@@ -102,9 +111,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       pathname === "/contact" ||
       pathname === "/courses" ||
       pathname.startsWith("/courses/");
+    const {
+      tabId,
+      shouldLogoutOnFreshOpen,
+    } = typeof window !== "undefined"
+      ? initializeTabSessionLifecycle()
+      : { tabId: "", shouldLogoutOnFreshOpen: false };
+
+    const handleTabActive = () => {
+      if (!tabId) return;
+      markTabActive(tabId);
+    };
+
+    const handleTabClosing = () => {
+      if (!tabId) return;
+      markTabClosing(tabId);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        handleTabActive();
+      }
+    };
+
+    const heartbeatId =
+      typeof window !== "undefined" && tabId
+        ? window.setInterval(handleTabActive, tabSessionHeartbeatMs)
+        : null;
+
+    if (typeof window !== "undefined" && tabId) {
+      window.addEventListener("focus", handleTabActive);
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+      window.addEventListener("pagehide", handleTabClosing);
+      window.addEventListener("beforeunload", handleTabClosing);
+    }
 
     const run = async () => {
       try {
+        if (shouldLogoutOnFreshOpen) {
+          await performServerLogout();
+          clearAuthState();
+          return;
+        }
+
         await refreshMe();
       } catch {
         clearAuthState();
@@ -115,13 +164,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (!deferBootstrap) {
       void run();
-      return;
+      return () => {
+        if (heartbeatId !== null) {
+          window.clearInterval(heartbeatId);
+        }
+
+        if (typeof window !== "undefined" && tabId) {
+          window.removeEventListener("focus", handleTabActive);
+          document.removeEventListener("visibilitychange", handleVisibilityChange);
+          window.removeEventListener("pagehide", handleTabClosing);
+          window.removeEventListener("beforeunload", handleTabClosing);
+        }
+      };
     }
 
     setIsLoading(false);
 
     if (typeof window === "undefined") {
-      return;
+      return () => {
+        if (heartbeatId !== null) {
+          window.clearInterval(heartbeatId);
+        }
+      };
+    }
+
+    if (shouldLogoutOnFreshOpen) {
+      void performServerLogout().finally(() => {
+        clearAuthState();
+      });
+
+      return () => {
+        if (heartbeatId !== null) {
+          window.clearInterval(heartbeatId);
+        }
+
+        window.removeEventListener("focus", handleTabActive);
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+        window.removeEventListener("pagehide", handleTabClosing);
+        window.removeEventListener("beforeunload", handleTabClosing);
+      };
     }
 
     const idleCallback = window.requestIdleCallback?.(
@@ -143,6 +224,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         : null;
 
     return () => {
+      if (heartbeatId !== null) {
+        window.clearInterval(heartbeatId);
+      }
+
+      window.removeEventListener("focus", handleTabActive);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", handleTabClosing);
+      window.removeEventListener("beforeunload", handleTabClosing);
+
       if (idleCallback !== undefined && typeof window.cancelIdleCallback === "function") {
         window.cancelIdleCallback(idleCallback);
       }
@@ -151,8 +241,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         window.clearTimeout(timeoutId);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [clearAuthState, performServerLogout, refreshMe]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

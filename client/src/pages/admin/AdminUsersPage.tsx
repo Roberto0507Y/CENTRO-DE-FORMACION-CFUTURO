@@ -102,9 +102,6 @@ function UserDetailModal({ user, onClose }: { user: User | null; onClose: () => 
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Badge variant={role.variant}>{role.label}</Badge>
                   <Badge variant={estado.variant}>{estado.label}</Badge>
-                  <span className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-bold leading-none text-white">
-                    ID #{user.id}
-                  </span>
                 </div>
               </div>
             </div>
@@ -341,8 +338,7 @@ export function AdminUsersPage() {
                             <Avatar name={`${u.nombres} ${u.apellidos}`} src={u.foto_url} size={44} />
                             <div className="min-w-0">
                               <div className="line-clamp-2 text-sm font-black leading-5 text-slate-900 dark:text-slate-100">
-                                {u.nombres} {u.apellidos}{" "}
-                                <span className="text-xs font-bold text-slate-500">#{u.id}</span>
+                                {u.nombres} {u.apellidos}
                               </div>
                               <div className="mt-1 break-all text-sm text-slate-600 dark:text-slate-300">{u.correo}</div>
                               <div className="mt-2 flex flex-wrap gap-2">

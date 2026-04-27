@@ -1,7 +1,14 @@
 import type { Response } from "express";
 import type { AuthedRequest } from "../../common/types/express";
 import { QuizService } from "./quiz.service";
-import type { CreateQuestionInput, CreateQuizInput, SubmitQuizInput, UpdateQuestionInput, UpdateQuizInput } from "./quiz.types";
+import type {
+  CreateQuestionInput,
+  CreateQuizInput,
+  SubmitQuizInput,
+  UpdateAdmissionAttemptScoreInput,
+  UpdateQuestionInput,
+  UpdateQuizInput,
+} from "./quiz.types";
 
 export class QuizController {
   private readonly service = new QuizService();
@@ -29,6 +36,28 @@ export class QuizController {
     const courseId = Number(req.params.courseId);
     const quizId = Number(req.params.quizId);
     const data = await this.service.listAdmissionResults(req.auth!, courseId, quizId);
+    res.status(200).json({ ok: true, data });
+  };
+
+  admissionStudentDetail = async (req: AuthedRequest, res: Response) => {
+    const courseId = Number(req.params.courseId);
+    const quizId = Number(req.params.quizId);
+    const studentId = Number(req.params.studentId);
+    const data = await this.service.getAdmissionStudentDetail(req.auth!, courseId, quizId, studentId);
+    res.status(200).json({ ok: true, data });
+  };
+
+  updateAdmissionAttemptScore = async (req: AuthedRequest, res: Response) => {
+    const courseId = Number(req.params.courseId);
+    const quizId = Number(req.params.quizId);
+    const attemptId = Number(req.params.attemptId);
+    const data = await this.service.updateAdmissionAttemptScore(
+      req.auth!,
+      courseId,
+      quizId,
+      attemptId,
+      req.body as UpdateAdmissionAttemptScoreInput
+    );
     res.status(200).json({ ok: true, data });
   };
 

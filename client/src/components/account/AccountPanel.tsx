@@ -152,13 +152,15 @@ export function AccountPanel({ subtitle }: { subtitle?: string }) {
 
             <div className="mt-6 grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-2xl border border-slate-200 bg-slate-50/85 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/60">
-                <div className="text-xs font-bold text-slate-500 dark:text-slate-400">ID</div>
-                <div className="mt-1 font-extrabold text-slate-900 dark:text-slate-100">#{user.id}</div>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/85 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/60">
                 <div className="text-xs font-bold text-slate-500 dark:text-slate-400">Último acceso</div>
                 <div className="mt-1 text-xs font-bold text-slate-900 dark:text-slate-100">
                   {formatDateTime(user.ultimo_login)}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/85 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/60">
+                <div className="text-xs font-bold text-slate-500 dark:text-slate-400">Estado de cuenta</div>
+                <div className="mt-1 font-extrabold text-slate-900 dark:text-slate-100">
+                  {state.label}
                 </div>
               </div>
               <div className="col-span-2 rounded-2xl border border-slate-200 bg-slate-50/85 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/60">

@@ -33,6 +33,7 @@ export type QuizQuestion = {
   quiz_id: number;
   enunciado: string;
   tipo: QuestionType;
+  variante_objetivo: QuizVariant | null;
   opcion_a: string | null;
   opcion_b: string | null;
   opcion_c: string | null;
@@ -110,4 +111,44 @@ export type AdmissionResultItem = {
   aprobado: boolean;
   fecha_ultimo_intento: string | null;
   fecha_ultimo_pago: string | null;
+};
+
+export type AdmissionAttemptAnswerItem = {
+  intento_id: number;
+  pregunta_id: number;
+  orden: number;
+  enunciado: string;
+  tipo: QuestionType;
+  respuesta_usuario: string | null;
+  respuesta_correcta_publicada: string;
+  es_correcta: boolean;
+  puntos_pregunta: number;
+  puntos_obtenidos: number;
+  explicacion: string | null;
+};
+
+export type AdmissionAttemptDetail = {
+  id: number;
+  estudiante_id: number;
+  numero_intento: number;
+  variante: QuizVariant | null;
+  puntaje_obtenido: number | null;
+  puntaje_total: number;
+  porcentaje_obtenido: number | null;
+  porcentaje_aprobacion: number;
+  aprobado: boolean;
+  completado: boolean;
+  fecha_inicio: string;
+  fecha_fin: string | null;
+  created_at: string;
+  updated_at: string;
+  respuestas: AdmissionAttemptAnswerItem[];
+};
+
+export type AdmissionStudentDetail = AdmissionResultItem & {
+  quiz_id: number;
+  quiz_titulo: string;
+  intentos_permitidos: number;
+  requiere_pago_reintento: boolean;
+  intentos_detalle: AdmissionAttemptDetail[];
 };

@@ -332,6 +332,11 @@ export function CourseManageLayout({ base }: { base: "admin" | "teacher" | "stud
         label: "Quizzes",
         iconPath: "M9 11h6M9 15h6M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z",
       },
+      {
+        to: `/${base}/course/${id}/admissions`,
+        label: "Admisión",
+        iconPath: "M12 3 4 7v6c0 5 3.4 9.4 8 10 4.6-.6 8-5 8-10V7l-8-4Z M9.5 12.5l1.8 1.8 3.7-4.1",
+      },
     ];
   }, [admissionOnly, admissionStatusLoading, base, id]);
 
@@ -402,9 +407,10 @@ export function CourseManageLayout({ base }: { base: "admin" | "teacher" | "stud
       courseId: id,
       courseTitle: course?.titulo ?? `Curso #${id}`,
       courseSlug: course?.slug,
+      base,
       admissionOnly,
     }),
-    [admissionOnly, course?.slug, course?.titulo, id],
+    [admissionOnly, base, course?.slug, course?.titulo, id],
   );
 
   return (

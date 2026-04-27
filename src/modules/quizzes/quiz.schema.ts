@@ -51,6 +51,14 @@ export const attemptParamsSchema = z
   })
   .strict();
 
+export const admissionStudentParamsSchema = z
+  .object({
+    courseId: idFromParam("courseId"),
+    quizId: idFromParam("quizId"),
+    studentId: idFromParam("studentId"),
+  })
+  .strict();
+
 export const createQuizBodySchema = z
   .object({
     modulo_id: z.number().int().positive().nullable().optional(),
@@ -99,6 +107,7 @@ export const createQuestionBodySchema = z
   .object({
     enunciado: z.string().min(1).max(20000),
     tipo: z.enum(["opcion_unica", "verdadero_falso", "respuesta_corta"]),
+    variante_objetivo: z.enum(["A", "B", "C", "D"]).nullable().optional(),
     opcion_a: z.string().max(255).nullable().optional(),
     opcion_b: z.string().max(255).nullable().optional(),
     opcion_c: z.string().max(255).nullable().optional(),
@@ -119,6 +128,7 @@ export const updateQuestionBodySchema = z
   .object({
     enunciado: z.string().min(1).max(20000).optional(),
     tipo: z.enum(["opcion_unica", "verdadero_falso", "respuesta_corta"]).optional(),
+    variante_objetivo: z.enum(["A", "B", "C", "D"]).nullable().optional(),
     opcion_a: z.string().max(255).nullable().optional(),
     opcion_b: z.string().max(255).nullable().optional(),
     opcion_c: z.string().max(255).nullable().optional(),
@@ -150,5 +160,11 @@ export const submitQuizBodySchema = z
           .strict()
       )
       .min(1, "Debes enviar respuestas"),
+  })
+  .strict();
+
+export const updateAdmissionAttemptScoreBodySchema = z
+  .object({
+    puntaje_obtenido: numberFromBody("puntaje_obtenido").pipe(z.number().min(0).max(100000)),
   })
   .strict();

@@ -107,6 +107,11 @@ function hasQuestionVariants(question: Pick<
   ].some((answer) => (answer ?? "").trim().length > 0);
 }
 
+function questionTargetVariantBadge(variant: QuizVariant | null) {
+  if (!variant) return <Badge variant="slate">Todas las variantes</Badge>;
+  return <Badge variant="amber">Variante {variant}</Badge>;
+}
+
 type QuizForm = {
   titulo: string;
   descripcion: string;
@@ -128,6 +133,7 @@ type QuizForm = {
 type QuestionForm = {
   enunciado: string;
   tipo: QuestionType;
+  variante_objetivo: "" | QuizVariant;
   opcion_a: string;
   opcion_b: string;
   opcion_c: string;
@@ -164,6 +170,7 @@ const emptyQuizForm: QuizForm = {
 const emptyQuestionForm: QuestionForm = {
   enunciado: "",
   tipo: "opcion_unica",
+  variante_objetivo: "",
   opcion_a: "",
   opcion_b: "",
   opcion_c: "",
@@ -379,6 +386,26 @@ export function CourseQuizzesPage() {
     return { total, activeCount, pointsSum, byType };
   }, [questions]);
 
+  const usesExamQuestionVariants = useMemo(
+    () => (selected?.tipo ?? form.tipo) === "admision",
+    [form.tipo, selected]
+  );
+
+  const variantPointTotals = useMemo(() => {
+    const totals: Record<QuizVariant, number> = { A: 0, B: 0, C: 0, D: 0 };
+    for (const question of questions) {
+      if (question.estado !== "activo") continue;
+      const points = Number(question.puntos ?? 0);
+      if (!Number.isFinite(points) || points <= 0) continue;
+      for (const variant of ["A", "B", "C", "D"] as QuizVariant[]) {
+        if (!question.variante_objetivo || question.variante_objetivo === variant) {
+          totals[variant] = roundPoints(totals[variant] + points);
+        }
+      }
+    }
+    return totals;
+  }, [questions]);
+
   const questionValidation = useMemo(() => {
     const errors: Record<string, string> = {};
 
@@ -400,7 +427,7 @@ export function CourseQuizzesPage() {
       ["C", qForm.respuesta_correcta_c],
       ["D", qForm.respuesta_correcta_d],
     ];
-    const hasVariants = variantAnswers.some(([, answer]) => answer.trim().length > 0);
+    const hasVariants = !usesExamQuestionVariants && variantAnswers.some(([, answer]) => answer.trim().length > 0);
 
     if (qForm.tipo === "opcion_unica") {
       const options = [
@@ -452,23 +479,69 @@ export function CourseQuizzesPage() {
       });
     }
 
-    const editingContribution =
-      qEditing && qEditing.estado === "activo" ? Number(qEditing.puntos || "0") : 0;
-    const activePointsWithoutCurrent = roundPoints(Math.max(questionStats.pointsSum - editingContribution, 0));
+    let activePointsWithoutCurrent = 0;
     const nextContribution = qForm.estado === "activo" && Number.isFinite(points) && points > 0 ? points : 0;
-    const projectedPoints = roundPoints(activePointsWithoutCurrent + nextContribution);
-    const availablePoints = roundPoints(Math.max(configuredTotalPoints - activePointsWithoutCurrent, 0));
+    let projectedPoints = nextContribution;
+    let availablePoints = configuredTotalPoints;
 
-    if (
-      qForm.estado === "activo" &&
-      Number.isFinite(points) &&
-      points > 0 &&
-      configuredTotalPoints > 0 &&
-      projectedPoints - configuredTotalPoints > 1e-9
-    ) {
-      errors.puntos_budget = `Esta pregunta supera el puntaje total del quiz. Disponible: ${formatPoints(
-        availablePoints
-      )} pts de ${formatPoints(configuredTotalPoints)}.`;
+    if (usesExamQuestionVariants) {
+      const totals: Record<QuizVariant, number> = { A: 0, B: 0, C: 0, D: 0 };
+      for (const question of questions) {
+        if (question.estado !== "activo") continue;
+        if (qEditing && question.id === qEditing.id) continue;
+        const questionPoints = Number(question.puntos ?? 0);
+        if (!Number.isFinite(questionPoints) || questionPoints <= 0) continue;
+        for (const variant of ["A", "B", "C", "D"] as QuizVariant[]) {
+          if (!question.variante_objetivo || question.variante_objetivo === variant) {
+            totals[variant] = roundPoints(totals[variant] + questionPoints);
+          }
+        }
+      }
+
+      const affectedVariants = qForm.variante_objetivo
+        ? [qForm.variante_objetivo]
+        : (["A", "B", "C", "D"] as QuizVariant[]);
+      activePointsWithoutCurrent = Math.max(...affectedVariants.map((variant) => totals[variant] ?? 0));
+      availablePoints = roundPoints(
+        Math.min(...affectedVariants.map((variant) => Math.max(configuredTotalPoints - (totals[variant] ?? 0), 0)))
+      );
+      projectedPoints = roundPoints(
+        Math.max(...affectedVariants.map((variant) => (totals[variant] ?? 0) + nextContribution))
+      );
+
+      if (
+        qForm.estado === "activo" &&
+        Number.isFinite(points) &&
+        points > 0 &&
+        configuredTotalPoints > 0
+      ) {
+        const exceededVariant = affectedVariants.find(
+          (variant) => (totals[variant] ?? 0) + nextContribution - configuredTotalPoints > 1e-9
+        );
+        if (exceededVariant) {
+          errors.puntos_budget = `La variante ${exceededVariant} supera el puntaje total del examen. Disponible: ${formatPoints(
+            Math.max(configuredTotalPoints - (totals[exceededVariant] ?? 0), 0)
+          )} pts de ${formatPoints(configuredTotalPoints)}.`;
+        }
+      }
+    } else {
+      const editingContribution =
+        qEditing && qEditing.estado === "activo" ? Number(qEditing.puntos || "0") : 0;
+      activePointsWithoutCurrent = roundPoints(Math.max(questionStats.pointsSum - editingContribution, 0));
+      projectedPoints = roundPoints(activePointsWithoutCurrent + nextContribution);
+      availablePoints = roundPoints(Math.max(configuredTotalPoints - activePointsWithoutCurrent, 0));
+
+      if (
+        qForm.estado === "activo" &&
+        Number.isFinite(points) &&
+        points > 0 &&
+        configuredTotalPoints > 0 &&
+        projectedPoints - configuredTotalPoints > 1e-9
+      ) {
+        errors.puntos_budget = `Esta pregunta supera el puntaje total del quiz. Disponible: ${formatPoints(
+          availablePoints
+        )} pts de ${formatPoints(configuredTotalPoints)}.`;
+      }
     }
 
     return {
@@ -478,7 +551,7 @@ export function CourseQuizzesPage() {
       availablePoints,
       projectedPoints,
     };
-  }, [configuredTotalPoints, qEditing, qForm, questionStats.pointsSum]);
+  }, [configuredTotalPoints, qEditing, qForm, questionStats.pointsSum, questions, usesExamQuestionVariants]);
 
   const selectedAdmissionPricing = useMemo(() => {
     if (form.tipo !== "admision") return null;
@@ -571,6 +644,7 @@ export function CourseQuizzesPage() {
     setQForm({
       enunciado: q.enunciado,
       tipo: q.tipo,
+      variante_objetivo: q.variante_objetivo ?? "",
       opcion_a: q.opcion_a ?? "",
       opcion_b: q.opcion_b ?? "",
       opcion_c: q.opcion_c ?? "",
@@ -601,6 +675,7 @@ export function CourseQuizzesPage() {
       const payload = {
         enunciado: qForm.enunciado.trim(),
         tipo: qForm.tipo,
+        variante_objetivo: qForm.variante_objetivo || null,
         opcion_a: qForm.opcion_a.trim() ? qForm.opcion_a.trim() : null,
         opcion_b: qForm.opcion_b.trim() ? qForm.opcion_b.trim() : null,
         opcion_c: qForm.opcion_c.trim() ? qForm.opcion_c.trim() : null,
@@ -1097,13 +1172,28 @@ export function CourseQuizzesPage() {
               <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-5">
                 <div>
                   <div className="text-sm font-black text-slate-900">Preguntas</div>
-                  <div className="mt-1 text-sm text-slate-600">Agrega preguntas y define respuesta correcta.</div>
+                  <div className="mt-1 text-sm text-slate-600">
+                    {usesExamQuestionVariants
+                      ? "Agrega preguntas y asígnalas a todas las variantes o a una versión específica del examen."
+                      : "Agrega preguntas y define respuesta correcta."}
+                  </div>
                   <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-bold">
                     <Badge variant="slate">Total quiz: {formatPoints(configuredTotalPoints)} pts</Badge>
-                    <Badge variant="blue">Asignado: {formatPoints(questionStats.pointsSum)} pts</Badge>
-                    <Badge variant={remainingPoints === 0 ? "green" : "amber"}>
-                      Disponible: {formatPoints(remainingPoints)} pts
-                    </Badge>
+                    {usesExamQuestionVariants ? (
+                      <>
+                        <Badge variant="blue">A: {formatPoints(variantPointTotals.A)} pts</Badge>
+                        <Badge variant="blue">B: {formatPoints(variantPointTotals.B)} pts</Badge>
+                        <Badge variant="blue">C: {formatPoints(variantPointTotals.C)} pts</Badge>
+                        <Badge variant="blue">D: {formatPoints(variantPointTotals.D)} pts</Badge>
+                      </>
+                    ) : (
+                      <>
+                        <Badge variant="blue">Asignado: {formatPoints(questionStats.pointsSum)} pts</Badge>
+                        <Badge variant={remainingPoints === 0 ? "green" : "amber"}>
+                          Disponible: {formatPoints(remainingPoints)} pts
+                        </Badge>
+                      </>
+                    )}
                   </div>
                 </div>
                 <Button size="sm" onClick={openCreateQuestion} disabled={!selected}>
@@ -1145,6 +1235,7 @@ export function CourseQuizzesPage() {
                             {questionBadge(q.estado)}
                             <Badge variant="blue">{q.tipo}</Badge>
                             <Badge variant="slate">{q.puntos} pts</Badge>
+                            {selected?.tipo === "admision" ? questionTargetVariantBadge(q.variante_objetivo) : null}
                             {hasQuestionVariants(q) ? <Badge variant="amber">Variantes A-D</Badge> : null}
                           </div>
                           <div className="mt-3 text-sm font-semibold text-slate-900 whitespace-pre-wrap">
@@ -1288,11 +1379,29 @@ export function CourseQuizzesPage() {
                   <div className="mt-1 text-xs text-slate-500">Activas / total: {questionStats.total}</div>
                 </Card>
                 <Card className="p-5">
-                  <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Puntos (activos)</div>
-                  <div className="mt-2 text-2xl font-black text-slate-900">{formatPoints(questionStats.pointsSum)}</div>
-                  <div className="mt-1 text-xs text-slate-500">
-                    Puntaje total configurado: {formatPoints(configuredTotalPoints)}
+                  <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
+                    {usesExamQuestionVariants ? "Puntaje por variante" : "Puntos (activos)"}
                   </div>
+                  {usesExamQuestionVariants ? (
+                    <>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Badge variant="blue">A: {formatPoints(variantPointTotals.A)}</Badge>
+                        <Badge variant="blue">B: {formatPoints(variantPointTotals.B)}</Badge>
+                        <Badge variant="blue">C: {formatPoints(variantPointTotals.C)}</Badge>
+                        <Badge variant="blue">D: {formatPoints(variantPointTotals.D)}</Badge>
+                      </div>
+                      <div className="mt-2 text-xs text-slate-500">
+                        Cada variante debe quedar dentro de {formatPoints(configuredTotalPoints)} pts.
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mt-2 text-2xl font-black text-slate-900">{formatPoints(questionStats.pointsSum)}</div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        Puntaje total configurado: {formatPoints(configuredTotalPoints)}
+                      </div>
+                    </>
+                  )}
                 </Card>
               </div>
 
@@ -1306,9 +1415,11 @@ export function CourseQuizzesPage() {
                 <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
                   {questionStats.activeCount === 0
                     ? "No hay preguntas activas. Publicar no tendrá efecto hasta que agregues preguntas."
-                    : questionStats.pointsSum === configuredTotalPoints
-                      ? "Los puntos de las preguntas activas coinciden con el puntaje total."
-                      : `Aún faltan ${formatPoints(remainingPoints)} pts para completar el puntaje total del quiz.`}
+                    : usesExamQuestionVariants
+                      ? "En admisión, cada variante del examen puede tener preguntas distintas. Revisa que A, B, C y D queden equilibradas según el puntaje total."
+                      : questionStats.pointsSum === configuredTotalPoints
+                        ? "Los puntos de las preguntas activas coinciden con el puntaje total."
+                        : `Aún faltan ${formatPoints(remainingPoints)} pts para completar el puntaje total del quiz.`}
                 </div>
               </Card>
             </div>
@@ -1329,6 +1440,7 @@ export function CourseQuizzesPage() {
             available: questionValidation.availablePoints,
             projectedTotal: questionValidation.projectedPoints,
           }}
+          allowTargetVariant={usesExamQuestionVariants}
           onChange={setQForm}
           onClose={() => {
             setQModal(false);
@@ -1359,6 +1471,7 @@ function QuestionModal({
   value,
   errors,
   budget,
+  allowTargetVariant,
   onChange,
   onClose,
   onSave,
@@ -1373,6 +1486,7 @@ function QuestionModal({
     available: number;
     projectedTotal: number;
   };
+  allowTargetVariant: boolean;
   onChange: (v: QuestionForm) => void;
   onClose: () => void;
   onSave: () => void;
@@ -1484,6 +1598,31 @@ function QuestionModal({
             </div>
           </div>
 
+          {allowTargetVariant ? (
+            <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4">
+              <div className="text-sm font-black text-slate-900">Variante del examen</div>
+              <div className="mt-1 text-xs font-semibold text-slate-600">
+                Usa esta opción para crear una pregunta distinta para `Todas`, `A`, `B`, `C` o `D`.
+                El alumno solo verá las preguntas de la variante que le toque.
+              </div>
+              <div className="mt-3 max-w-sm">
+                <select
+                  value={value.variante_objetivo}
+                  onChange={(e) =>
+                    onChange({ ...value, variante_objetivo: (e.target.value as QuizVariant | "") ?? "" })
+                  }
+                  className="w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none ring-amber-500 focus:ring-2"
+                >
+                  <option value="">Todas las variantes</option>
+                  <option value="A">Solo variante A</option>
+                  <option value="B">Solo variante B</option>
+                  <option value="C">Solo variante C</option>
+                  <option value="D">Solo variante D</option>
+                </select>
+              </div>
+            </div>
+          ) : null}
+
           {showOptions ? (
             <div>
               <div className="grid gap-3 md:grid-cols-2">
@@ -1553,6 +1692,7 @@ function QuestionModal({
             </div>
           </div>
 
+          {!allowTargetVariant ? (
           <div className="rounded-2xl border border-cyan-100 bg-cyan-50/60 p-4">
             <div className="text-sm font-black text-slate-900">Variantes A/B/C/D (opcional)</div>
             <div className="mt-1 text-xs font-semibold text-slate-600">
@@ -1604,6 +1744,7 @@ function QuestionModal({
               ))}
             </div>
           </div>
+          ) : null}
 
           <div>
             <div className="text-xs font-extrabold text-slate-700">Explicación (opcional)</div>

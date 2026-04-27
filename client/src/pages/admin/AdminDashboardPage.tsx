@@ -249,7 +249,6 @@ export function AdminDashboardPage() {
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Badge variant={roleVariant}>{role}</Badge>
                     <Badge variant={stateVariant}>{user?.estado ?? "—"}</Badge>
-                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">ID #{user?.id ?? "—"}</span>
                   </div>
                 </div>
               </div>

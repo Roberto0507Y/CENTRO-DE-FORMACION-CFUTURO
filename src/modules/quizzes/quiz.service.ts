@@ -10,9 +10,13 @@ import {
   remainingAdmissionAttempts,
 } from "./quiz-admission";
 import type {
+  AdmissionAttemptAnswerItem,
+  AdmissionAttemptDetail,
   AdmissionResultItem,
+  AdmissionStudentDetail,
   AttemptResult,
   CreateQuestionInput,
+  UpdateAdmissionAttemptScoreInput,
   CreateQuizInput,
   Quiz,
   QuizQuestion,
@@ -115,6 +119,17 @@ function normalizeOptionalAnswer(value: string | null | undefined): string | nul
 
 function isDuplicateEntry(err: unknown): boolean {
   return typeof err === "object" && err !== null && (err as { code?: unknown }).code === "ER_DUP_ENTRY";
+}
+
+function admissionVariantPaths(): QuizVariant[] {
+  return ["A", "B", "C", "D"];
+}
+
+function questionMatchesVariantPath(
+  question: Pick<QuizQuestion, "variante_objetivo" | "estado">,
+  variant: QuizVariant
+): boolean {
+  return question.estado === "activo" && (!question.variante_objetivo || question.variante_objetivo === variant);
 }
 
 export class QuizService {
@@ -265,6 +280,144 @@ export class QuizService {
     return this.repo.listAdmissionResults(courseId, quizId);
   }
 
+  async getAdmissionStudentDetail(
+    requester: AuthContext,
+    courseId: number,
+    quizId: number,
+    studentId: number
+  ): Promise<AdmissionStudentDetail> {
+    const course = await this.repo.findCourse(courseId);
+    if (!course) throw notFound("Curso no encontrado");
+    this.assertCanManage(requester, course.docente_id);
+
+    const quiz = await this.repo.findQuizById(courseId, quizId);
+    if (!quiz) throw notFound("Quiz no encontrado");
+    if (quiz.tipo !== "admision") {
+      throw badRequest("Este detalle solo aplica a exámenes de admisión");
+    }
+
+    const summary = await this.repo.findAdmissionResultForStudent(courseId, quizId, studentId);
+    if (!summary) {
+      throw notFound("No hay resultados de admisión para este alumno");
+    }
+
+    const attempts = await this.repo.listAdmissionAttemptsForStudent(quizId, studentId);
+    const attemptIds = attempts.map((attempt) => attempt.id);
+    const answerRows = await this.repo.listAdmissionAttemptAnswers(attemptIds);
+    const answersByAttempt = new Map<number, AdmissionAttemptAnswerItem[]>();
+    const attemptVariantById = new Map<number, QuizVariant | null>(
+      attempts.map((attempt) => [attempt.id, attempt.variante] as const)
+    );
+
+    for (const row of answerRows) {
+      const attemptVariant = attemptVariantById.get(row.intento_id) ?? null;
+      const current = answersByAttempt.get(row.intento_id) ?? [];
+      current.push({
+        intento_id: row.intento_id,
+        pregunta_id: row.pregunta_id,
+        orden: row.orden,
+        enunciado: row.enunciado,
+        tipo: row.tipo,
+        respuesta_usuario: row.respuesta_usuario,
+        respuesta_correcta_publicada: resolvedCorrectAnswer(
+          {
+            tipo: row.tipo,
+            opcion_a: row.opcion_a,
+            opcion_b: row.opcion_b,
+            opcion_c: row.opcion_c,
+            opcion_d: row.opcion_d,
+            respuesta_correcta: row.respuesta_correcta,
+            respuesta_correcta_a: row.respuesta_correcta_a,
+            respuesta_correcta_b: row.respuesta_correcta_b,
+            respuesta_correcta_c: row.respuesta_correcta_c,
+            respuesta_correcta_d: row.respuesta_correcta_d,
+          },
+          attemptVariant
+        ),
+        es_correcta: row.es_correcta === 1,
+        puntos_pregunta: Number(row.puntos_pregunta ?? 0),
+        puntos_obtenidos: Number(row.puntos_obtenidos ?? 0),
+        explicacion: row.explicacion,
+      });
+      answersByAttempt.set(row.intento_id, current);
+    }
+
+    const totalPoints = Number(quiz.puntaje_total);
+    const approvalThreshold = Number(quiz.porcentaje_aprobacion);
+    const attemptsDetail: AdmissionAttemptDetail[] = attempts.map((attempt) => {
+      const score = attempt.puntaje_obtenido === null ? null : Number(attempt.puntaje_obtenido);
+      const percentage = score === null ? null : admissionPercent(score, totalPoints);
+      return {
+        id: attempt.id,
+        estudiante_id: attempt.estudiante_id,
+        numero_intento: attempt.numero_intento,
+        variante: attempt.variante,
+        puntaje_obtenido: score,
+        puntaje_total: totalPoints,
+        porcentaje_obtenido: percentage,
+        porcentaje_aprobacion: approvalThreshold,
+        aprobado: score === null ? false : admissionPassed(score, totalPoints, approvalThreshold),
+        completado: attempt.completado === 1,
+        fecha_inicio: attempt.fecha_inicio,
+        fecha_fin: attempt.fecha_fin,
+        created_at: attempt.created_at,
+        updated_at: attempt.updated_at,
+        respuestas: answersByAttempt.get(attempt.id) ?? [],
+      };
+    });
+
+    return {
+      ...summary,
+      quiz_id: quiz.id,
+      quiz_titulo: quiz.titulo,
+      intentos_permitidos: quiz.intentos_permitidos,
+      requiere_pago_reintento: quiz.requiere_pago_reintento === 1,
+      intentos_detalle: attemptsDetail,
+    };
+  }
+
+  async updateAdmissionAttemptScore(
+    requester: AuthContext,
+    courseId: number,
+    quizId: number,
+    attemptId: number,
+    input: UpdateAdmissionAttemptScoreInput
+  ): Promise<AdmissionStudentDetail> {
+    const course = await this.repo.findCourse(courseId);
+    if (!course) throw notFound("Curso no encontrado");
+    this.assertCanManage(requester, course.docente_id);
+
+    const quiz = await this.repo.findQuizById(courseId, quizId);
+    if (!quiz) throw notFound("Quiz no encontrado");
+    if (quiz.tipo !== "admision") {
+      throw badRequest("Esta acción solo aplica a exámenes de admisión");
+    }
+
+    const nextScore = roundPoints(Number(input.puntaje_obtenido));
+    const totalPoints = Number(quiz.puntaje_total);
+    if (!Number.isFinite(nextScore) || nextScore < 0) {
+      throw badRequest("La nota debe ser un número válido mayor o igual a 0");
+    }
+    if (nextScore - totalPoints > POINT_EPSILON) {
+      throw badRequest(`La nota no puede exceder ${formatPoints(totalPoints)} pts.`);
+    }
+
+    const studentId = await withTransaction(async (conn) => {
+      const attempt = await this.repo.findAttemptById(conn, attemptId);
+      if (!attempt) throw notFound("Intento no encontrado");
+      if (attempt.quiz_id !== quizId) throw badRequest("Intento inválido para este examen");
+      if (attempt.completado !== 1) {
+        throw badRequest("Solo puedes corregir intentos completados");
+      }
+
+      const affected = await this.repo.updateAttemptScore(conn, attemptId, nextScore);
+      if (affected === 0) throw notFound("Intento no encontrado");
+      return attempt.estudiante_id;
+    });
+
+    return this.getAdmissionStudentDetail(requester, courseId, quizId, studentId);
+  }
+
   async createQuiz(requester: AuthContext, courseId: number, input: CreateQuizInput): Promise<Quiz> {
     const course = await this.repo.findCourse(courseId);
     if (!course) throw notFound("Curso no encontrado");
@@ -304,13 +457,19 @@ export class QuizService {
     const course = await this.repo.findCourse(courseId);
     if (!course) throw notFound("Curso no encontrado");
     this.assertCanManage(requester, course.docente_id);
+    const quiz = await this.repo.findQuizById(courseId, quizId);
+    if (!quiz) throw notFound("Quiz no encontrado");
 
     if (input.puntaje_total !== undefined) {
-      const activePoints = await this.repo.sumActiveQuestionPoints(quizId);
-      if (exceedsPointBudget(activePoints, input.puntaje_total)) {
-        throw badRequest(
-          `El puntaje total no puede ser menor que la suma de preguntas activas (${formatPoints(activePoints)} pts).`
-        );
+      if (quiz.tipo === "admision") {
+        await this.assertQuizTotalFitsAllVariants(quiz, quizId, input.puntaje_total);
+      } else {
+        const activePoints = await this.repo.sumActiveQuestionPoints(quizId);
+        if (exceedsPointBudget(activePoints, input.puntaje_total)) {
+          throw badRequest(
+            `El puntaje total no puede ser menor que la suma de preguntas activas (${formatPoints(activePoints)} pts).`
+          );
+        }
       }
     }
 
@@ -371,13 +530,21 @@ export class QuizService {
     if (!quiz) throw notFound("Quiz no encontrado");
 
     this.validateQuestion(input);
-    await this.assertQuestionFitsBudget(quiz, quizId, input.estado ?? "activo", input.puntos ?? 1);
+    await this.assertQuestionFitsBudget(
+      quiz,
+      quizId,
+      input.estado ?? "activo",
+      input.puntos ?? 1,
+      undefined,
+      input.variante_objetivo ?? null
+    );
 
     const id = await withTransaction(async (conn) => {
       return this.repo.createQuestion(conn, quizId, {
         quiz_id: quizId,
         enunciado: input.enunciado.trim(),
         tipo: input.tipo,
+        variante_objetivo: input.variante_objetivo ?? null,
         opcion_a: input.opcion_a ?? null,
         opcion_b: input.opcion_b ?? null,
         opcion_c: input.opcion_c ?? null,
@@ -423,6 +590,7 @@ export class QuizService {
     const nextQuestion: CreateQuestionInput = {
       enunciado: input.enunciado ?? current.enunciado,
       tipo: input.tipo ?? current.tipo,
+      variante_objetivo: input.variante_objetivo ?? current.variante_objetivo,
       opcion_a: input.opcion_a ?? current.opcion_a,
       opcion_b: input.opcion_b ?? current.opcion_b,
       opcion_c: input.opcion_c ?? current.opcion_c,
@@ -439,12 +607,20 @@ export class QuizService {
     };
 
     this.validateQuestion(nextQuestion);
-    await this.assertQuestionFitsBudget(quiz, quizId, nextQuestion.estado ?? "activo", nextQuestion.puntos ?? 1, current.id);
+    await this.assertQuestionFitsBudget(
+      quiz,
+      quizId,
+      nextQuestion.estado ?? "activo",
+      nextQuestion.puntos ?? 1,
+      current.id,
+      nextQuestion.variante_objetivo ?? null
+    );
 
     await withTransaction(async (conn) => {
       const affected = await this.repo.updateQuestion(conn, quizId, questionId, {
         ...input,
         enunciado: input.enunciado?.trim(),
+        variante_objetivo: input.variante_objetivo,
         respuesta_correcta: input.respuesta_correcta?.trim(),
         respuesta_correcta_a: normalizeOptionalAnswer(input.respuesta_correcta_a),
         respuesta_correcta_b: normalizeOptionalAnswer(input.respuesta_correcta_b),
@@ -507,9 +683,9 @@ export class QuizService {
       if (!enrolled) throw forbidden("No tienes acceso a este curso");
     }
 
-    const preguntas = await this.repo.listActiveQuestionsPublic(quizId);
-    if (preguntas.length === 0) throw badRequest("Este quiz no tiene preguntas activas");
     const variante = (await this.repo.quizHasVariants(quizId)) ? randomVariant() : null;
+    const preguntas = await this.repo.listActiveQuestionsPublic(quizId, variante);
+    if (preguntas.length === 0) throw badRequest("Este quiz no tiene preguntas activas");
 
     const { intentoId, numeroIntento } = await withTransaction(async (conn) => {
       for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -587,7 +763,7 @@ export class QuizService {
       if (intento.estudiante_id !== requester.userId) throw forbidden("No autorizado");
       if (intento.completado === 1) throw forbidden("Este intento ya fue enviado");
 
-      const checks = await this.repo.listAnswerChecks(conn, quizId);
+      const checks = await this.repo.listAnswerChecks(conn, quizId, intento.variante ?? null);
       const answersByQuestion = new Map<number, string | null>();
       input.respuestas.forEach((r) => {
         answersByQuestion.set(r.pregunta_id, r.respuesta_usuario ?? null);
@@ -701,24 +877,78 @@ export class QuizService {
     }
   }
 
+  private async getAdmissionVariantTotals(
+    quizId: number,
+    excludeQuestionId?: number
+  ): Promise<Record<QuizVariant, number>> {
+    const questions = await this.repo.listQuestions(quizId);
+    const filtered = excludeQuestionId ? questions.filter((question) => question.id !== excludeQuestionId) : questions;
+    const totals: Record<QuizVariant, number> = { A: 0, B: 0, C: 0, D: 0 };
+
+    for (const question of filtered) {
+      const points = Number(question.puntos ?? 0);
+      if (!Number.isFinite(points) || points <= 0 || question.estado !== "activo") continue;
+      for (const variant of admissionVariantPaths()) {
+        if (questionMatchesVariantPath(question, variant)) {
+          totals[variant] = roundPoints(totals[variant] + points);
+        }
+      }
+    }
+
+    return totals;
+  }
+
+  private async assertQuizTotalFitsAllVariants(quiz: Quiz, quizId: number, configuredTotal: number): Promise<void> {
+    if (quiz.tipo !== "admision") return;
+    const totals = await this.getAdmissionVariantTotals(quizId);
+    const highest = Math.max(...Object.values(totals));
+    if (highest - configuredTotal > POINT_EPSILON) {
+      const exceeded = admissionVariantPaths().find((variant) => totals[variant] === highest) ?? "A";
+      throw badRequest(
+        `La variante ${exceeded} suma ${formatPoints(highest)} pts y supera el puntaje total configurado (${formatPoints(
+          configuredTotal
+        )} pts).`
+      );
+    }
+  }
+
   private async assertQuestionFitsBudget(
     quiz: Quiz,
     quizId: number,
     status: QuestionStatus,
     points: number,
-    excludeQuestionId?: number
+    excludeQuestionId?: number,
+    targetVariant?: QuizVariant | null
   ): Promise<void> {
     if (status !== "activo") return;
 
     const configuredTotal = Number(quiz.puntaje_total);
     const nextPoints = Number(points ?? 0);
-    const usedPoints = await this.repo.sumActiveQuestionPoints(quizId, excludeQuestionId);
-    const projectedTotal = usedPoints + nextPoints;
 
     if (!Number.isFinite(configuredTotal) || configuredTotal <= 0) {
       throw badRequest("Configura primero un puntaje total válido en el quiz.");
     }
 
+    if (quiz.tipo === "admision") {
+      const totals = await this.getAdmissionVariantTotals(quizId, excludeQuestionId);
+      const affectedVariants = targetVariant ? [targetVariant] : admissionVariantPaths();
+
+      for (const variant of affectedVariants) {
+        const projectedTotal = totals[variant] + nextPoints;
+        if (exceedsPointBudget(projectedTotal, configuredTotal)) {
+          const availablePoints = Math.max(configuredTotal - totals[variant], 0);
+          throw badRequest(
+            `La variante ${variant} excede el puntaje total del examen. Disponible: ${formatPoints(
+              availablePoints
+            )} pts de ${formatPoints(configuredTotal)}.`
+          );
+        }
+      }
+      return;
+    }
+
+    const usedPoints = await this.repo.sumActiveQuestionPoints(quizId, excludeQuestionId);
+    const projectedTotal = usedPoints + nextPoints;
     if (exceedsPointBudget(projectedTotal, configuredTotal)) {
       const availablePoints = Math.max(configuredTotal - usedPoints, 0);
       throw badRequest(

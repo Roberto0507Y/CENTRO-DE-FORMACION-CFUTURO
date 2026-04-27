@@ -5,6 +5,7 @@ import { requireRole } from "../../middlewares/role.middleware";
 import { validate } from "../../middlewares/validate.middleware";
 import { QuizController } from "./quiz.controller";
 import {
+  admissionStudentParamsSchema,
   attemptParamsSchema,
   courseIdParamsSchema,
   createQuestionBodySchema,
@@ -13,6 +14,7 @@ import {
   questionIdParamsSchema,
   quizIdParamsSchema,
   submitQuizBodySchema,
+  updateAdmissionAttemptScoreBodySchema,
   updateQuestionBodySchema,
   updateQuizBodySchema,
 } from "./quiz.schema";
@@ -36,6 +38,20 @@ router.get(
   requireRole("admin", "docente"),
   validate({ params: quizIdParamsSchema }),
   asyncHandler(controller.admissionResults)
+);
+
+router.get(
+  "/:quizId/admission-results/:studentId",
+  requireRole("admin", "docente"),
+  validate({ params: admissionStudentParamsSchema }),
+  asyncHandler(controller.admissionStudentDetail)
+);
+
+router.patch(
+  "/:quizId/admission-attempts/:attemptId/score",
+  requireRole("admin", "docente"),
+  validate({ params: attemptParamsSchema, body: updateAdmissionAttemptScoreBodySchema }),
+  asyncHandler(controller.updateAdmissionAttemptScore)
 );
 
 router.get("/:quizId", validate({ params: quizIdParamsSchema }), asyncHandler(controller.get));

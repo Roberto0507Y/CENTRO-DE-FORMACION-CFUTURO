@@ -1,6 +1,13 @@
 import type { ResultSetHeader, RowDataPacket, PoolConnection } from "mysql2/promise";
 import { pool } from "../../config/db";
-import type { AdmissionResultItem, Attempt, Quiz, QuizQuestion, QuizStatus, QuizVariant } from "./quiz.types";
+import type {
+  AdmissionResultItem,
+  Attempt,
+  Quiz,
+  QuizQuestion,
+  QuizStatus,
+  QuizVariant,
+} from "./quiz.types";
 
 type CourseRow = RowDataPacket & { id: number; docente_id: number; estado: "borrador" | "publicado" | "oculto" };
 
@@ -13,6 +20,7 @@ type AggregateRow = RowDataPacket & { total: string | number | null };
 type AnswerCheckRow = RowDataPacket & {
   pregunta_id: number;
   tipo: QuizQuestion["tipo"];
+  variante_objetivo: QuizVariant | null;
   opcion_a: string | null;
   opcion_b: string | null;
   opcion_c: string | null;
@@ -44,6 +52,28 @@ type AdmissionResultRow = RowDataPacket & {
   porcentaje_aprobacion: string | number;
   fecha_ultimo_intento: string | null;
   fecha_ultimo_pago: string | null;
+};
+type AdmissionAttemptDetailRow = RowDataPacket & Attempt;
+type AdmissionAttemptAnswerRow = RowDataPacket & {
+  intento_id: number;
+  pregunta_id: number;
+  orden: number;
+  enunciado: string;
+  tipo: QuizQuestion["tipo"];
+  respuesta_usuario: string | null;
+  es_correcta: 0 | 1;
+  puntos_pregunta: string | number;
+  puntos_obtenidos: string | number;
+  explicacion: string | null;
+  opcion_a: string | null;
+  opcion_b: string | null;
+  opcion_c: string | null;
+  opcion_d: string | null;
+  respuesta_correcta: string;
+  respuesta_correcta_a: string | null;
+  respuesta_correcta_b: string | null;
+  respuesta_correcta_c: string | null;
+  respuesta_correcta_d: string | null;
 };
 
 export class QuizRepository {
@@ -103,6 +133,11 @@ export class QuizRepository {
       "intentos_quiz",
       "variante",
       "ALTER TABLE intentos_quiz ADD COLUMN variante VARCHAR(1) NULL AFTER numero_intento"
+    );
+    await QuizRepository.addColumnIfMissing(
+      "preguntas_quiz",
+      "variante_objetivo",
+      "ALTER TABLE preguntas_quiz ADD COLUMN variante_objetivo VARCHAR(1) NULL AFTER tipo"
     );
 
     QuizRepository.variantsEnsured = true;
@@ -230,8 +265,41 @@ export class QuizRepository {
     return rows[0] ?? null;
   }
 
-  async listAdmissionResults(courseId: number, quizId: number): Promise<AdmissionResultItem[]> {
+  private mapAdmissionResults(rows: AdmissionResultRow[]): AdmissionResultItem[] {
+    return rows.map((row) => {
+      const bestScore = row.mejor_puntaje === null || row.mejor_puntaje === undefined ? null : Number(row.mejor_puntaje);
+      const total = Number(row.puntaje_total);
+      const threshold = Number(row.porcentaje_aprobacion);
+      const percentage = bestScore !== null && total > 0 ? Math.round(((bestScore / total) * 100 + Number.EPSILON) * 100) / 100 : null;
+      return {
+        usuario_id: row.usuario_id,
+        nombres: row.nombres,
+        apellidos: row.apellidos,
+        correo: row.correo,
+        pago_estado: row.pago_estado ?? "sin_pago",
+        intentos: Number(row.intentos ?? 0),
+        completados: Number(row.completados ?? 0),
+        mejor_puntaje: bestScore !== null && Number.isFinite(bestScore) ? bestScore : null,
+        puntaje_total: Number.isFinite(total) ? total : 0,
+        porcentaje: percentage,
+        porcentaje_aprobacion: Number.isFinite(threshold) ? threshold : 0,
+        aprobado: percentage !== null && percentage + 1e-9 >= threshold,
+        fecha_ultimo_intento: row.fecha_ultimo_intento,
+        fecha_ultimo_pago: row.fecha_ultimo_pago,
+      };
+    });
+  }
+
+  private async queryAdmissionResults(
+    courseId: number,
+    quizId: number,
+    studentId?: number
+  ): Promise<AdmissionResultItem[]> {
     await QuizRepository.ensureQuizColumns();
+    const studentFilter = studentId ? "AND u.id = ?" : "";
+    const params: Array<number> = studentId
+      ? [quizId, courseId, quizId, courseId, quizId, courseId, studentId]
+      : [quizId, courseId, quizId, courseId, quizId, courseId];
     const [rows] = await pool.query<AdmissionResultRow[]>(
       `SELECT
          u.id AS usuario_id,
@@ -290,32 +358,74 @@ export class QuizRepository {
        WHERE q.id = ?
          AND q.curso_id = ?
          AND q.tipo = 'admision'
+         ${studentFilter}
        ORDER BY u.apellidos ASC, u.nombres ASC, u.id ASC`,
-      [quizId, courseId, quizId, courseId, quizId, courseId]
+      params
     );
 
-    return rows.map((row) => {
-      const bestScore = row.mejor_puntaje === null || row.mejor_puntaje === undefined ? null : Number(row.mejor_puntaje);
-      const total = Number(row.puntaje_total);
-      const threshold = Number(row.porcentaje_aprobacion);
-      const percentage = bestScore !== null && total > 0 ? Math.round(((bestScore / total) * 100 + Number.EPSILON) * 100) / 100 : null;
-      return {
-        usuario_id: row.usuario_id,
-        nombres: row.nombres,
-        apellidos: row.apellidos,
-        correo: row.correo,
-        pago_estado: row.pago_estado ?? "sin_pago",
-        intentos: Number(row.intentos ?? 0),
-        completados: Number(row.completados ?? 0),
-        mejor_puntaje: bestScore !== null && Number.isFinite(bestScore) ? bestScore : null,
-        puntaje_total: Number.isFinite(total) ? total : 0,
-        porcentaje: percentage,
-        porcentaje_aprobacion: Number.isFinite(threshold) ? threshold : 0,
-        aprobado: percentage !== null && percentage + 1e-9 >= threshold,
-        fecha_ultimo_intento: row.fecha_ultimo_intento,
-        fecha_ultimo_pago: row.fecha_ultimo_pago,
-      };
-    });
+    return this.mapAdmissionResults(rows);
+  }
+
+  async listAdmissionResults(courseId: number, quizId: number): Promise<AdmissionResultItem[]> {
+    return this.queryAdmissionResults(courseId, quizId);
+  }
+
+  async findAdmissionResultForStudent(
+    courseId: number,
+    quizId: number,
+    studentId: number
+  ): Promise<AdmissionResultItem | null> {
+    const rows = await this.queryAdmissionResults(courseId, quizId, studentId);
+    return rows[0] ?? null;
+  }
+
+  async listAdmissionAttemptsForStudent(quizId: number, studentId: number): Promise<Attempt[]> {
+    await QuizRepository.ensureVariantColumns();
+    const [rows] = await pool.query<AdmissionAttemptDetailRow[]>(
+      `SELECT
+        id, quiz_id, estudiante_id, numero_intento, variante, puntaje_obtenido, completado,
+        fecha_inicio, fecha_fin, created_at, updated_at
+       FROM intentos_quiz
+       WHERE quiz_id = ? AND estudiante_id = ?
+       ORDER BY numero_intento DESC, id DESC`,
+      [quizId, studentId]
+    );
+    return rows;
+  }
+
+  async listAdmissionAttemptAnswers(attemptIds: number[]): Promise<AdmissionAttemptAnswerRow[]> {
+    await QuizRepository.ensureVariantColumns();
+    if (attemptIds.length === 0) return [];
+
+    const placeholders = attemptIds.map(() => "?").join(", ");
+    const [rows] = await pool.query<AdmissionAttemptAnswerRow[]>(
+      `SELECT
+         r.intento_id,
+         q.id AS pregunta_id,
+         q.orden,
+         q.enunciado,
+         q.tipo,
+         r.respuesta_usuario,
+         r.es_correcta,
+         q.puntos AS puntos_pregunta,
+         r.puntos_obtenidos,
+         q.explicacion,
+         q.opcion_a,
+         q.opcion_b,
+         q.opcion_c,
+         q.opcion_d,
+         q.respuesta_correcta,
+         q.respuesta_correcta_a,
+         q.respuesta_correcta_b,
+         q.respuesta_correcta_c,
+         q.respuesta_correcta_d
+       FROM respuestas_intento_quiz r
+       JOIN preguntas_quiz q ON q.id = r.pregunta_id
+       WHERE r.intento_id IN (${placeholders})
+       ORDER BY r.intento_id DESC, q.orden ASC, q.id ASC`,
+      attemptIds
+    );
+    return rows;
   }
 
   async createQuiz(conn: PoolConnection, courseId: number, input: Omit<Quiz, "id" | "created_at" | "updated_at">): Promise<number> {
@@ -407,7 +517,7 @@ export class QuizRepository {
     await QuizRepository.ensureVariantColumns();
     const [rows] = await pool.query<QuestionRow[]>(
       `SELECT
-        id, quiz_id, enunciado, tipo, opcion_a, opcion_b, opcion_c, opcion_d,
+        id, quiz_id, enunciado, tipo, variante_objetivo, opcion_a, opcion_b, opcion_c, opcion_d,
         respuesta_correcta, respuesta_correcta_a, respuesta_correcta_b,
         respuesta_correcta_c, respuesta_correcta_d,
         explicacion, puntos, orden, estado, created_at, updated_at
@@ -436,7 +546,7 @@ export class QuizRepository {
     await QuizRepository.ensureVariantColumns();
     const [rows] = await pool.query<QuestionRow[]>(
       `SELECT
-        id, quiz_id, enunciado, tipo, opcion_a, opcion_b, opcion_c, opcion_d,
+        id, quiz_id, enunciado, tipo, variante_objetivo, opcion_a, opcion_b, opcion_c, opcion_d,
         respuesta_correcta, respuesta_correcta_a, respuesta_correcta_b,
         respuesta_correcta_c, respuesta_correcta_d,
         explicacion, puntos, orden, estado, created_at, updated_at
@@ -448,38 +558,44 @@ export class QuizRepository {
     return rows[0] ?? null;
   }
 
-  async listActiveQuestions(quizId: number): Promise<QuizQuestion[]> {
+  async listActiveQuestions(quizId: number, variant?: QuizVariant | null): Promise<QuizQuestion[]> {
     await QuizRepository.ensureVariantColumns();
+    const variantSql = variant ? "AND (variante_objetivo IS NULL OR variante_objetivo = ?)" : "";
+    const params: Array<number | string> = variant ? [quizId, variant] : [quizId];
     const [rows] = await pool.query<QuestionRow[]>(
       `SELECT
-        id, quiz_id, enunciado, tipo, opcion_a, opcion_b, opcion_c, opcion_d,
+        id, quiz_id, enunciado, tipo, variante_objetivo, opcion_a, opcion_b, opcion_c, opcion_d,
         respuesta_correcta, respuesta_correcta_a, respuesta_correcta_b,
         respuesta_correcta_c, respuesta_correcta_d,
         explicacion, puntos, orden, estado, created_at, updated_at
        FROM preguntas_quiz
        WHERE quiz_id = ? AND estado = 'activo'
+       ${variantSql}
        ORDER BY orden ASC, id ASC`,
-      [quizId]
+      params
     );
     return rows;
   }
 
-  async listActiveQuestionsPublic(quizId: number): Promise<Array<Omit<
+  async listActiveQuestionsPublic(quizId: number, variant?: QuizVariant | null): Promise<Array<Omit<
     QuizQuestion,
     "respuesta_correcta" | "respuesta_correcta_a" | "respuesta_correcta_b" | "respuesta_correcta_c" | "respuesta_correcta_d"
   >>> {
     await QuizRepository.ensureVariantColumns();
+    const variantSql = variant ? "AND (variante_objetivo IS NULL OR variante_objetivo = ?)" : "";
+    const params: Array<number | string> = variant ? [quizId, variant] : [quizId];
     const [rows] = await pool.query<(RowDataPacket & Omit<
       QuizQuestion,
       "respuesta_correcta" | "respuesta_correcta_a" | "respuesta_correcta_b" | "respuesta_correcta_c" | "respuesta_correcta_d"
     >)[]>(
       `SELECT
-        id, quiz_id, enunciado, tipo, opcion_a, opcion_b, opcion_c, opcion_d,
+        id, quiz_id, enunciado, tipo, variante_objetivo, opcion_a, opcion_b, opcion_c, opcion_d,
         explicacion, puntos, orden, estado, created_at, updated_at
        FROM preguntas_quiz
        WHERE quiz_id = ? AND estado = 'activo'
+       ${variantSql}
        ORDER BY orden ASC, id ASC`,
-      [quizId]
+      params
     );
     return rows;
   }
@@ -488,16 +604,17 @@ export class QuizRepository {
     await QuizRepository.ensureVariantColumns();
     const [res] = await conn.execute<ResultSetHeader>(
       `INSERT INTO preguntas_quiz
-        (quiz_id, enunciado, tipo, opcion_a, opcion_b, opcion_c, opcion_d,
+        (quiz_id, enunciado, tipo, variante_objetivo, opcion_a, opcion_b, opcion_c, opcion_d,
          respuesta_correcta, respuesta_correcta_a, respuesta_correcta_b,
          respuesta_correcta_c, respuesta_correcta_d,
          explicacion, puntos, orden, estado, created_at, updated_at)
        VALUES
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         quizId,
         input.enunciado,
         input.tipo,
+        input.variante_objetivo,
         input.opcion_a,
         input.opcion_b,
         input.opcion_c,
@@ -530,6 +647,7 @@ export class QuizRepository {
 
     set("enunciado", "enunciado");
     set("tipo", "tipo");
+    set("variante_objetivo", "variante_objetivo");
     set("opcion_a", "opcion_a");
     set("opcion_b", "opcion_b");
     set("opcion_c", "opcion_c");
@@ -691,17 +809,25 @@ export class QuizRepository {
     return rows[0] ?? null;
   }
 
-  async listAnswerChecks(conn: PoolConnection, quizId: number): Promise<AnswerCheckRow[]> {
+  async listAnswerChecks(
+    conn: PoolConnection,
+    quizId: number,
+    variant: QuizVariant | null
+  ): Promise<AnswerCheckRow[]> {
     await QuizRepository.ensureVariantColumns();
+    const variantSql = variant ? "AND (variante_objetivo IS NULL OR variante_objetivo = ?)" : "AND variante_objetivo IS NULL";
+    const params: Array<number | string> = variant ? [quizId, variant] : [quizId];
     const [rows] = await conn.query<AnswerCheckRow[]>(
       `SELECT
-         id AS pregunta_id, tipo, opcion_a, opcion_b, opcion_c, opcion_d,
+         id AS pregunta_id, tipo, variante_objetivo, opcion_a, opcion_b, opcion_c, opcion_d,
          respuesta_correcta, respuesta_correcta_a, respuesta_correcta_b,
          respuesta_correcta_c, respuesta_correcta_d,
          explicacion, puntos
        FROM preguntas_quiz
-       WHERE quiz_id = ? AND estado = 'activo'`,
-      [quizId]
+       WHERE quiz_id = ? AND estado = 'activo'
+       ${variantSql}
+       ORDER BY orden ASC, id ASC`,
+      params
     );
     return rows;
   }
@@ -713,10 +839,15 @@ export class QuizRepository {
        FROM preguntas_quiz
        WHERE quiz_id = ?
          AND estado = 'activo'
-         AND COALESCE(TRIM(respuesta_correcta_a), '') <> ''
-         AND COALESCE(TRIM(respuesta_correcta_b), '') <> ''
-         AND COALESCE(TRIM(respuesta_correcta_c), '') <> ''
-         AND COALESCE(TRIM(respuesta_correcta_d), '') <> ''`,
+         AND (
+           variante_objetivo IS NOT NULL
+           OR (
+             COALESCE(TRIM(respuesta_correcta_a), '') <> ''
+             AND COALESCE(TRIM(respuesta_correcta_b), '') <> ''
+             AND COALESCE(TRIM(respuesta_correcta_c), '') <> ''
+             AND COALESCE(TRIM(respuesta_correcta_d), '') <> ''
+           )
+         )`,
       [quizId]
     );
     return Number(rows[0]?.total ?? 0) > 0;
@@ -786,6 +917,17 @@ export class QuizRepository {
     const [res] = await conn.execute<ResultSetHeader>(
       `UPDATE intentos_quiz
        SET puntaje_obtenido = ?, completado = 1, fecha_fin = NOW(), updated_at = NOW()
+       WHERE id = ?
+       LIMIT 1`,
+      [score, attemptId]
+    );
+    return res.affectedRows;
+  }
+
+  async updateAttemptScore(conn: PoolConnection, attemptId: number, score: number): Promise<number> {
+    const [res] = await conn.execute<ResultSetHeader>(
+      `UPDATE intentos_quiz
+       SET puntaje_obtenido = ?, updated_at = NOW()
        WHERE id = ?
        LIMIT 1`,
       [score, attemptId]
