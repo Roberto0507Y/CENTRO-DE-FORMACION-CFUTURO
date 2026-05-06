@@ -69,8 +69,6 @@ const envSchema = z.object({
   SMTP_USER: optionalStringFromEnv("SMTP_USER"),
   SMTP_PASSWORD: optionalStringFromEnv("SMTP_PASSWORD"),
   SMTP_FROM: optionalStringFromEnv("SMTP_FROM"),
-  OPENAI_API_KEY: optionalStringFromEnv("OPENAI_API_KEY"),
-  OPENAI_CHATBOT_MODEL: optionalStringFromEnv("OPENAI_CHATBOT_MODEL"),
   FRONTEND_URL: z.preprocess((v) => {
     if (typeof v !== "string") return v;
     const trimmed = v.trim();

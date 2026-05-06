@@ -1,15 +1,9 @@
-import { Suspense, useEffect } from "react";
+import { useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { PublicNavbar } from "../components/layout/PublicNavbar";
 import { PublicFooter } from "../components/layout/PublicFooter";
 import { Container } from "../components/ui/Container";
-import { lazyNamed } from "../utils/lazyNamed";
 import "../styles/public-brand.css";
-
-const PublicChatbot = lazyNamed(
-  () => import("../components/public/PublicChatbot"),
-  "PublicChatbot"
-);
 
 export function PublicLayout() {
   const { pathname, hash } = useLocation();
@@ -61,11 +55,6 @@ export function PublicLayout() {
         )}
       </main>
       {isAuth ? null : <PublicFooter />}
-      {isAuth ? null : (
-        <Suspense fallback={null}>
-          <PublicChatbot />
-        </Suspense>
-      )}
     </div>
   );
 }
