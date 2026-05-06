@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { csrfProtection } from "../middlewares/csrf.middleware";
+import assistantRoutes from "../modules/assistant/assistant.routes";
 import authRoutes from "../modules/auth/auth.routes";
 import adminRoutes from "../modules/admin/admin.routes";
 import categoryRoutes from "../modules/categories/category.routes";
@@ -19,6 +20,7 @@ import userRoutes from "../modules/users/user.routes";
 const router = Router();
 
 router.use(csrfProtection);
+router.use("/assistant", assistantRoutes);
 router.use("/auth", authRoutes);
 router.use("/admin", adminRoutes);
 router.use("/categories", categoryRoutes);

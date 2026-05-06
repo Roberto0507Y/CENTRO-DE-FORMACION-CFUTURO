@@ -1,5 +1,69 @@
 import { MessageCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+
+function FooterInternalLink({
+  to,
+  children,
+  className,
+  ariaLabel,
+}: {
+  to: string;
+  children: React.ReactNode;
+  className?: string;
+  ariaLabel?: string;
+}) {
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const isCurrentRoute = pathname === to;
+
+  return (
+    <Link
+      to={to}
+      aria-label={ariaLabel}
+      onClick={(event) => {
+        if (
+          event.defaultPrevented ||
+          event.button !== 0 ||
+          event.metaKey ||
+          event.altKey ||
+          event.ctrlKey ||
+          event.shiftKey
+        ) {
+          return;
+        }
+
+        event.preventDefault();
+
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+        event.currentTarget.blur();
+
+        const scrollToTop = (behavior: ScrollBehavior) => {
+          window.scrollTo({ top: 0, left: 0, behavior });
+        };
+
+        if (isCurrentRoute) {
+          window.requestAnimationFrame(() => {
+            scrollToTop("smooth");
+          });
+          return;
+        }
+
+        navigate(to);
+
+        window.requestAnimationFrame(() => {
+          scrollToTop("auto");
+          window.setTimeout(() => scrollToTop("auto"), 80);
+          window.setTimeout(() => scrollToTop("auto"), 220);
+        });
+      }}
+      className={className}
+    >
+      {children}
+    </Link>
+  );
+}
 
 export function PublicFooter() {
   return (
@@ -13,7 +77,7 @@ export function PublicFooter() {
       <div className="relative mx-auto max-w-7xl px-6 py-14 lg:px-8">
         <div className="grid gap-12 lg:grid-cols-[1.25fr_0.8fr_1fr]">
           <div>
-            <Link
+            <FooterInternalLink
               to="/"
               aria-label="Ir al inicio"
               className="group inline-flex items-center"
@@ -35,7 +99,7 @@ export function PublicFooter() {
                   draggable={false}
                 />
               </picture>
-            </Link>
+            </FooterInternalLink>
 
             <p className="mt-6 max-w-md text-lg leading-8 text-slate-300">
               C.FUTURO acompaña tu formación con una experiencia académica clara, cercana y
@@ -45,7 +109,7 @@ export function PublicFooter() {
             <div className="mt-8 flex items-center gap-3">
               {[
                 {
-                  href: "https://facebook.com",
+                  href: "https://www.facebook.com/people/Centro-de-formaci%C3%B3n-cfuturo/61589134328967/",
                   label: "Facebook",
                   icon: (
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -57,7 +121,7 @@ export function PublicFooter() {
                   ),
                 },
                 {
-                  href: "https://instagram.com",
+                  href: "https://www.instagram.com/cfuturo_academia/",
                   label: "Instagram",
                   icon: (
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -81,21 +145,22 @@ export function PublicFooter() {
                   ),
                 },
                 {
-                  href: "https://x.com",
-                  label: "X",
+                  href: "https://www.tiktok.com/@cfuturo_academia",
+                  label: "TikTok",
                   icon: (
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                       <path
-                        d="M18 6 6 18M6 6l12 12"
+                        d="M14.5 4c.5 1.7 1.6 3 3.5 3.6v2.4a6.3 6.3 0 0 1-3.5-1.2v6.1a4.9 4.9 0 1 1-4.9-4.9c.3 0 .7 0 1 .1v2.5a2.6 2.6 0 1 0 1.4 2.3V4h2.5Z"
                         stroke="currentColor"
                         strokeWidth="2"
+                        strokeLinejoin="round"
                         strokeLinecap="round"
                       />
                     </svg>
                   ),
                 },
                 {
-                  href: "https://wa.me/50200000000",
+                  href: "https://wa.me/50230178501",
                   label: "WhatsApp",
                   icon: <MessageCircle className="h-5 w-5" />,
                 },
@@ -106,10 +171,10 @@ export function PublicFooter() {
                     href={item.href}
                     target="_blank"
                     rel="noreferrer"
-                    className="cf-public-footer-social group flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-300 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/40 hover:bg-cyan-400/10 hover:text-white"
+                    className="cf-public-footer-social group relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-white/5 text-slate-300 backdrop-blur-sm"
                     aria-label={item.label}
                   >
-                    <span className="transition-transform duration-300 group-hover:scale-110">
+                    <span className="cf-public-footer-social-icon">
                       {item.icon}
                     </span>
                   </a>
@@ -132,12 +197,12 @@ export function PublicFooter() {
                 { label: "Crear cuenta", to: "/auth/register" },
               ].map((item) => (
                 <li key={item.to}>
-                  <Link
+                  <FooterInternalLink
                     to={item.to}
                     className="cf-public-footer-link inline-flex text-lg text-slate-200 transition-all duration-200 hover:translate-x-1 hover:text-cyan-300"
                   >
                     {item.label}
-                  </Link>
+                  </FooterInternalLink>
                 </li>
               ))}
             </ul>
@@ -180,9 +245,9 @@ export function PublicFooter() {
             <a href="#" className="transition duration-200 hover:text-cyan-300">
               Términos
             </a>
-            <Link to="/contact" className="transition duration-200 hover:text-cyan-300">
+            <FooterInternalLink to="/contact" className="transition duration-200 hover:text-cyan-300">
               Contacto
-            </Link>
+            </FooterInternalLink>
           </div>
         </div>
       </div>

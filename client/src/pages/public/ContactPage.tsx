@@ -14,9 +14,9 @@ import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
 import { Reveal } from "../../components/ui/Reveal";
 
-const SUPPORT_EMAIL = "cfuturo.academia@gmail.com";
-const WHATSAPP_NUMBER = "+502 0000 0000";
-const WHATSAPP_LINK = "https://wa.me/50200000000";
+const SUPPORT_EMAIL = "informacion@centrodeformacionparaelfuturo.com";
+const WHATSAPP_NUMBER = "+502 3017 8501";
+const WHATSAPP_LINK = "https://wa.me/50230178501";
 const SUPPORT_HOURS = "Lun a Vie · 8:00 a.m. – 5:00 p.m.";
 
 function FieldLabel({ children }: { children: string }) {

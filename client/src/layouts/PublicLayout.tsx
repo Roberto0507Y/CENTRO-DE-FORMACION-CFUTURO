@@ -1,27 +1,52 @@
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { PublicNavbar } from "../components/layout/PublicNavbar";
 import { PublicFooter } from "../components/layout/PublicFooter";
 import { Container } from "../components/ui/Container";
+import { lazyNamed } from "../utils/lazyNamed";
 import "../styles/public-brand.css";
+
+const PublicChatbot = lazyNamed(
+  () => import("../components/public/PublicChatbot"),
+  "PublicChatbot"
+);
 
 export function PublicLayout() {
   const { pathname, hash } = useLocation();
   const isAuth = pathname.startsWith("/auth/");
 
   useEffect(() => {
-    if (isAuth) return;
-    if (pathname !== "/" || !hash) return;
+    if (!("scrollRestoration" in window.history)) return;
 
-    const id = hash.slice(1);
+    const previous = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
+
+    return () => {
+      window.history.scrollRestoration = previous;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (pathname === "/" && hash) {
+      const id = hash.slice(1);
+      const frame = window.requestAnimationFrame(() => {
+        const target = document.getElementById(id);
+        if (!target) {
+          window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+          return;
+        }
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+
+      return () => window.cancelAnimationFrame(frame);
+    }
+
     const frame = window.requestAnimationFrame(() => {
-      const target = document.getElementById(id);
-      if (!target) return;
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [hash, isAuth, pathname]);
+  }, [hash, pathname]);
 
   return (
     <div className="min-h-full overflow-x-clip bg-slate-50 dark:bg-slate-950">
@@ -36,6 +61,11 @@ export function PublicLayout() {
         )}
       </main>
       {isAuth ? null : <PublicFooter />}
+      {isAuth ? null : (
+        <Suspense fallback={null}>
+          <PublicChatbot />
+        </Suspense>
+      )}
     </div>
   );
 }

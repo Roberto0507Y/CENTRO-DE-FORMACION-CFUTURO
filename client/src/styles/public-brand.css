@@ -175,8 +175,69 @@
   background-color: #020617;
 }
 
+.cf-public-footer-social {
+  transition:
+    transform 220ms ease,
+    box-shadow 220ms ease,
+    border-color 220ms ease,
+    background-color 220ms ease,
+    color 220ms ease;
+}
+
+.cf-public-footer-social::before {
+  content: "";
+  position: absolute;
+  inset: -35%;
+  background: linear-gradient(
+    120deg,
+    transparent 28%,
+    rgba(255, 255, 255, 0.2) 50%,
+    transparent 72%
+  );
+  opacity: 0;
+  transform: translateX(-135%) rotate(18deg);
+  transition:
+    transform 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 220ms ease;
+}
+
+.cf-public-footer-social::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at 50% 50%, rgba(34, 211, 238, 0.18), transparent 70%);
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
 .cf-public-footer-social:hover {
-  box-shadow: 0 12px 24px rgba(34, 211, 238, 0.12);
+  transform: translateY(-4px) scale(1.03);
+  border-color: rgba(34, 211, 238, 0.36);
+  background: rgba(34, 211, 238, 0.1);
+  color: #ffffff;
+  box-shadow:
+    0 16px 28px rgba(34, 211, 238, 0.14),
+    0 0 0 1px rgba(34, 211, 238, 0.08);
+}
+
+.cf-public-footer-social:hover::before {
+  opacity: 1;
+  transform: translateX(135%) rotate(18deg);
+}
+
+.cf-public-footer-social:hover::after {
+  opacity: 1;
+}
+
+.cf-public-footer-social-icon {
+  position: relative;
+  z-index: 1;
+  transition: transform 220ms ease;
+}
+
+.cf-public-footer-social:hover .cf-public-footer-social-icon {
+  transform: scale(1.12) rotate(-4deg);
 }
 
 .cf-public-footer-link:hover {
