@@ -160,6 +160,24 @@ export function PublicFooter() {
                   ),
                 },
                 {
+                  href: "https://www.youtube.com/channel/UCbGucw4Yc_aAHJI6kljNU8w",
+                  label: "YouTube",
+                  icon: (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path
+                        d="M21.6 7.2a2.8 2.8 0 0 0-2-2C17.8 4.7 12 4.7 12 4.7s-5.8 0-7.6.5a2.8 2.8 0 0 0-2 2A29.8 29.8 0 0 0 2 12a29.8 29.8 0 0 0 .4 4.8 2.8 2.8 0 0 0 2 2c1.8.5 7.6.5 7.6.5s5.8 0 7.6-.5a2.8 2.8 0 0 0 2-2A29.8 29.8 0 0 0 22 12a29.8 29.8 0 0 0-.4-4.8Z"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="m10 15.5 5-3.5-5-3.5v7Z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                  ),
+                },
+                {
                   href: "https://wa.me/50230178501",
                   label: "WhatsApp",
                   icon: <MessageCircle className="h-5 w-5" />,
